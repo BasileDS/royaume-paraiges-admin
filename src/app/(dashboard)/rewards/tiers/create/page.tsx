@@ -39,7 +39,7 @@ export default function CreateTierPage() {
     periodType: "weekly" as PeriodType,
     rankFrom: "",
     rankTo: "",
-    couponTemplateId: "",
+    couponTemplateId: "none",
     displayOrder: "0",
     isActive: true,
   });
@@ -66,7 +66,7 @@ export default function CreateTierPage() {
         period_type: form.periodType,
         rank_from: parseInt(form.rankFrom),
         rank_to: parseInt(form.rankTo),
-        coupon_template_id: form.couponTemplateId
+        coupon_template_id: form.couponTemplateId && form.couponTemplateId !== "none"
           ? parseInt(form.couponTemplateId)
           : null,
         display_order: parseInt(form.displayOrder),
@@ -197,7 +197,7 @@ export default function CreateTierPage() {
                   <SelectValue placeholder="Selectionner un template" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun coupon</SelectItem>
+                  <SelectItem value="none">Aucun coupon</SelectItem>
                   {templates.map((template) => (
                     <SelectItem key={template.id} value={template.id.toString()}>
                       {template.name}
