@@ -18,10 +18,17 @@ import {
   AlertCircle,
   ArrowRight,
   Loader2,
+  Users,
+  Receipt,
+  Building2,
+  Beer,
 } from "lucide-react";
 import { getDashboardStats } from "@/lib/services/analyticsService";
 import { getPeriodConfigs } from "@/lib/services/rewardService";
-import { formatDate, getPeriodIdentifier } from "@/lib/utils";
+import { getUserStats } from "@/lib/services/userService";
+import { getReceiptStats } from "@/lib/services/receiptService";
+import { getDirectusStats } from "@/lib/services/directusService";
+import { formatCurrency, formatDate, getPeriodIdentifier } from "@/lib/utils";
 import type { PeriodRewardConfig } from "@/types/database";
 
 interface DashboardStats {
@@ -31,21 +38,52 @@ interface DashboardStats {
   pendingDistributions: number;
 }
 
+interface UserStats {
+  totalUsers: number;
+  totalCustomers: number;
+  totalAdmins: number;
+  newUsersThisMonth: number;
+}
+
+interface ReceiptStats {
+  totalReceipts: number;
+  totalRevenue: number;
+  averageAmount: number;
+  receiptsThisMonth: number;
+  revenueThisMonth: number;
+}
+
+interface DirectusStats {
+  totalEstablishments: number;
+  totalBeers: number;
+  totalBreweries: number;
+  totalStyles: number;
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [receiptStats, setReceiptStats] = useState<ReceiptStats | null>(null);
+  const [directusStats, setDirectusStats] = useState<DirectusStats | null>(null);
   const [pendingPeriods, setPendingPeriods] = useState<PeriodRewardConfig[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dashboardStats, periods] = await Promise.all([
+        const [dashboardStats, periods, users, receipts, directus] = await Promise.all([
           getDashboardStats(),
           getPeriodConfigs(),
+          getUserStats(),
+          getReceiptStats(),
+          getDirectusStats(),
         ]);
 
         setStats(dashboardStats);
         setPendingPeriods(periods?.filter((p) => p.status === "pending") || []);
+        setUserStats(users);
+        setReceiptStats(receipts);
+        setDirectusStats(directus);
       } catch (error) {
         console.error("Erreur lors du chargement des donnees:", error);
       } finally {
@@ -72,12 +110,53 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">
-          Vue d&apos;ensemble du systeme de coupons
+          Vue d&apos;ensemble de l&apos;administration Royaume des Paraiges
         </p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Main Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Utilisateurs</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{userStats?.totalUsers || 0}</div>
+            <p className="text-xs text-muted-foreground">
+              +{userStats?.newUsersThisMonth || 0} ce mois
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Chiffre d&apos;affaires</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(receiptStats?.totalRevenue || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {formatCurrency(receiptStats?.revenueThisMonth || 0)} ce mois
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tickets</CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{receiptStats?.totalReceipts || 0}</div>
+            <p className="text-xs text-muted-foreground">
+              Panier moyen: {formatCurrency(Math.round(receiptStats?.averageAmount || 0))}
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Coupons actifs</CardTitle>
@@ -86,38 +165,37 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{stats?.totalActiveCoupons || 0}</div>
             <p className="text-xs text-muted-foreground">
-              Non utilises et non expires
+              {stats?.couponsUsedThisWeek || 0} utilises cette semaine
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Directus Content Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Etablissements</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{directusStats?.totalEstablishments || 0}</div>
+            <Link href="/content/establishments" className="text-xs text-primary hover:underline">
+              Voir la liste
+            </Link>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Utilises cette semaine
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Bieres</CardTitle>
+            <Beer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.couponsUsedThisWeek || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Semaine {currentWeek}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Distributions ce mois
-            </CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.distributionsThisMonth || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">{currentMonth}</p>
+            <div className="text-2xl font-bold">{directusStats?.totalBeers || 0}</div>
+            <Link href="/content/beers" className="text-xs text-primary hover:underline">
+              Voir le catalogue
+            </Link>
           </CardContent>
         </Card>
 
@@ -137,6 +215,21 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Distributions ce mois
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {stats?.distributionsThisMonth || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">{currentMonth}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -145,10 +238,22 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Actions rapides</CardTitle>
             <CardDescription>
-              Actions frequentes pour la gestion des coupons
+              Actions frequentes pour l&apos;administration
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
+            <Link href="/users">
+              <Button variant="outline" className="w-full justify-between">
+                Voir les utilisateurs
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/receipts">
+              <Button variant="outline" className="w-full justify-between">
+                Voir les tickets de caisse
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
             <Link href="/coupons/create">
               <Button variant="outline" className="w-full justify-between">
                 Creer un coupon manuel
@@ -161,15 +266,9 @@ export default function DashboardPage() {
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/templates/create">
-              <Button variant="outline" className="w-full justify-between">
-                Creer un template
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
             <Link href="/analytics">
               <Button variant="outline" className="w-full justify-between">
-                Voir les statistiques
+                Voir les statistiques detaillees
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>

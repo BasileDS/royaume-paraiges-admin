@@ -60,18 +60,21 @@ export async function getDistributionsByPeriod(
 
 export async function getTopUsers(limit = 10) {
   const supabase = createClient();
+  type CouponData = { customer_id: string; is_used: boolean };
   const { data: couponsData, error } = await supabase
     .from("coupons")
     .select("customer_id, is_used");
 
   if (error) throw error;
 
-  if (!couponsData || couponsData.length === 0) {
+  const typedCouponsData = (couponsData || []) as CouponData[];
+
+  if (typedCouponsData.length === 0) {
     return [];
   }
 
   // Get unique customer IDs
-  const customerIds = Array.from(new Set(couponsData.map((c) => c.customer_id)));
+  const customerIds = Array.from(new Set(typedCouponsData.map((c) => c.customer_id)));
 
   // Fetch profiles separately
   type ProfileData = { id: string; first_name: string | null; last_name: string | null; email: string | null };
@@ -83,7 +86,7 @@ export async function getTopUsers(limit = 10) {
   const profilesMap = new Map(((profilesData || []) as ProfileData[]).map((p) => [p.id, p] as const));
 
   // Group by user
-  const grouped = couponsData.reduce(
+  const grouped = typedCouponsData.reduce(
     (acc, coupon) => {
       const key = coupon.customer_id;
       const profile = profilesMap.get(key);

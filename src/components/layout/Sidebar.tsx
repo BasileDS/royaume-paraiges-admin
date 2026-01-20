@@ -9,7 +9,10 @@ import {
   Trophy,
   History,
   BarChart3,
-  Settings,
+  Users,
+  Receipt,
+  Beer,
+  Building2,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,13 +21,47 @@ import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Coupons", href: "/coupons", icon: Ticket },
-  { name: "Templates", href: "/templates", icon: FileText },
-  { name: "Recompenses", href: "/rewards", icon: Trophy },
-  { name: "Historique", href: "/history", icon: History },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
+const navigationGroups = [
+  {
+    title: null,
+    items: [
+      { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: "Utilisateurs",
+    items: [
+      { name: "Liste des utilisateurs", href: "/users", icon: Users },
+    ],
+  },
+  {
+    title: "Transactions",
+    items: [
+      { name: "Tickets de caisse", href: "/receipts", icon: Receipt },
+    ],
+  },
+  {
+    title: "Recompenses",
+    items: [
+      { name: "Coupons", href: "/coupons", icon: Ticket },
+      { name: "Templates", href: "/templates", icon: FileText },
+      { name: "Tiers", href: "/rewards", icon: Trophy },
+      { name: "Historique", href: "/history", icon: History },
+    ],
+  },
+  {
+    title: "Contenu (Directus)",
+    items: [
+      { name: "Etablissements", href: "/content/establishments", icon: Building2 },
+      { name: "Bieres", href: "/content/beers", icon: Beer },
+    ],
+  },
+  {
+    title: null,
+    items: [
+      { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -46,28 +83,39 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {navigation.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        {navigationGroups.map((group, groupIndex) => (
+          <div key={groupIndex} className={cn(groupIndex > 0 && "mt-4")}>
+            {group.title && (
+              <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {group.title}
+              </h3>
+            )}
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/" && pathname.startsWith(item.href));
 
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.name}
-            </Link>
-          );
-        })}
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <Separator />

@@ -253,6 +253,52 @@ export type Database = {
           created_at?: string;
         };
       };
+      receipts: {
+        Row: {
+          id: number;
+          amount: number;
+          customer_id: string;
+          establishment_id: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          amount: number;
+          customer_id: string;
+          establishment_id: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          amount?: number;
+          customer_id?: string;
+          establishment_id?: number;
+          created_at?: string;
+        };
+      };
+      receipt_lines: {
+        Row: {
+          id: number;
+          receipt_id: number;
+          amount: number;
+          payment_method: "card" | "cash" | "cashback" | "coupon";
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          receipt_id: number;
+          amount: number;
+          payment_method: "card" | "cash" | "cashback" | "coupon";
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          receipt_id?: number;
+          amount?: number;
+          payment_method?: "card" | "cash" | "cashback" | "coupon";
+          created_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -316,6 +362,11 @@ export type CouponDistributionLog = Database["public"]["Tables"]["coupon_distrib
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type BadgeType = Database["public"]["Tables"]["badge_types"]["Row"];
+
+export type Receipt = Database["public"]["Tables"]["receipts"]["Row"];
+export type ReceiptInsert = Database["public"]["Tables"]["receipts"]["Insert"];
+export type ReceiptLine = Database["public"]["Tables"]["receipt_lines"]["Row"];
+export type PaymentMethod = "card" | "cash" | "cashback" | "coupon";
 
 export type PeriodType = "weekly" | "monthly" | "yearly";
 export type DistributionStatus = "pending" | "distributed" | "cancelled";
