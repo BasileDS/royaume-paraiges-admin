@@ -119,15 +119,21 @@ export async function createManualCoupon(params: {
   adminId?: string;
 }) {
   const supabase = createClient();
+
+  // Convert date string (YYYY-MM-DD) to ISO timestamp for PostgreSQL
+  const expiresAtTimestamp = params.expiresAt
+    ? new Date(params.expiresAt + "T23:59:59.999Z").toISOString()
+    : null;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.rpc as any)("create_manual_coupon", {
     p_customer_id: params.customerId,
-    p_template_id: params.templateId,
-    p_amount: params.amount,
-    p_percentage: params.percentage,
-    p_expires_at: params.expiresAt,
-    p_notes: params.notes,
-    p_admin_id: params.adminId,
+    p_template_id: params.templateId ?? null,
+    p_amount: params.amount ?? null,
+    p_percentage: params.percentage ?? null,
+    p_expires_at: expiresAtTimestamp,
+    p_notes: params.notes ?? null,
+    p_admin_id: params.adminId ?? null,
   });
 
   if (error) throw error;
