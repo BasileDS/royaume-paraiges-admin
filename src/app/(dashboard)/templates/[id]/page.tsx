@@ -1,0 +1,266 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { getTemplate, updateTemplate } from "@/lib/services/templateService";
+import { useToast } from "@/components/ui/use-toast";
+import type { CouponTemplateUpdate } from "@/types/database";
+
+export default function EditTemplatePage() {
+  const router = useRouter();
+  const params = useParams();
+  const id = parseInt(params.id as string);
+  const { toast } = useToast();
+
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    valueType: "amount" as "amount" | "percentage",
+    amount: "",
+    percentage: "",
+    validityDays: "",
+    isActive: true,
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const template = await getTemplate(id);
+
+        if (template) {
+          setForm({
+            name: template.name,
+            description: template.description || "",
+            valueType: template.amount ? "amount" : "percentage",
+            amount: template.amount?.toString() || "",
+            percentage: template.percentage?.toString() || "",
+            validityDays: template.validity_days?.toString() || "",
+            isActive: template.is_active,
+          });
+        }
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Impossible de charger le template",
+        });
+        router.push("/templates");
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchData();
+  }, [id, router, toast]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const template: CouponTemplateUpdate = {
+        name: form.name,
+        description: form.description || null,
+        amount: form.valueType === "amount" ? parseInt(form.amount) : null,
+        percentage:
+          form.valueType === "percentage" ? parseInt(form.percentage) : null,
+        validity_days: form.validityDays ? parseInt(form.validityDays) : null,
+        is_active: form.isActive,
+      };
+
+      await updateTemplate(id, template);
+      toast({ title: "Template mis a jour" });
+      router.push("/templates");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de mettre a jour le template",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loadingData) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href="/templates">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Modifier le template</h1>
+          <p className="text-muted-foreground">{form.name}</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations du template</CardTitle>
+            <CardDescription>
+              Modifiez les caracteristiques du coupon
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nom du template *</Label>
+              <Input
+                id="name"
+                placeholder="Ex: Coupon Champion Hebdo"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Description optionnelle du template"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                rows={3}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Type de valeur *</Label>
+                <Select
+                  value={form.valueType}
+                  onValueChange={(value: "amount" | "percentage") =>
+                    setForm({ ...form, valueType: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="amount">Montant fixe (EUR)</SelectItem>
+                    <SelectItem value="percentage">Pourcentage (%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {form.valueType === "amount" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Montant (en centimes) *</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="Ex: 500 pour 5EUR"
+                    value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    required
+                    min={1}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {form.amount &&
+                      `= ${(parseInt(form.amount) / 100).toFixed(2)} EUR`}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="percentage">Pourcentage *</Label>
+                  <Input
+                    id="percentage"
+                    type="number"
+                    placeholder="Ex: 10 pour 10%"
+                    value={form.percentage}
+                    onChange={(e) =>
+                      setForm({ ...form, percentage: e.target.value })
+                    }
+                    required
+                    min={1}
+                    max={100}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="validity">Duree de validite (jours)</Label>
+                <Input
+                  id="validity"
+                  type="number"
+                  placeholder="Laisser vide pour sans expiration"
+                  value={form.validityDays}
+                  onChange={(e) =>
+                    setForm({ ...form, validityDays: e.target.value })
+                  }
+                  min={1}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label>Template actif</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Peut etre utilise pour creer des coupons
+                  </p>
+                </div>
+                <Switch
+                  checked={form.isActive}
+                  onCheckedChange={(checked) =>
+                    setForm({ ...form, isActive: checked })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-4">
+              <Link href="/templates">
+                <Button type="button" variant="outline">
+                  Annuler
+                </Button>
+              </Link>
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Enregistrer
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </form>
+    </div>
+  );
+}
