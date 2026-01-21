@@ -26,11 +26,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Search, Users, UserPlus, Shield } from "lucide-react";
+import { Loader2, Search, Users, UserPlus, Shield, Briefcase, Building2 } from "lucide-react";
 import { getUsers, getUserStats, type UserFilters } from "@/lib/services/userService";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import type { Profile } from "@/types/database";
+import type { Profile, UserRole } from "@/types/database";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -41,7 +41,9 @@ export default function UsersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [stats, setStats] = useState<{
     totalUsers: number;
-    totalCustomers: number;
+    totalClients: number;
+    totalEmployees: number;
+    totalEstablishments: number;
     totalAdmins: number;
     newUsersThisMonth: number;
   } | null>(null);
@@ -91,11 +93,11 @@ export default function UsersPage() {
       </div>
 
       {stats && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Total utilisateurs
+                Total
               </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -109,12 +111,30 @@ export default function UsersPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCustomers}</div>
+              <div className="text-2xl font-bold">{stats.totalClients}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Administrateurs</CardTitle>
+              <CardTitle className="text-sm font-medium">Employes</CardTitle>
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalEmployees}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Etablissements</CardTitle>
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalEstablishments}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Admins</CardTitle>
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -124,7 +144,7 @@ export default function UsersPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Nouveaux ce mois
+                Nouveaux
               </CardTitle>
               <UserPlus className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -160,7 +180,7 @@ export default function UsersPage() {
                 setPage(0);
                 setFilters({
                   ...filters,
-                  role: value === "all" ? undefined : (value as "customer" | "admin"),
+                  role: value === "all" ? undefined : (value as UserRole),
                 });
               }}
             >
@@ -169,7 +189,9 @@ export default function UsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les roles</SelectItem>
-                <SelectItem value="customer">Client</SelectItem>
+                <SelectItem value="client">Client</SelectItem>
+                <SelectItem value="employee">Employe</SelectItem>
+                <SelectItem value="establishment">Etablissement</SelectItem>
                 <SelectItem value="admin">Administrateur</SelectItem>
               </SelectContent>
             </Select>
@@ -221,6 +243,10 @@ export default function UsersPage() {
                       <TableCell>
                         {user.role === "admin" ? (
                           <Badge variant="default">Admin</Badge>
+                        ) : user.role === "employee" ? (
+                          <Badge variant="outline">Employe</Badge>
+                        ) : user.role === "establishment" ? (
+                          <Badge variant="secondary">Etablissement</Badge>
                         ) : (
                           <Badge variant="secondary">Client</Badge>
                         )}

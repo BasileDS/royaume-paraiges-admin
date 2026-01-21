@@ -40,7 +40,9 @@ interface DashboardStats {
 
 interface UserStats {
   totalUsers: number;
-  totalCustomers: number;
+  totalClients: number;
+  totalEmployees: number;
+  totalEstablishments: number;
   totalAdmins: number;
   newUsersThisMonth: number;
 }

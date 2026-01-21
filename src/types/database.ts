@@ -6,6 +6,9 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+// Rôles utilisateurs correspondant à l'enum user_role de Supabase
+export type UserRole = "client" | "employee" | "establishment" | "admin";
+
 export type Database = {
   public: {
     Tables: {
@@ -15,7 +18,7 @@ export type Database = {
           email: string | null;
           first_name: string | null;
           last_name: string | null;
-          role: "customer" | "admin" | null;
+          role: UserRole;
           created_at: string;
           updated_at: string;
         };
@@ -24,7 +27,7 @@ export type Database = {
           email?: string | null;
           first_name?: string | null;
           last_name?: string | null;
-          role?: "customer" | "admin" | null;
+          role?: UserRole;
           created_at?: string;
           updated_at?: string;
         };
@@ -33,7 +36,7 @@ export type Database = {
           email?: string | null;
           first_name?: string | null;
           last_name?: string | null;
-          role?: "customer" | "admin" | null;
+          role?: UserRole;
           created_at?: string;
           updated_at?: string;
         };

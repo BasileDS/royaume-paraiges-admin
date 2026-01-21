@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/client";
-import { Profile } from "@/types/database";
+import { Profile, UserRole } from "@/types/database";
 
 export interface UserFilters {
-  role?: "customer" | "admin";
+  role?: UserRole;
   search?: string;
 }
 
@@ -107,7 +107,9 @@ export async function getUserWithStats(userId: string): Promise<UserWithStats | 
 
 export async function getUserStats(): Promise<{
   totalUsers: number;
-  totalCustomers: number;
+  totalClients: number;
+  totalEmployees: number;
+  totalEstablishments: number;
   totalAdmins: number;
   newUsersThisMonth: number;
 }> {
@@ -117,13 +119,21 @@ export async function getUserStats(): Promise<{
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const [allUsersResult, customersResult, adminsResult, newUsersResult] =
+  const [allUsersResult, clientsResult, employeesResult, establishmentsResult, adminsResult, newUsersResult] =
     await Promise.all([
       supabase.from("profiles").select("id", { count: "exact", head: true }),
       supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
-        .eq("role", "customer"),
+        .eq("role", "client"),
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "employee"),
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "establishment"),
       supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
@@ -136,7 +146,9 @@ export async function getUserStats(): Promise<{
 
   return {
     totalUsers: allUsersResult.count || 0,
-    totalCustomers: customersResult.count || 0,
+    totalClients: clientsResult.count || 0,
+    totalEmployees: employeesResult.count || 0,
+    totalEstablishments: establishmentsResult.count || 0,
     totalAdmins: adminsResult.count || 0,
     newUsersThisMonth: newUsersResult.count || 0,
   };
