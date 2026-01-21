@@ -244,7 +244,7 @@ export default function CouponsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {coupon.is_used ? (
+                        {coupon.used ? (
                           <Badge variant="secondary">Utilise</Badge>
                         ) : isExpired(coupon.expires_at) ? (
                           <Badge variant="destructive">Expire</Badge>

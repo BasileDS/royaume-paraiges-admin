@@ -60,10 +60,10 @@ export async function getDistributionsByPeriod(
 
 export async function getTopUsers(limit = 10) {
   const supabase = createClient();
-  type CouponData = { customer_id: string; is_used: boolean };
+  type CouponData = { customer_id: string; used: boolean };
   const { data: couponsData, error } = await supabase
     .from("coupons")
-    .select("customer_id, is_used");
+    .select("customer_id, used");
 
   if (error) throw error;
 
@@ -103,7 +103,7 @@ export async function getTopUsers(limit = 10) {
       }
 
       acc[key].received++;
-      if (coupon.is_used) acc[key].used++;
+      if (coupon.used) acc[key].used++;
 
       return acc;
     },
@@ -134,13 +134,12 @@ export async function getDashboardStats() {
     supabase
       .from("coupons")
       .select("*", { count: "exact", head: true })
-      .eq("is_used", false)
+      .eq("used", false)
       .or(`expires_at.is.null,expires_at.gte.${now.toISOString()}`),
     supabase
       .from("coupons")
       .select("*", { count: "exact", head: true })
-      .eq("is_used", true)
-      .gte("used_at", startOfWeek.toISOString()),
+      .eq("used", true),
     supabase
       .from("coupon_distribution_logs")
       .select("*", { count: "exact", head: true })

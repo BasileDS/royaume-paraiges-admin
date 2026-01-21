@@ -21,7 +21,7 @@ export async function getCoupons(filters?: CouponFilters, limit = 50, offset = 0
   let query: any = baseQuery;
 
   if (filters?.isUsed !== undefined) {
-    query = query.eq("is_used", filters.isUsed);
+    query = query.eq("used", filters.isUsed);
   }
   if (filters?.distributionType) {
     query = query.eq("distribution_type", filters.distributionType);

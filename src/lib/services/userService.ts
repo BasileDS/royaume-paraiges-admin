@@ -68,7 +68,7 @@ export async function getUserWithStats(userId: string): Promise<UserWithStats | 
   const supabase = createClient();
 
   type ReceiptAmount = { amount: number };
-  type CouponUsed = { is_used: boolean };
+  type CouponUsed = { used: boolean };
 
   const { data: profileData, error: profileError } = await supabase
     .from("profiles")
@@ -85,7 +85,7 @@ export async function getUserWithStats(userId: string): Promise<UserWithStats | 
 
   const [receiptsResult, couponsResult] = await Promise.all([
     supabase.from("receipts").select("amount").eq("customer_id", userId),
-    supabase.from("coupons").select("is_used").eq("customer_id", userId),
+    supabase.from("coupons").select("used").eq("customer_id", userId),
   ]);
 
   const receipts = (receiptsResult.data || []) as ReceiptAmount[];
@@ -94,7 +94,7 @@ export async function getUserWithStats(userId: string): Promise<UserWithStats | 
   const totalReceipts = receipts.length;
   const totalSpent = receipts.reduce((sum, r) => sum + r.amount, 0);
   const totalCoupons = coupons.length;
-  const activeCoupons = coupons.filter((c) => !c.is_used).length;
+  const activeCoupons = coupons.filter((c) => !c.used).length;
 
   return {
     ...profile,
