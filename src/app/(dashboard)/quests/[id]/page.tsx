@@ -74,7 +74,7 @@ export default function EditQuestPage() {
     name: "",
     description: "",
     slug: "",
-    questType: "scan_receipts" as QuestType,
+    questType: "orders_count" as QuestType,
     targetValue: "",
     periodType: "weekly" as PeriodType,
     couponTemplateId: "none",
@@ -362,9 +362,10 @@ export default function EditQuestPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="scan_receipts">Scanner des tickets</SelectItem>
-                    <SelectItem value="earn_xp">Gagner de l&apos;XP</SelectItem>
-                    <SelectItem value="visit_establishments">Visiter des etablissements</SelectItem>
+                    <SelectItem value="xp_earned">Gagner de l&apos;XP</SelectItem>
+                    <SelectItem value="amount_spent">Dépenser de l&apos;argent</SelectItem>
+                    <SelectItem value="establishments_visited">Visiter des établissements</SelectItem>
+                    <SelectItem value="orders_count">Passer des commandes</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -380,9 +381,10 @@ export default function EditQuestPage() {
                   min={1}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {form.questType === "scan_receipts" && "Nombre de tickets a scanner"}
-                  {form.questType === "earn_xp" && "Quantite d'XP a gagner"}
-                  {form.questType === "visit_establishments" && "Nombre d'etablissements a visiter"}
+                  {form.questType === "xp_earned" && "Quantité d'XP à gagner"}
+                  {form.questType === "amount_spent" && "Montant en centimes (ex: 5000 = 50€)"}
+                  {form.questType === "establishments_visited" && "Nombre d'établissements à visiter"}
+                  {form.questType === "orders_count" && "Nombre de commandes à passer"}
                 </p>
               </div>
 

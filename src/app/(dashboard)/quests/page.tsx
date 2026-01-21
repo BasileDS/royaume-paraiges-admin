@@ -34,6 +34,7 @@ import {
   Calendar,
   Filter,
   X,
+  ShoppingCart,
 } from "lucide-react";
 import { getQuests, toggleQuestActive } from "@/lib/services/questService";
 import { formatCurrency, formatPercentage } from "@/lib/utils";
@@ -76,15 +77,17 @@ const periodLabels: Record<PeriodType, string> = {
 };
 
 const questTypeLabels: Record<QuestType, string> = {
-  scan_receipts: "Scanner des tickets",
-  earn_xp: "Gagner de l'XP",
-  visit_establishments: "Visiter des etablissements",
+  xp_earned: "Gagner de l'XP",
+  amount_spent: "Dépenser de l'argent",
+  establishments_visited: "Visiter des établissements",
+  orders_count: "Passer des commandes",
 };
 
 const questTypeIcons: Record<QuestType, typeof Target> = {
-  scan_receipts: Receipt,
-  earn_xp: Zap,
-  visit_establishments: MapPin,
+  xp_earned: Zap,
+  amount_spent: Receipt,
+  establishments_visited: MapPin,
+  orders_count: ShoppingCart,
 };
 
 export default function QuestsPage() {
@@ -306,9 +309,10 @@ export default function QuestsPage() {
                                 {quest.target_value}
                               </span>
                               <span className="text-muted-foreground ml-1">
-                                {quest.quest_type === "scan_receipts" && "tickets"}
-                                {quest.quest_type === "earn_xp" && "XP"}
-                                {quest.quest_type === "visit_establishments" && "etablissements"}
+                                {quest.quest_type === "xp_earned" && "XP"}
+                                {quest.quest_type === "amount_spent" && "centimes"}
+                                {quest.quest_type === "establishments_visited" && "établissements"}
+                                {quest.quest_type === "orders_count" && "commandes"}
                               </span>
                             </TableCell>
                             <TableCell>

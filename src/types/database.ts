@@ -372,7 +372,7 @@ export type PeriodType = "weekly" | "monthly" | "yearly";
 export type DistributionStatus = "pending" | "distributed" | "cancelled";
 
 // Quest types
-export type QuestType = "scan_receipts" | "earn_xp" | "visit_establishments";
+export type QuestType = "xp_earned" | "amount_spent" | "establishments_visited" | "orders_count";
 export type QuestProgressStatus = "in_progress" | "completed" | "rewarded";
 
 export interface Quest {
