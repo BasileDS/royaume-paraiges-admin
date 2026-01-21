@@ -100,12 +100,16 @@ export default function EditQuestPage() {
 
         if (quest) {
           const periods = quest.quest_periods?.map((p) => p.period_identifier) || [];
+          // Conversion centimes → euros pour amount_spent
+          const targetValueDisplay = quest.quest_type === "amount_spent"
+            ? (quest.target_value / 100).toString()
+            : quest.target_value.toString();
           setForm({
             name: quest.name,
             description: quest.description || "",
             slug: quest.slug,
             questType: quest.quest_type,
-            targetValue: quest.target_value.toString(),
+            targetValue: targetValueDisplay,
             periodType: quest.period_type,
             couponTemplateId: quest.coupon_template_id?.toString() || "none",
             bonusXp: quest.bonus_xp.toString(),
@@ -195,12 +199,17 @@ export default function EditQuestPage() {
     setLoading(true);
 
     try {
+      // Conversion euros → centimes pour amount_spent
+      const targetValue = form.questType === "amount_spent"
+        ? Math.round(parseFloat(form.targetValue) * 100)
+        : parseInt(form.targetValue);
+
       const quest: QuestUpdate = {
         name: form.name,
         description: form.description || null,
         slug: form.slug,
         quest_type: form.questType,
-        target_value: parseInt(form.targetValue),
+        target_value: targetValue,
         period_type: form.periodType,
         coupon_template_id:
           form.couponTemplateId && form.couponTemplateId !== "none"
@@ -371,18 +380,21 @@ export default function EditQuestPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="targetValue">Objectif *</Label>
+                <Label htmlFor="targetValue">
+                  Objectif {form.questType === "amount_spent" ? "(€)" : ""} *
+                </Label>
                 <Input
                   id="targetValue"
                   type="number"
+                  step={form.questType === "amount_spent" ? "0.01" : "1"}
                   value={form.targetValue}
                   onChange={(e) => setForm({ ...form, targetValue: e.target.value })}
                   required
-                  min={1}
+                  min={form.questType === "amount_spent" ? 0.01 : 1}
                 />
                 <p className="text-xs text-muted-foreground">
                   {form.questType === "xp_earned" && "Quantité d'XP à gagner"}
-                  {form.questType === "amount_spent" && "Montant en centimes (ex: 5000 = 50€)"}
+                  {form.questType === "amount_spent" && "Montant en euros (ex: 50 = 50€)"}
                   {form.questType === "establishments_visited" && "Nombre d'établissements à visiter"}
                   {form.questType === "orders_count" && "Nombre de commandes à passer"}
                 </p>

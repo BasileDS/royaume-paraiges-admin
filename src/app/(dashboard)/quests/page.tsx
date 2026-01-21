@@ -306,11 +306,12 @@ export default function QuestsPage() {
                             </TableCell>
                             <TableCell>
                               <span className="font-medium">
-                                {quest.target_value}
+                                {quest.quest_type === "amount_spent"
+                                  ? formatCurrency(quest.target_value)
+                                  : quest.target_value}
                               </span>
                               <span className="text-muted-foreground ml-1">
                                 {quest.quest_type === "xp_earned" && "XP"}
-                                {quest.quest_type === "amount_spent" && "centimes"}
                                 {quest.quest_type === "establishments_visited" && "établissements"}
                                 {quest.quest_type === "orders_count" && "commandes"}
                               </span>

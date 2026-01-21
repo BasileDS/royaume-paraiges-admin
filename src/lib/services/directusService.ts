@@ -2,10 +2,51 @@ import { Establishment, Beer, Brewery, Style, BeersEstablishments } from "@/type
 
 const DIRECTUS_URL = process.env.NEXT_PUBLIC_DIRECTUS_URL || "https://paraiges-directus.neodelta.dev";
 
+// État de disponibilité du service Directus
+let directusAvailable: boolean | null = null;
+let lastCheckTime = 0;
+const CHECK_INTERVAL = 60000; // Re-vérifier toutes les 60 secondes
+
+async function checkDirectusAvailability(): Promise<boolean> {
+  const now = Date.now();
+  if (directusAvailable !== null && now - lastCheckTime < CHECK_INTERVAL) {
+    return directusAvailable;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(`${DIRECTUS_URL}/items/establishments?limit=1`, {
+      signal: controller.signal,
+      next: { revalidate: 0 },
+    });
+
+    clearTimeout(timeoutId);
+    directusAvailable = response.ok;
+  } catch {
+    directusAvailable = false;
+  }
+
+  lastCheckTime = now;
+  return directusAvailable;
+}
+
+export function isDirectusAvailable(): boolean | null {
+  return directusAvailable;
+}
+
 async function fetchDirectus<T>(
   collection: string,
   params?: Record<string, string>
 ): Promise<T[]> {
+  // Vérifier si Directus est disponible
+  const available = await checkDirectusAvailability();
+  if (!available) {
+    console.warn(`Directus is unavailable, skipping fetch for ${collection}`);
+    return [];
+  }
+
   const url = new URL(`${DIRECTUS_URL}/items/${collection}`);
 
   if (params) {
@@ -14,16 +55,29 @@ async function fetchDirectus<T>(
     });
   }
 
-  const response = await fetch(url.toString(), {
-    next: { revalidate: 300 },
-  });
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${collection}: ${response.statusText}`);
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      next: { revalidate: 300 },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch ${collection}: ${response.statusText}`);
+      return [];
+    }
+
+    const result = await response.json();
+    return result.data || [];
+  } catch (error) {
+    console.warn(`Error fetching ${collection} from Directus:`, error);
+    directusAvailable = false;
+    return [];
   }
-
-  const result = await response.json();
-  return result.data || [];
 }
 
 export async function getEstablishments(): Promise<Establishment[]> {
@@ -142,12 +196,15 @@ export function getDirectusImageUrl(
   return url.toString();
 }
 
-export async function getDirectusStats(): Promise<{
+export interface DirectusStatsResult {
   totalEstablishments: number;
   totalBeers: number;
   totalBreweries: number;
   totalStyles: number;
-}> {
+  available: boolean;
+}
+
+export async function getDirectusStats(): Promise<DirectusStatsResult> {
   const [establishments, beers, breweries, styles] = await Promise.all([
     getEstablishments(),
     getBeers(),
@@ -160,5 +217,6 @@ export async function getDirectusStats(): Promise<{
     totalBeers: beers.length,
     totalBreweries: breweries.length,
     totalStyles: styles.length,
+    available: directusAvailable === true,
   };
 }

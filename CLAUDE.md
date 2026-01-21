@@ -41,6 +41,9 @@ royaume-paraiges-admin/
 │   │   │   │   │   └── [id]/     # Edition de palier
 │   │   │   │   ├── periods/      # Configuration des periodes
 │   │   │   │   └── distribute/   # Distribution des recompenses
+│   │   │   ├── quests/           # Gestion des quetes
+│   │   │   │   ├── create/       # Creation de quete
+│   │   │   │   └── [id]/         # Edition de quete
 │   │   │   ├── content/          # Contenu Directus
 │   │   │   │   ├── beers/
 │   │   │   │   └── establishments/
@@ -56,6 +59,8 @@ royaume-paraiges-admin/
 │   │   │   ├── analyticsService.ts  # Statistiques et metriques
 │   │   │   ├── couponService.ts     # Gestion des coupons
 │   │   │   ├── directusService.ts   # Integration Directus CMS
+│   │   │   ├── periodService.ts     # Gestion des periodes
+│   │   │   ├── questService.ts      # Gestion des quetes
 │   │   │   ├── receiptService.ts    # Historique des tickets
 │   │   │   ├── rewardService.ts     # Paliers et distributions
 │   │   │   ├── templateService.ts   # Modeles de coupons
@@ -220,6 +225,57 @@ import {
 } from '@/lib/services/rewardService';
 ```
 
+### 6. Gestion des Quetes
+
+Systeme de defis periodiques pour les utilisateurs.
+
+**Fichiers cles** :
+- `src/app/(dashboard)/quests/page.tsx` - Liste des quetes
+- `src/app/(dashboard)/quests/create/page.tsx` - Creation de quete
+- `src/app/(dashboard)/quests/[id]/page.tsx` - Edition de quete
+- `src/lib/services/questService.ts` - Service metier
+- `src/lib/services/periodService.ts` - Gestion des periodes
+
+**Types de quetes** :
+
+| Type | Description | Unite objectif |
+|------|-------------|----------------|
+| `xp_earned` | Gagner de l'XP | XP |
+| `amount_spent` | Depenser de l'argent | Euros (€) dans le frontend, centimes en BDD |
+| `establishments_visited` | Visiter des etablissements | Nombre |
+| `orders_count` | Passer des commandes | Nombre |
+
+**Conversion Euros/Centimes** :
+
+> **IMPORTANT** : Le champ `target_value` pour le type `amount_spent` est stocke en **centimes** dans la base de donnees, mais saisi et affiche en **euros** dans le frontend.
+
+```typescript
+// Saisie → Sauvegarde (euros → centimes)
+const targetValue = form.questType === "amount_spent"
+  ? Math.round(parseFloat(form.targetValue) * 100)
+  : parseInt(form.targetValue);
+
+// Chargement → Affichage (centimes → euros)
+const targetValueDisplay = quest.quest_type === "amount_spent"
+  ? (quest.target_value / 100).toString()
+  : quest.target_value.toString();
+```
+
+**Fonctions du service** :
+```typescript
+import {
+  getQuests,
+  getActiveQuests,
+  getQuest,
+  createQuest,
+  updateQuest,
+  deleteQuest,
+  toggleQuestActive,
+  getQuestPeriods,
+  setQuestPeriods
+} from '@/lib/services/questService';
+```
+
 ## Schema de la Base de Donnees (Resume)
 
 ### Table `coupons`
@@ -354,6 +410,7 @@ export type CouponWithRelations = Coupon & {
 - Il n'y a PAS de colonne `used_at` dans la table `coupons`
 - Les fonctions RPC utilisent `SECURITY DEFINER` et bypass RLS
 - Les admins creent des coupons via `create_manual_coupon()` RPC
+- **Quetes** : Le `target_value` pour `amount_spent` est en **centimes** en BDD mais en **euros** dans le frontend (conversion x100)
 
 ### Apres modification
 

@@ -180,12 +180,17 @@ export default function CreateQuestPage() {
     setLoading(true);
 
     try {
+      // Conversion euros → centimes pour amount_spent
+      const targetValue = form.questType === "amount_spent"
+        ? Math.round(parseFloat(form.targetValue) * 100)
+        : parseInt(form.targetValue);
+
       const quest: QuestInsert = {
         name: form.name,
         description: form.description || null,
         slug: form.slug,
         quest_type: form.questType,
-        target_value: parseInt(form.targetValue),
+        target_value: targetValue,
         period_type: form.periodType,
         coupon_template_id:
           form.couponTemplateId && form.couponTemplateId !== "none"
@@ -307,15 +312,18 @@ export default function CreateQuestPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="targetValue">Objectif *</Label>
+                <Label htmlFor="targetValue">
+                  Objectif {form.questType === "amount_spent" ? "(€)" : ""} *
+                </Label>
                 <Input
                   id="targetValue"
                   type="number"
+                  step={form.questType === "amount_spent" ? "0.01" : "1"}
                   placeholder={
                     form.questType === "xp_earned"
                       ? "500"
                       : form.questType === "amount_spent"
-                      ? "5000"
+                      ? "50"
                       : form.questType === "establishments_visited"
                       ? "3"
                       : "5"
@@ -323,11 +331,11 @@ export default function CreateQuestPage() {
                   value={form.targetValue}
                   onChange={(e) => setForm({ ...form, targetValue: e.target.value })}
                   required
-                  min={1}
+                  min={form.questType === "amount_spent" ? 0.01 : 1}
                 />
                 <p className="text-xs text-muted-foreground">
                   {form.questType === "xp_earned" && "Quantité d'XP à gagner"}
-                  {form.questType === "amount_spent" && "Montant en centimes (ex: 5000 = 50€)"}
+                  {form.questType === "amount_spent" && "Montant en euros (ex: 50 = 50€)"}
                   {form.questType === "establishments_visited" && "Nombre d'établissements à visiter"}
                   {form.questType === "orders_count" && "Nombre de commandes à passer"}
                 </p>
