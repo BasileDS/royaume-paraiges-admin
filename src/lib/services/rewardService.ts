@@ -6,6 +6,7 @@ import type {
   PeriodRewardConfig,
   PeriodRewardConfigInsert,
   PeriodType,
+  Json,
 } from "@/types/database";
 
 // Reward Tiers
@@ -92,7 +93,10 @@ export async function getPeriodConfigs(periodType?: PeriodType): Promise<PeriodR
   return (data || []) as PeriodRewardConfig[];
 }
 
-export async function getPeriodConfig(periodType: PeriodType, periodIdentifier: string) {
+export async function getPeriodConfig(
+  periodType: PeriodType,
+  periodIdentifier: string
+): Promise<PeriodRewardConfig | null> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("period_reward_configs")
@@ -102,7 +106,7 @@ export async function getPeriodConfig(periodType: PeriodType, periodIdentifier: 
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return data;
+  return data as PeriodRewardConfig | null;
 }
 
 export async function createPeriodConfig(config: PeriodRewardConfigInsert) {
@@ -187,4 +191,28 @@ export async function forceDistributeRewards(
 
   if (error) throw error;
   return data;
+}
+
+export async function createOrUpdatePeriodConfig(
+  periodType: PeriodType,
+  periodIdentifier: string,
+  customTiers: Json | null,
+  notes?: string
+): Promise<PeriodRewardConfig> {
+  // Check if config already exists
+  const existing = await getPeriodConfig(periodType, periodIdentifier);
+
+  if (existing) {
+    return updatePeriodConfig(existing.id, {
+      custom_tiers: customTiers,
+      notes: notes || existing.notes,
+    });
+  } else {
+    return createPeriodConfig({
+      period_type: periodType,
+      period_identifier: periodIdentifier,
+      custom_tiers: customTiers,
+      notes: notes || null,
+    });
+  }
 }

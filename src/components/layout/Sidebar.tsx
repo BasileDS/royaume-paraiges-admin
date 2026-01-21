@@ -14,6 +14,7 @@ import {
   Beer,
   Building2,
   LogOut,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ const navigationGroups = [
       { name: "Coupons", href: "/coupons", icon: Ticket },
       { name: "Templates", href: "/templates", icon: FileText },
       { name: "Tiers", href: "/rewards", icon: Trophy },
+      { name: "Quetes", href: "/quests", icon: Target },
       { name: "Historique", href: "/history", icon: History },
     ],
   },

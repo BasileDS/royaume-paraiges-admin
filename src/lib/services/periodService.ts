@@ -1,0 +1,157 @@
+import { createClient } from "@/lib/supabase/client";
+import type { AvailablePeriod, PeriodType } from "@/types/database";
+
+// Récupérer toutes les périodes disponibles
+export async function getAvailablePeriods(
+  periodType?: PeriodType
+): Promise<AvailablePeriod[]> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase.from("available_periods") as any)
+    .select("*")
+    .order("period_identifier", { ascending: true });
+
+  if (periodType) {
+    query = query.eq("period_type", periodType);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return (data || []) as AvailablePeriod[];
+}
+
+// Récupérer les périodes par type avec pagination optionnelle
+export async function getAvailablePeriodsByType(
+  periodType: PeriodType,
+  options?: {
+    limit?: number;
+    offset?: number;
+    year?: number;
+  }
+): Promise<AvailablePeriod[]> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase.from("available_periods") as any)
+    .select("*")
+    .eq("period_type", periodType)
+    .order("period_identifier", { ascending: true });
+
+  // Filtrer par année si spécifié
+  if (options?.year) {
+    const yearStr = options.year.toString();
+    query = query.like("period_identifier", `${yearStr}%`);
+  }
+
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  if (options?.offset) {
+    query = query.range(options.offset, options.offset + (options.limit || 100) - 1);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return (data || []) as AvailablePeriod[];
+}
+
+// Récupérer une période par son identifiant
+export async function getAvailablePeriod(
+  periodType: PeriodType,
+  periodIdentifier: string
+): Promise<AvailablePeriod | null> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from("available_periods") as any)
+    .select("*")
+    .eq("period_type", periodType)
+    .eq("period_identifier", periodIdentifier)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return data as AvailablePeriod | null;
+}
+
+// Récupérer la période courante
+export function getCurrentPeriodIdentifier(periodType: PeriodType): string {
+  const now = new Date();
+  const year = now.getFullYear();
+
+  switch (periodType) {
+    case "weekly": {
+      const firstDayOfYear = new Date(year, 0, 1);
+      const pastDaysOfYear = (now.getTime() - firstDayOfYear.getTime()) / 86400000;
+      const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+      return `${year}-W${weekNumber.toString().padStart(2, "0")}`;
+    }
+    case "monthly":
+      return `${year}-${(now.getMonth() + 1).toString().padStart(2, "0")}`;
+    case "yearly":
+      return `${year}`;
+  }
+}
+
+// Récupérer les années disponibles
+export async function getAvailableYears(): Promise<number[]> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from("available_periods") as any)
+    .select("period_identifier")
+    .eq("period_type", "yearly")
+    .order("period_identifier");
+
+  if (error) throw error;
+
+  return ((data || []) as { period_identifier: string }[])
+    .map((p) => parseInt(p.period_identifier))
+    .filter((y) => !isNaN(y));
+}
+
+// Formater une période pour l'affichage
+export function formatPeriodLabel(
+  periodType: PeriodType,
+  periodIdentifier: string
+): string {
+  switch (periodType) {
+    case "weekly": {
+      // 2026-W04 -> Semaine 4, 2026
+      const match = periodIdentifier.match(/^(\d{4})-W(\d{2})$/);
+      if (match) {
+        return `Semaine ${parseInt(match[2])}, ${match[1]}`;
+      }
+      return periodIdentifier;
+    }
+    case "monthly": {
+      // 2026-01 -> Janvier 2026
+      const match = periodIdentifier.match(/^(\d{4})-(\d{2})$/);
+      if (match) {
+        const months = [
+          "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+          "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+        ];
+        const monthIndex = parseInt(match[2]) - 1;
+        return `${months[monthIndex]} ${match[1]}`;
+      }
+      return periodIdentifier;
+    }
+    case "yearly":
+      return periodIdentifier;
+  }
+}
+
+// Formater les dates d'une période
+export function formatPeriodDates(period: AvailablePeriod): string {
+  const startDate = new Date(period.start_date);
+  const endDate = new Date(period.end_date);
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+    });
+  };
+
+  return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+}

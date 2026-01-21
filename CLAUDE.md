@@ -8,12 +8,14 @@
 
 | Technologie | Version | Usage |
 |-------------|---------|-------|
-| Next.js | 15.x | Framework React avec App Router |
-| TypeScript | 5.x | Typage statique |
-| Supabase | 2.47.x | Backend (Auth, Database, Storage) |
+| Next.js | 16.1.4 | Framework React avec App Router |
+| React | 19.2.3 | Bibliotheque UI |
+| TypeScript | 5.7.3 | Typage statique |
+| Supabase | 2.47.14 | Backend (Auth, Database, Storage) |
 | Radix UI / shadcn/ui | - | Composants UI |
-| Tailwind CSS | 3.x | Styling |
-| Directus | 20.x | CMS pour le contenu (bieres, etablissements) |
+| Tailwind CSS | 3.4.17 | Styling |
+| Recharts | 2.15.0 | Graphiques et visualisations |
+| Directus | 20.1.0 | CMS pour le contenu (bieres, etablissements) |
 
 ## Structure du Projet
 
@@ -24,9 +26,21 @@ royaume-paraiges-admin/
 │   │   ├── (auth)/               # Routes authentification
 │   │   │   └── login/
 │   │   ├── (dashboard)/          # Routes dashboard (protegees)
+│   │   │   ├── analytics/        # Tableau de bord analytique
 │   │   │   ├── coupons/          # Gestion des coupons
+│   │   │   │   └── create/       # Creation de coupon
+│   │   │   ├── templates/        # Gestion des modeles de coupons
+│   │   │   │   ├── create/       # Creation de modele
+│   │   │   │   └── [id]/         # Edition de modele
 │   │   │   ├── users/            # Gestion des utilisateurs
 │   │   │   ├── receipts/         # Historique des tickets
+│   │   │   ├── history/          # Historique general
+│   │   │   ├── rewards/          # Systeme de recompenses
+│   │   │   │   ├── tiers/        # Paliers de recompenses
+│   │   │   │   │   ├── create/   # Creation de palier
+│   │   │   │   │   └── [id]/     # Edition de palier
+│   │   │   │   ├── periods/      # Configuration des periodes
+│   │   │   │   └── distribute/   # Distribution des recompenses
 │   │   │   ├── content/          # Contenu Directus
 │   │   │   │   ├── beers/
 │   │   │   │   └── establishments/
@@ -39,12 +53,13 @@ royaume-paraiges-admin/
 │   │
 │   ├── lib/                      # Utilitaires et services
 │   │   ├── services/             # Services metier
-│   │   │   ├── couponService.ts
-│   │   │   ├── userService.ts
-│   │   │   ├── receiptService.ts
-│   │   │   ├── analyticsService.ts
-│   │   │   ├── templateService.ts
-│   │   │   └── directusService.ts
+│   │   │   ├── analyticsService.ts  # Statistiques et metriques
+│   │   │   ├── couponService.ts     # Gestion des coupons
+│   │   │   ├── directusService.ts   # Integration Directus CMS
+│   │   │   ├── receiptService.ts    # Historique des tickets
+│   │   │   ├── rewardService.ts     # Paliers et distributions
+│   │   │   ├── templateService.ts   # Modeles de coupons
+│   │   │   └── userService.ts       # Gestion utilisateurs
 │   │   ├── supabase/             # Client Supabase
 │   │   └── utils.ts
 │   │
@@ -75,10 +90,15 @@ royaume-paraiges-admin/
 |----------|--------|-------------|
 | Tables | `docs/docs/supabase/tables/` | Structure de toutes les tables |
 | Coupons | `docs/docs/supabase/tables/coupons.md` | Table des coupons |
+| Coupon Templates | `docs/docs/supabase/tables/coupon_templates.md` | Modeles de coupons |
 | Profiles | `docs/docs/supabase/tables/profiles.md` | Table des utilisateurs |
 | Receipts | `docs/docs/supabase/tables/receipts.md` | Table des tickets |
+| Reward Tiers | `docs/docs/supabase/tables/reward_tiers.md` | Paliers de recompenses |
+| Period Reward Configs | `docs/docs/supabase/tables/period_reward_configs.md` | Config des periodes |
+| Badge Types | `docs/docs/supabase/tables/badge_types.md` | Types de badges |
 | Fonctions | `docs/docs/supabase/functions/` | Fonctions PostgreSQL |
 | create_manual_coupon | `docs/docs/supabase/functions/create_manual_coupon.md` | Creation manuelle de coupons |
+| distribute_leaderboard_rewards | `docs/docs/supabase/functions/distribute_leaderboard_rewards.md` | Distribution recompenses |
 | Politiques RLS | `docs/docs/supabase/policies/README.md` | Toutes les politiques de securite |
 
 ### Directus (CMS)
@@ -120,7 +140,85 @@ await createManualCoupon({
 
 **Fichiers cles** :
 - `src/app/(dashboard)/page.tsx` - Dashboard principal
-- `src/lib/services/analyticsService.ts` - Statistiques
+- `src/app/(dashboard)/analytics/page.tsx` - Tableau de bord analytique detaille
+- `src/lib/services/analyticsService.ts` - Statistiques et metriques
+
+### 4. Gestion des Modeles de Coupons (Templates)
+
+**Fichiers cles** :
+- `src/app/(dashboard)/templates/page.tsx` - Liste des modeles
+- `src/app/(dashboard)/templates/create/page.tsx` - Creation de modele
+- `src/app/(dashboard)/templates/[id]/page.tsx` - Edition de modele
+- `src/lib/services/templateService.ts` - Service metier
+
+**Fonctions disponibles** :
+```typescript
+import {
+  getTemplates,
+  getActiveTemplates,
+  createTemplate,
+  updateTemplate,
+  toggleTemplateActive,
+  deleteTemplate
+} from '@/lib/services/templateService';
+
+// Exemples d'utilisation
+const templates = await getTemplates();
+const activeTemplates = await getActiveTemplates();
+await createTemplate({ name: 'Nouveau modele', amount: 500 });
+await toggleTemplateActive(templateId, false);
+```
+
+### 5. Systeme de Recompenses (Rewards)
+
+Systeme complet de gestion des recompenses par classement (leaderboard).
+
+**Fichiers cles** :
+- `src/app/(dashboard)/rewards/page.tsx` - Vue d'ensemble
+- `src/app/(dashboard)/rewards/tiers/page.tsx` - Paliers de recompenses
+- `src/app/(dashboard)/rewards/tiers/create/page.tsx` - Creation de palier
+- `src/app/(dashboard)/rewards/tiers/[id]/page.tsx` - Edition de palier
+- `src/app/(dashboard)/rewards/periods/page.tsx` - Configuration des periodes
+- `src/app/(dashboard)/rewards/distribute/page.tsx` - Distribution des recompenses
+- `src/lib/services/rewardService.ts` - Service metier
+
+**Structure d'un palier (Reward Tier)** :
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| id | BIGINT | PK |
+| name | TEXT | Nom du palier (ex: "Top 1") |
+| period_type | VARCHAR | weekly, monthly, yearly |
+| rank_from | INTEGER | Rang de debut (ex: 1) |
+| rank_to | INTEGER | Rang de fin (ex: 1) |
+| coupon_template_id | BIGINT | FK vers coupon_templates |
+| badge_type_id | BIGINT | FK vers badge_types |
+| display_order | INTEGER | Ordre d'affichage |
+| is_active | BOOLEAN | Actif ou non |
+
+**Fonctions RPC** :
+```typescript
+// Previsualisation des recompenses a distribuer
+const preview = await supabase.rpc('get_period_preview', {
+  p_period_type: 'weekly'
+});
+
+// Distribution des recompenses
+await supabase.rpc('distribute_period_rewards_v2', {
+  p_period_type: 'weekly',
+  p_period_identifier: '2026-W03'
+});
+```
+
+**Fonctions du service** :
+```typescript
+import {
+  getRewardTiers,
+  createRewardTier,
+  updateRewardTier,
+  deleteRewardTier
+} from '@/lib/services/rewardService';
+```
 
 ## Schema de la Base de Donnees (Resume)
 

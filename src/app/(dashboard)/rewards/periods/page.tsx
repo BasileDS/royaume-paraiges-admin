@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Loader2, PlayCircle, CheckCircle, XCircle, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, PlayCircle, CheckCircle, XCircle, Clock, Settings, Plus } from "lucide-react";
 import { getPeriodConfigs } from "@/lib/services/rewardService";
 import { formatDateTime } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -86,12 +86,20 @@ export default function PeriodsPage() {
             </p>
           </div>
         </div>
-        <Link href="/rewards/distribute">
-          <Button>
-            <PlayCircle className="mr-2 h-4 w-4" />
-            Distribuer
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/rewards/periods/create">
+            <Button variant="outline">
+              <Plus className="mr-2 h-4 w-4" />
+              Nouvelle periode
+            </Button>
+          </Link>
+          <Link href="/rewards/distribute">
+            <Button>
+              <PlayCircle className="mr-2 h-4 w-4" />
+              Distribuer
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card>
@@ -123,14 +131,17 @@ export default function PeriodsPage() {
                     <TableRow>
                       <TableHead>Periode</TableHead>
                       <TableHead>Statut</TableHead>
+                      <TableHead>Configuration</TableHead>
                       <TableHead>Date de distribution</TableHead>
                       <TableHead>Notes</TableHead>
+                      <TableHead className="w-[100px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredConfigs.map((config) => {
                       const status = statusConfig[config.status];
                       const StatusIcon = status.icon;
+                      const hasCustomTiers = config.custom_tiers !== null;
 
                       return (
                         <TableRow key={config.id}>
@@ -144,12 +155,24 @@ export default function PeriodsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
+                            <Badge variant={hasCustomTiers ? "secondary" : "outline"}>
+                              {hasCustomTiers ? "Personnalisee" : "Par defaut"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
                             {config.distributed_at
                               ? formatDateTime(config.distributed_at)
                               : "-"}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {config.notes || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Link href={`/rewards/periods/${config.period_type}/${config.period_identifier}`}>
+                              <Button variant="ghost" size="sm">
+                                <Settings className="h-4 w-4" />
+                              </Button>
+                            </Link>
                           </TableCell>
                         </TableRow>
                       );

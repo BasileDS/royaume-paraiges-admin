@@ -367,3 +367,119 @@ export type PaymentMethod = "card" | "cash" | "cashback" | "coupon";
 
 export type PeriodType = "weekly" | "monthly" | "yearly";
 export type DistributionStatus = "pending" | "distributed" | "cancelled";
+
+// Quest types
+export type QuestType = "scan_receipts" | "earn_xp" | "visit_establishments";
+export type QuestProgressStatus = "in_progress" | "completed" | "rewarded";
+
+export interface Quest {
+  id: number;
+  name: string;
+  description: string | null;
+  slug: string;
+  quest_type: QuestType;
+  target_value: number;
+  period_type: PeriodType;
+  coupon_template_id: number | null;
+  badge_type_id: number | null;
+  bonus_xp: number;
+  bonus_cashback: number;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+export interface QuestInsert {
+  name: string;
+  description?: string | null;
+  slug: string;
+  quest_type: QuestType;
+  target_value: number;
+  period_type: PeriodType;
+  coupon_template_id?: number | null;
+  badge_type_id?: number | null;
+  bonus_xp?: number;
+  bonus_cashback?: number;
+  is_active?: boolean;
+  display_order?: number;
+  created_by?: string | null;
+}
+
+export interface QuestUpdate {
+  name?: string;
+  description?: string | null;
+  slug?: string;
+  quest_type?: QuestType;
+  target_value?: number;
+  period_type?: PeriodType;
+  coupon_template_id?: number | null;
+  badge_type_id?: number | null;
+  bonus_xp?: number;
+  bonus_cashback?: number;
+  is_active?: boolean;
+  display_order?: number;
+}
+
+export interface QuestProgress {
+  id: number;
+  quest_id: number;
+  customer_id: string;
+  period_type: PeriodType;
+  period_identifier: string;
+  current_value: number;
+  target_value: number;
+  status: QuestProgressStatus;
+  completed_at: string | null;
+  rewarded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuestCompletionLog {
+  id: number;
+  quest_id: number;
+  quest_progress_id: number;
+  customer_id: string;
+  period_type: PeriodType;
+  period_identifier: string;
+  coupon_id: number | null;
+  coupon_template_id: number | null;
+  badge_awarded_id: number | null;
+  bonus_xp_awarded: number;
+  bonus_cashback_awarded: number;
+  final_value: number;
+  target_value: number;
+  completed_at: string;
+}
+
+// Quest Periods - liaison quêtes <-> périodes spécifiques
+export interface QuestPeriod {
+  id: number;
+  quest_id: number;
+  period_identifier: string;
+  created_at: string;
+}
+
+export interface QuestPeriodInsert {
+  quest_id: number;
+  period_identifier: string;
+}
+
+// Types avec relations
+export interface QuestWithRelations extends Quest {
+  coupon_templates: Pick<CouponTemplate, "name" | "amount" | "percentage"> | null;
+  badge_types: Pick<BadgeType, "name"> | null;
+  quest_periods?: QuestPeriod[];
+}
+
+// Available Periods - périodes disponibles pour la sélection
+export interface AvailablePeriod {
+  id: number;
+  period_type: PeriodType;
+  period_identifier: string;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+}
