@@ -15,7 +15,7 @@
 | Radix UI / shadcn/ui | - | Composants UI |
 | Tailwind CSS | 3.4.17 | Styling |
 | Recharts | 2.15.0 | Graphiques et visualisations |
-| Directus | 20.1.0 | CMS pour le contenu (bieres, etablissements) |
+| Directus | 20.1.0 | Images uniquement (donnees migrees vers Supabase) |
 
 ## Structure du Projet
 
@@ -58,7 +58,7 @@ royaume-paraiges-admin/
 │   │   ├── services/             # Services metier
 │   │   │   ├── analyticsService.ts  # Statistiques et metriques
 │   │   │   ├── couponService.ts     # Gestion des coupons
-│   │   │   ├── directusService.ts   # Integration Directus CMS
+│   │   │   ├── directusService.ts   # Contenu (bieres, etablissements) - migre vers Supabase
 │   │   │   ├── periodService.ts     # Gestion des periodes
 │   │   │   ├── questService.ts      # Gestion des quetes
 │   │   │   ├── receiptService.ts    # Historique des tickets
@@ -69,8 +69,7 @@ royaume-paraiges-admin/
 │   │   └── utils.ts
 │   │
 │   └── types/                    # Types TypeScript
-│       ├── database.ts           # Types Supabase
-│       └── directus.ts           # Types Directus
+│       └── database.ts           # Types Supabase (inclut tables migrees depuis Directus)
 │
 ├── docs/                         # SUBMODULE - Documentation partagee
 │   └── docs/
@@ -106,11 +105,31 @@ royaume-paraiges-admin/
 | distribute_leaderboard_rewards | `docs/docs/supabase/functions/distribute_leaderboard_rewards.md` | Distribution recompenses |
 | Politiques RLS | `docs/docs/supabase/policies/README.md` | Toutes les politiques de securite |
 
-### Directus (CMS)
+### Tables migrees depuis Directus (contenu)
+
+> Ces tables contiennent les donnees de contenu migrees depuis Directus vers Supabase.
+> Voir `docs/docs/migrations/DIRECTUS_TO_SUPABASE.md` pour les details de migration.
+
+| Table | Description | Enregistrements |
+|-------|-------------|-----------------|
+| `breweries` | Brasseries | 66 |
+| `establishments` | Etablissements partenaires | 7 |
+| `beer_styles` | Styles de bieres | 47 |
+| `beers` | Catalogue des bieres | 196 |
+| `news` | Actualites | 2 |
+| `level_thresholds` | Niveaux et XP requis | 30 |
+| `beers_establishments` | Liaison M2M bieres-etablissements | 43 |
+| `beers_beer_styles` | Liaison M2M bieres-styles | 285 |
+| `news_establishments` | Liaison M2M news-etablissements | 3 |
+
+### Directus (Images uniquement)
 
 | Document | Chemin | Description |
 |----------|--------|-------------|
 | Configuration | `docs/docs/directus/` | Config et collections Directus |
+| Migration | `docs/docs/migrations/DIRECTUS_TO_SUPABASE.md` | Plan de migration vers Supabase |
+
+> **Note**: Les donnees ont ete migrees vers Supabase. Directus est toujours utilise pour servir les images jusqu'a leur migration vers Supabase Storage.
 
 ## Fonctionnalites Principales
 
@@ -425,4 +444,4 @@ export type CouponWithRelations = Coupon & {
 
 ---
 
-**Derniere mise a jour** : 2026-01-21
+**Derniere mise a jour** : 2026-01-22

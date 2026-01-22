@@ -299,6 +299,235 @@ export type Database = {
           created_at?: string;
         };
       };
+      // Tables migrées depuis Directus
+      breweries: {
+        Row: {
+          id: number;
+          title: string;
+          country: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: number;
+          title: string;
+          country?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          title?: string;
+          country?: string | null;
+          created_at?: string;
+        };
+      };
+      establishments: {
+        Row: {
+          id: number;
+          title: string;
+          line_address_1: string | null;
+          line_address_2: string | null;
+          zipcode: string | null;
+          city: string | null;
+          country: string | null;
+          short_description: string | null;
+          description: string | null;
+          featured_image: string | null;
+          logo: string | null;
+          anniversary: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: number;
+          title: string;
+          line_address_1?: string | null;
+          line_address_2?: string | null;
+          zipcode?: string | null;
+          city?: string | null;
+          country?: string | null;
+          short_description?: string | null;
+          description?: string | null;
+          featured_image?: string | null;
+          logo?: string | null;
+          anniversary?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          title?: string;
+          line_address_1?: string | null;
+          line_address_2?: string | null;
+          zipcode?: string | null;
+          city?: string | null;
+          country?: string | null;
+          short_description?: string | null;
+          description?: string | null;
+          featured_image?: string | null;
+          logo?: string | null;
+          anniversary?: string | null;
+          created_at?: string;
+        };
+      };
+      beer_styles: {
+        Row: {
+          id: number;
+          title: string;
+          description: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: number;
+          title: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          title?: string;
+          description?: string | null;
+          created_at?: string;
+        };
+      };
+      beers: {
+        Row: {
+          id: number;
+          title: string;
+          description: string | null;
+          featured_image: string | null;
+          ibu: number | null;
+          abv: number | null;
+          brewery_id: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id: number;
+          title: string;
+          description?: string | null;
+          featured_image?: string | null;
+          ibu?: number | null;
+          abv?: number | null;
+          brewery_id?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          title?: string;
+          description?: string | null;
+          featured_image?: string | null;
+          ibu?: number | null;
+          abv?: number | null;
+          brewery_id?: number | null;
+          created_at?: string;
+        };
+      };
+      news: {
+        Row: {
+          id: number;
+          title: string;
+          content: string | null;
+          featured_image: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: number;
+          title: string;
+          content?: string | null;
+          featured_image?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          title?: string;
+          content?: string | null;
+          featured_image?: string | null;
+          created_at?: string;
+        };
+      };
+      level_thresholds: {
+        Row: {
+          id: number;
+          level: number;
+          xp_required: number;
+          name: string;
+          description: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id: number;
+          level: number;
+          xp_required: number;
+          name: string;
+          description?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          level?: number;
+          xp_required?: number;
+          name?: string;
+          description?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+      };
+      beers_establishments: {
+        Row: {
+          id: number;
+          beer_id: number;
+          establishment_id: number;
+          added_time: string | null;
+          created_at: string;
+        };
+        Insert: {
+          beer_id: number;
+          establishment_id: number;
+          added_time?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          beer_id?: number;
+          establishment_id?: number;
+          added_time?: string | null;
+          created_at?: string;
+        };
+      };
+      beers_beer_styles: {
+        Row: {
+          id: number;
+          beer_id: number;
+          beer_style_id: number;
+          created_at: string;
+        };
+        Insert: {
+          beer_id: number;
+          beer_style_id: number;
+          created_at?: string;
+        };
+        Update: {
+          beer_id?: number;
+          beer_style_id?: number;
+          created_at?: string;
+        };
+      };
+      news_establishments: {
+        Row: {
+          id: number;
+          news_id: number;
+          establishment_id: number;
+          created_at: string;
+        };
+        Insert: {
+          news_id: number;
+          establishment_id: number;
+          created_at?: string;
+        };
+        Update: {
+          news_id?: number;
+          establishment_id?: number;
+          created_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: {

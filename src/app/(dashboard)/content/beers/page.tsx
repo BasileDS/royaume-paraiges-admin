@@ -32,9 +32,11 @@ import {
   getEstablishments,
   getEstablishmentsByBeer,
   getDirectusImageUrl,
+  type Beer as BeerType,
+  type Brewery,
+  type Establishment,
 } from "@/lib/services/directusService";
 import { useToast } from "@/components/ui/use-toast";
-import type { Beer as BeerType, Brewery, Establishment } from "@/types/directus";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -97,18 +99,17 @@ export default function BeersPage() {
   };
 
   const getBreweryName = (beer: BeerType) => {
-    if (typeof beer.brewery === "object" && beer.brewery) {
-      return beer.brewery.title;
+    // Nouvelle structure Supabase: breweries est la relation chargée
+    if (beer.breweries) {
+      return beer.breweries.title;
     }
-    const brewery = breweries.find((b) => b.id === beer.brewery);
+    // Fallback: chercher par brewery_id
+    const brewery = breweries.find((b) => b.id === beer.brewery_id);
     return brewery?.title || "-";
   };
 
   const getBreweryId = (beer: BeerType): number | undefined => {
-    if (typeof beer.brewery === "object" && beer.brewery) {
-      return beer.brewery.id;
-    }
-    return beer.brewery as number | undefined;
+    return beer.brewery_id ?? undefined;
   };
 
   const filteredBeers = beers.filter((beer) => {
@@ -129,7 +130,7 @@ export default function BeersPage() {
       <div>
         <h1 className="text-3xl font-bold">Bieres</h1>
         <p className="text-muted-foreground">
-          Catalogue des bieres configure sur Directus (lecture seule)
+          Catalogue des bieres (lecture seule)
         </p>
       </div>
 
@@ -167,14 +168,9 @@ export default function BeersPage() {
             <ExternalLink className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <a
-              href={`${process.env.NEXT_PUBLIC_DIRECTUS_URL}/admin/content/beers`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline"
-            >
-              Ouvrir Directus
-            </a>
+            <span className="text-sm text-muted-foreground">
+              Supabase
+            </span>
           </CardContent>
         </Card>
       </div>

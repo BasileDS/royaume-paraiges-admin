@@ -23,11 +23,11 @@ import {
   getEstablishments,
   getBeersByEstablishment,
   getDirectusImageUrl,
+  type Establishment,
 } from "@/lib/services/directusService";
 import { getReceiptsByEstablishment } from "@/lib/services/receiptService";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import type { Establishment } from "@/types/directus";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -123,7 +123,7 @@ export default function EstablishmentsPage() {
       <div>
         <h1 className="text-3xl font-bold">Etablissements</h1>
         <p className="text-muted-foreground">
-          Donnees configurees sur Directus (lecture seule)
+          Donnees des etablissements (lecture seule)
         </p>
       </div>
 
@@ -154,14 +154,9 @@ export default function EstablishmentsPage() {
             <ExternalLink className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <a
-              href={`${process.env.NEXT_PUBLIC_DIRECTUS_URL}/admin/content/establishments`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline"
-            >
-              Ouvrir Directus
-            </a>
+            <span className="text-sm text-muted-foreground">
+              Supabase
+            </span>
           </CardContent>
         </Card>
       </div>
@@ -304,9 +299,7 @@ export default function EstablishmentsPage() {
                     <TableRow key={beer.id}>
                       <TableCell className="font-medium">{beer.title}</TableCell>
                       <TableCell>
-                        {typeof beer.brewery === "object"
-                          ? beer.brewery?.title
-                          : "-"}
+                        {beer.breweries?.title || "-"}
                       </TableCell>
                       <TableCell>
                         {beer.ibu ? <Badge variant="outline">{beer.ibu}</Badge> : "-"}

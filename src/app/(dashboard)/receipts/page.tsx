@@ -26,10 +26,9 @@ import {
   type ReceiptFilters,
   type ReceiptWithDetails,
 } from "@/lib/services/receiptService";
-import { getEstablishments } from "@/lib/services/directusService";
+import { getEstablishments, type Establishment } from "@/lib/services/directusService";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import type { Establishment } from "@/types/directus";
 
 const paymentMethodLabels: Record<string, string> = {
   card: "Carte",
