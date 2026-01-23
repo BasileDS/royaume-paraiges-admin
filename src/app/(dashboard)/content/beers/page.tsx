@@ -25,7 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Beer, ExternalLink, Building2, Factory } from "lucide-react";
+import { Loader2, Beer, ExternalLink, Building2, Factory, Pencil } from "lucide-react";
+import Link from "next/link";
 import {
   getBeers,
   getBreweries,
@@ -258,14 +259,22 @@ export default function BeersPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewEstablishments(beer)}
-                      >
-                        <Building2 className="mr-2 h-4 w-4" />
-                        Disponibilite
-                      </Button>
+                      <div className="flex gap-2">
+                        <Link href={`/content/beers/${beer.id}`}>
+                          <Button variant="outline" size="sm">
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Modifier
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewEstablishments(beer)}
+                        >
+                          <Building2 className="mr-2 h-4 w-4" />
+                          Disponibilite
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

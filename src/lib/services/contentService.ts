@@ -8,6 +8,10 @@
  */
 
 import { createClient } from "@/lib/supabase/client";
+import type {
+  BeerUpdate as BeerUpdateType,
+  EstablishmentUpdate as EstablishmentUpdateType,
+} from "@/types/database";
 
 // Types pour le contenu
 export interface Establishment {
@@ -344,4 +348,146 @@ export async function getContentStats(): Promise<ContentStatsResult> {
     totalBreweries: breweries.count || 0,
     totalStyles: styles.count || 0,
   };
+}
+
+/**
+ * Met a jour une biere
+ */
+export async function updateBeer(
+  id: number,
+  data: BeerUpdateType
+): Promise<Beer> {
+  const supabase = createClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: updated, error } = await (supabase as any)
+    .from("beers")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*, breweries(*)")
+    .single();
+
+  if (error) {
+    console.error("Error updating beer:", error);
+    throw error;
+  }
+
+  return updated as Beer;
+}
+
+/**
+ * Upload une image de biere dans Supabase Storage
+ * Retourne le chemin de l'image dans le bucket
+ */
+export async function uploadBeerImage(
+  beerId: number,
+  file: File
+): Promise<string> {
+  const supabase = createClient();
+
+  // Generer un nom de fichier unique
+  const fileExt = file.name.split(".").pop();
+  const fileName = `beers/${beerId}/${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    console.error("Error uploading beer image:", uploadError);
+    throw uploadError;
+  }
+
+  return fileName;
+}
+
+/**
+ * Supprime une image de biere dans Supabase Storage
+ */
+export async function deleteBeerImage(imagePath: string): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .remove([imagePath]);
+
+  if (error) {
+    console.error("Error deleting beer image:", error);
+    // On ne throw pas l'erreur car ce n'est pas critique
+  }
+}
+
+/**
+ * Upload une image d'etablissement dans Supabase Storage
+ * Retourne le chemin de l'image dans le bucket
+ */
+export async function uploadEstablishmentImage(
+  establishmentId: number,
+  file: File,
+  type: "featured" | "logo"
+): Promise<string> {
+  const supabase = createClient();
+
+  // Generer un nom de fichier unique
+  const fileExt = file.name.split(".").pop();
+  const suffix = type === "logo" ? "_logo" : "";
+  const fileName = `establishments/${establishmentId}${suffix}_${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    console.error("Error uploading establishment image:", uploadError);
+    throw uploadError;
+  }
+
+  return fileName;
+}
+
+/**
+ * Supprime une image d'etablissement dans Supabase Storage
+ */
+export async function deleteEstablishmentImage(imagePath: string): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .remove([imagePath]);
+
+  if (error) {
+    console.error("Error deleting establishment image:", error);
+    // On ne throw pas l'erreur car ce n'est pas critique
+  }
+}
+
+/**
+ * Met a jour un etablissement
+ */
+export async function updateEstablishment(
+  id: number,
+  data: EstablishmentUpdateType
+): Promise<Establishment> {
+  const supabase = createClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: updated, error } = await (supabase as any)
+    .from("establishments")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error updating establishment:", error);
+    throw error;
+  }
+
+  return updated as Establishment;
 }

@@ -2126,6 +2126,19 @@ export type BadgeType = Database["public"]["Tables"]["badge_types"]["Row"];
 // User Badges
 export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"];
 
+// Beers
+export type Beer = Database["public"]["Tables"]["beers"]["Row"];
+export type BeerInsert = Database["public"]["Tables"]["beers"]["Insert"];
+export type BeerUpdate = Database["public"]["Tables"]["beers"]["Update"];
+
+// Establishments
+export type Establishment = Database["public"]["Tables"]["establishments"]["Row"];
+export type EstablishmentInsert = Database["public"]["Tables"]["establishments"]["Insert"];
+export type EstablishmentUpdate = Database["public"]["Tables"]["establishments"]["Update"];
+
+// Breweries
+export type Brewery = Database["public"]["Tables"]["breweries"]["Row"];
+
 // Enums
 export type UserRole = Database["public"]["Enums"]["user_role"];
 export type PaymentMethod = Database["public"]["Enums"]["payment_method"];

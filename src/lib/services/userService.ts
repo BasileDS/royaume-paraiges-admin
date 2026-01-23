@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { Profile, UserRole } from "@/types/database";
+import { Profile, ProfileUpdate, UserRole } from "@/types/database";
 
 export interface UserFilters {
   role?: UserRole;
@@ -152,4 +152,26 @@ export async function getUserStats(): Promise<{
     totalAdmins: adminsResult.count || 0,
     newUsersThisMonth: newUsersResult.count || 0,
   };
+}
+
+export async function updateUser(
+  userId: string,
+  data: ProfileUpdate
+): Promise<Profile> {
+  const supabase = createClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: updated, error } = await (supabase as any)
+    .from("profiles")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating user:", error);
+    throw error;
+  }
+
+  return updated as Profile;
 }

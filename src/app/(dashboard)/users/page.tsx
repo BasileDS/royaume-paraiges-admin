@@ -26,7 +26,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Search, Users, UserPlus, Shield, Briefcase, Building2 } from "lucide-react";
+import { Loader2, Search, Users, UserPlus, Shield, Briefcase, Building2, Pencil } from "lucide-react";
+import Link from "next/link";
 import { getUsers, getUserStats, type UserFilters } from "@/lib/services/userService";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -224,6 +225,7 @@ export default function UsersPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Inscrit le</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -253,6 +255,14 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDate(user.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <Link href={`/users/${user.id}`}>
+                          <Button variant="outline" size="sm">
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Modifier
+                          </Button>
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))}

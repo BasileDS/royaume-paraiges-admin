@@ -18,7 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Building2, MapPin, Search, ExternalLink } from "lucide-react";
+import { Loader2, Building2, MapPin, Search, ExternalLink, Pencil } from "lucide-react";
+import Link from "next/link";
 import {
   getEstablishments,
   getBeersByEstablishment,
@@ -246,13 +247,21 @@ export default function EstablishmentsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewBeers(establishment)}
-                      >
-                        Voir les bieres
-                      </Button>
+                      <div className="flex gap-2">
+                        <Link href={`/content/establishments/${establishment.id}`}>
+                          <Button variant="outline" size="sm">
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Modifier
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewBeers(establishment)}
+                        >
+                          Voir les bieres
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
