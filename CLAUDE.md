@@ -15,7 +15,6 @@
 | Radix UI / shadcn/ui | - | Composants UI |
 | Tailwind CSS | 3.4.17 | Styling |
 | Recharts | 2.15.0 | Graphiques et visualisations |
-| Directus | 20.1.0 | Images uniquement (donnees migrees vers Supabase) |
 
 ## Structure du Projet
 
@@ -44,7 +43,7 @@ royaume-paraiges-admin/
 │   │   │   ├── quests/           # Gestion des quetes
 │   │   │   │   ├── create/       # Creation de quete
 │   │   │   │   └── [id]/         # Edition de quete
-│   │   │   ├── content/          # Contenu Directus
+│   │   │   ├── content/          # Contenu (bieres, etablissements)
 │   │   │   │   ├── beers/
 │   │   │   │   └── establishments/
 │   │   │   └── page.tsx          # Dashboard principal
@@ -57,8 +56,8 @@ royaume-paraiges-admin/
 │   ├── lib/                      # Utilitaires et services
 │   │   ├── services/             # Services metier
 │   │   │   ├── analyticsService.ts  # Statistiques et metriques
+│   │   │   ├── contentService.ts    # Contenu (bieres, etablissements)
 │   │   │   ├── couponService.ts     # Gestion des coupons
-│   │   │   ├── directusService.ts   # Contenu (bieres, etablissements) - migre vers Supabase
 │   │   │   ├── periodService.ts     # Gestion des periodes
 │   │   │   ├── questService.ts      # Gestion des quetes
 │   │   │   ├── receiptService.ts    # Historique des tickets
@@ -78,7 +77,6 @@ royaume-paraiges-admin/
 │       │   ├── functions/        # Fonctions PostgreSQL
 │       │   ├── policies/         # Politiques RLS
 │       │   └── README.md
-│       ├── directus/             # Doc Directus
 │       └── claude/               # Config Claude
 │
 └── package.json
@@ -105,31 +103,19 @@ royaume-paraiges-admin/
 | distribute_leaderboard_rewards | `docs/docs/supabase/functions/distribute_leaderboard_rewards.md` | Distribution recompenses |
 | Politiques RLS | `docs/docs/supabase/policies/README.md` | Toutes les politiques de securite |
 
-### Tables migrees depuis Directus (contenu)
+### Tables de contenu
 
-> Ces tables contiennent les donnees de contenu migrees depuis Directus vers Supabase.
-> Voir `docs/docs/migrations/DIRECTUS_TO_SUPABASE.md` pour les details de migration.
-
-| Table | Description | Enregistrements |
-|-------|-------------|-----------------|
-| `breweries` | Brasseries | 66 |
-| `establishments` | Etablissements partenaires | 7 |
-| `beer_styles` | Styles de bieres | 47 |
-| `beers` | Catalogue des bieres | 196 |
-| `news` | Actualites | 2 |
-| `level_thresholds` | Niveaux et XP requis | 30 |
-| `beers_establishments` | Liaison M2M bieres-etablissements | 43 |
-| `beers_beer_styles` | Liaison M2M bieres-styles | 285 |
-| `news_establishments` | Liaison M2M news-etablissements | 3 |
-
-### Directus (Images uniquement)
-
-| Document | Chemin | Description |
-|----------|--------|-------------|
-| Configuration | `docs/docs/directus/` | Config et collections Directus |
-| Migration | `docs/docs/migrations/DIRECTUS_TO_SUPABASE.md` | Plan de migration vers Supabase |
-
-> **Note**: Les donnees ont ete migrees vers Supabase. Directus est toujours utilise pour servir les images jusqu'a leur migration vers Supabase Storage.
+| Table | Description |
+|-------|-------------|
+| `breweries` | Brasseries |
+| `establishments` | Etablissements partenaires |
+| `beer_styles` | Styles de bieres |
+| `beers` | Catalogue des bieres |
+| `news` | Actualites |
+| `level_thresholds` | Niveaux et XP requis |
+| `beers_establishments` | Liaison M2M bieres-etablissements |
+| `beers_beer_styles` | Liaison M2M bieres-styles |
+| `news_establishments` | Liaison M2M news-etablissements |
 
 ## Fonctionnalites Principales
 
@@ -359,7 +345,6 @@ npm run supabase:types
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://uflgfsoekkgegdgecubb.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
-NEXT_PUBLIC_DIRECTUS_URL=https://paraiges-directus.neodelta.dev
 ```
 
 ## Conventions de Code
@@ -440,8 +425,7 @@ export type CouponWithRelations = Coupon & {
 ## Liens Utiles
 
 - **Supabase Dashboard** : https://app.supabase.com/project/uflgfsoekkgegdgecubb
-- **Directus CMS** : https://paraiges-directus.neodelta.dev
 
 ---
 
-**Derniere mise a jour** : 2026-01-22
+**Derniere mise a jour** : 2026-01-23

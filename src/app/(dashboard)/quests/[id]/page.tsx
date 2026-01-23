@@ -110,7 +110,7 @@ export default function EditQuestPage() {
             slug: quest.slug,
             questType: quest.quest_type,
             targetValue: targetValueDisplay,
-            periodType: quest.period_type,
+            periodType: quest.period_type as PeriodType,
             couponTemplateId: quest.coupon_template_id?.toString() || "none",
             bonusXp: quest.bonus_xp.toString(),
             bonusCashback: quest.bonus_cashback.toString(),

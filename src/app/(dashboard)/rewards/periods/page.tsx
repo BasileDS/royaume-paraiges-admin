@@ -33,6 +33,7 @@ const statusConfig: Record<
   pending: { label: "En attente", variant: "warning", icon: Clock },
   distributed: { label: "Distribue", variant: "success", icon: CheckCircle },
   cancelled: { label: "Annule", variant: "destructive", icon: XCircle },
+  failed: { label: "Echoue", variant: "destructive", icon: XCircle },
 };
 
 export default function PeriodsPage() {
@@ -139,7 +140,7 @@ export default function PeriodsPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredConfigs.map((config) => {
-                      const status = statusConfig[config.status];
+                      const status = config.status ? statusConfig[config.status as DistributionStatus] : statusConfig.pending;
                       const StatusIcon = status.icon;
                       const hasCustomTiers = config.custom_tiers !== null;
 

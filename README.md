@@ -24,7 +24,6 @@ L'application sera disponible sur [http://localhost:3000](http://localhost:3000)
 | Radix UI / shadcn/ui | - | Composants UI |
 | Tailwind CSS | 3.4.17 | Styling |
 | Recharts | 2.15.0 | Graphiques |
-| Directus | 20.1.0 | CMS |
 
 ---
 
@@ -56,7 +55,7 @@ L'application sera disponible sur [http://localhost:3000](http://localhost:3000)
 - Graphiques de tendances
 - Statistiques des utilisateurs et transactions
 
-### Gestion du Contenu (Directus)
+### Gestion du Contenu
 - Administration des bieres
 - Administration des etablissements
 
@@ -69,7 +68,6 @@ Creez un fichier `.env.local` :
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://uflgfsoekkgegdgecubb.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=votre_cle_anon
-NEXT_PUBLIC_DIRECTUS_URL=https://paraiges-directus.neodelta.dev
 ```
 
 ---
@@ -111,7 +109,7 @@ src/
 │       │   ├── tiers/        # Paliers de recompenses
 │       │   ├── periods/      # Configuration des periodes
 │       │   └── distribute/   # Distribution
-│       └── content/          # Contenu Directus
+│       └── content/          # Contenu (bieres, etablissements)
 ├── components/               # Composants React
 │   ├── ui/                   # shadcn/ui
 │   └── layout/               # Layout
@@ -127,9 +125,8 @@ src/
 
 La documentation complete du backend est disponible dans le submodule `docs/` :
 - `docs/docs/supabase/` - Schema de base de donnees, fonctions RPC, politiques RLS
-- `docs/docs/directus/` - Configuration du CMS
 
-Pour les instructions detaillees destinées aux agents IA, consultez `CLAUDE.md`.
+Pour les instructions detaillees destinees aux agents IA, consultez `CLAUDE.md`.
 
 ---
 
@@ -150,4 +147,4 @@ Projet prive - Royaume des Paraiges
 
 ---
 
-*Derniere mise a jour : 2026-01-21*
+*Derniere mise a jour : 2026-01-23*

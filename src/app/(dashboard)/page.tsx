@@ -15,19 +15,19 @@ import {
   Ticket,
   TrendingUp,
   Calendar,
-  AlertCircle,
   ArrowRight,
   Loader2,
   Users,
   Receipt,
   Building2,
   Beer,
+  AlertCircle,
 } from "lucide-react";
 import { getDashboardStats } from "@/lib/services/analyticsService";
 import { getPeriodConfigs } from "@/lib/services/rewardService";
 import { getUserStats } from "@/lib/services/userService";
 import { getReceiptStats } from "@/lib/services/receiptService";
-import { getDirectusStats } from "@/lib/services/directusService";
+import { getContentStats } from "@/lib/services/contentService";
 import { formatCurrency, formatDate, getPeriodIdentifier } from "@/lib/utils";
 import type { PeriodRewardConfig } from "@/types/database";
 
@@ -55,38 +55,37 @@ interface ReceiptStats {
   revenueThisMonth: number;
 }
 
-interface DirectusStats {
+interface ContentStats {
   totalEstablishments: number;
   totalBeers: number;
   totalBreweries: number;
   totalStyles: number;
-  available: boolean;
 }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [receiptStats, setReceiptStats] = useState<ReceiptStats | null>(null);
-  const [directusStats, setDirectusStats] = useState<DirectusStats | null>(null);
+  const [contentStats, setContentStats] = useState<ContentStats | null>(null);
   const [pendingPeriods, setPendingPeriods] = useState<PeriodRewardConfig[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dashboardStats, periods, users, receipts, directus] = await Promise.all([
+        const [dashboardStats, periods, users, receipts, content] = await Promise.all([
           getDashboardStats(),
           getPeriodConfigs(),
           getUserStats(),
           getReceiptStats(),
-          getDirectusStats(),
+          getContentStats(),
         ]);
 
         setStats(dashboardStats);
         setPendingPeriods(periods?.filter((p) => p.status === "pending") || []);
         setUserStats(users);
         setReceiptStats(receipts);
-        setDirectusStats(directus);
+        setContentStats(content);
       } catch (error) {
         console.error("Erreur lors du chargement des donnees:", error);
       } finally {
@@ -174,65 +173,33 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Directus Content Stats */}
+      {/* Content Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        {directusStats?.available === false ? (
-          <>
-            <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Etablissements</CardTitle>
-                <AlertCircle className="h-4 w-4 text-orange-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-muted-foreground">--</div>
-                <p className="text-xs text-orange-600 dark:text-orange-400">
-                  Service Directus indisponible
-                </p>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Etablissements</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{contentStats?.totalEstablishments || 0}</div>
+            <Link href="/content/establishments" className="text-xs text-primary hover:underline">
+              Voir la liste
+            </Link>
+          </CardContent>
+        </Card>
 
-            <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Bieres</CardTitle>
-                <AlertCircle className="h-4 w-4 text-orange-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-muted-foreground">--</div>
-                <p className="text-xs text-orange-600 dark:text-orange-400">
-                  Service Directus indisponible
-                </p>
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          <>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Etablissements</CardTitle>
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{directusStats?.totalEstablishments || 0}</div>
-                <Link href="/content/establishments" className="text-xs text-primary hover:underline">
-                  Voir la liste
-                </Link>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Bieres</CardTitle>
-                <Beer className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{directusStats?.totalBeers || 0}</div>
-                <Link href="/content/beers" className="text-xs text-primary hover:underline">
-                  Voir le catalogue
-                </Link>
-              </CardContent>
-            </Card>
-          </>
-        )}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bieres</CardTitle>
+            <Beer className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{contentStats?.totalBeers || 0}</div>
+            <Link href="/content/beers" className="text-xs text-primary hover:underline">
+              Voir le catalogue
+            </Link>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

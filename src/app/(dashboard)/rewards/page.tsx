@@ -174,7 +174,7 @@ export default function RewardsPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredTiers
-                      .sort((a, b) => a.display_order - b.display_order)
+                      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
                       .map((tier) => {
                         const Icon =
                           rankIcons[tier.rank_from as keyof typeof rankIcons];
@@ -225,7 +225,7 @@ export default function RewardsPage() {
                             </TableCell>
                             <TableCell>
                               <Switch
-                                checked={tier.is_active}
+                                checked={tier.is_active ?? false}
                                 onCheckedChange={(checked) =>
                                   handleToggleActive(tier.id, checked)
                                 }

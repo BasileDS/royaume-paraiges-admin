@@ -22,9 +22,9 @@ import { Loader2, Building2, MapPin, Search, ExternalLink } from "lucide-react";
 import {
   getEstablishments,
   getBeersByEstablishment,
-  getDirectusImageUrl,
+  getImageUrl,
   type Establishment,
-} from "@/lib/services/directusService";
+} from "@/lib/services/contentService";
 import { getReceiptsByEstablishment } from "@/lib/services/receiptService";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -208,10 +208,9 @@ export default function EstablishmentsPage() {
                       <div className="flex items-center gap-3">
                         {establishment.logo && (
                           <img
-                            src={getDirectusImageUrl(establishment.logo, {
+                            src={getImageUrl(establishment.logo, {
                               width: 40,
                               height: 40,
-                              fit: "cover",
                             }) || ""}
                             alt={establishment.title}
                             className="h-10 w-10 rounded-full object-cover"

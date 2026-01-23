@@ -75,12 +75,12 @@ export default function EditTierPage() {
         if (tier) {
           setForm({
             name: tier.name,
-            periodType: tier.period_type,
+            periodType: tier.period_type as PeriodType,
             rankFrom: tier.rank_from.toString(),
             rankTo: tier.rank_to.toString(),
             couponTemplateId: tier.coupon_template_id?.toString() || "none",
-            displayOrder: tier.display_order.toString(),
-            isActive: tier.is_active,
+            displayOrder: (tier.display_order ?? 0).toString(),
+            isActive: tier.is_active ?? true,
           });
         }
       } catch (error) {

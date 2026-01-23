@@ -141,7 +141,7 @@ export default function HistoryPage() {
                   {logs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="text-sm">
-                        {formatDateTime(log.distributed_at)}
+                        {log.distributed_at ? formatDateTime(log.distributed_at) : "-"}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">

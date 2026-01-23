@@ -29,13 +29,12 @@ import { Loader2, Beer, ExternalLink, Building2, Factory } from "lucide-react";
 import {
   getBeers,
   getBreweries,
-  getEstablishments,
   getEstablishmentsByBeer,
-  getDirectusImageUrl,
+  getImageUrl,
   type Beer as BeerType,
   type Brewery,
   type Establishment,
-} from "@/lib/services/directusService";
+} from "@/lib/services/contentService";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -233,10 +232,9 @@ export default function BeersPage() {
                       <div className="flex items-center gap-3">
                         {beer.featured_image && (
                           <img
-                            src={getDirectusImageUrl(beer.featured_image, {
+                            src={getImageUrl(beer.featured_image, {
                               width: 40,
                               height: 40,
-                              fit: "cover",
                             }) || ""}
                             alt={beer.title}
                             className="h-10 w-10 rounded object-cover"

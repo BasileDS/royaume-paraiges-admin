@@ -1,16 +1,15 @@
 /**
- * Service de contenu - Migration Directus vers Supabase
+ * Service de contenu - Donnees Supabase
  *
- * Ce service fournit les données de contenu (bières, établissements, brasseries, styles)
- * qui étaient précédemment stockées dans Directus et ont été migrées vers Supabase.
+ * Ce service fournit les donnees de contenu (bieres, etablissements, brasseries, styles)
+ * stockees dans Supabase.
  *
- * Les images sont temporairement servies depuis Directus jusqu'à leur migration
- * vers Supabase Storage (bucket: content-assets).
+ * Les images sont servies depuis Supabase Storage (bucket: content-assets).
  */
 
 import { createClient } from "@/lib/supabase/client";
 
-// Types pour le contenu migré depuis Directus
+// Types pour le contenu
 export interface Establishment {
   id: number;
   title: string;
@@ -50,7 +49,7 @@ export interface Beer {
   abv: number | null;
   brewery_id: number | null;
   created_at: string;
-  // Relation chargée
+  // Relation chargee
   breweries?: Brewery | null;
 }
 
@@ -62,58 +61,41 @@ export interface BeersEstablishments {
   created_at: string;
 }
 
-// URL Directus pour les images (temporaire - jusqu'à migration vers Supabase Storage)
-const DIRECTUS_URL =
-  process.env.NEXT_PUBLIC_DIRECTUS_URL ||
-  "https://paraiges-directus.neodelta.dev";
-
-// URL Supabase Storage pour les images migrées
+// URL Supabase Storage pour les images
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   "https://uflgfsoekkgegdgecubb.supabase.co";
 const STORAGE_BUCKET = "content-assets";
 
-// Flag pour basculer vers Supabase Storage une fois les images migrées
-const USE_SUPABASE_STORAGE = false;
-
 /**
- * Construit l'URL d'une image
- * Temporairement pointe vers Directus, basculera vers Supabase Storage après migration
+ * Construit l'URL d'une image depuis Supabase Storage
+ * Utilise le endpoint /render/image pour les transformations (redimensionnement)
  */
-export function getDirectusImageUrl(
-  imageId: string | undefined | null,
+export function getImageUrl(
+  imagePath: string | undefined | null,
   options?: {
     width?: number;
     height?: number;
-    fit?: "cover" | "contain" | "inside" | "outside";
     quality?: number;
   }
 ): string | null {
-  if (!imageId) return null;
+  if (!imagePath) return null;
 
-  if (USE_SUPABASE_STORAGE) {
-    // Après migration: URL Supabase Storage avec transformations
-    const baseUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${imageId}`;
+  // Si des transformations sont demandees, utiliser le endpoint render
+  if (options?.width || options?.height) {
     const params = new URLSearchParams();
-    if (options?.width) params.append("width", String(options.width));
-    if (options?.height) params.append("height", String(options.height));
-    return params.toString() ? `${baseUrl}?${params}` : baseUrl;
+    if (options.width) params.append("width", String(options.width));
+    if (options.height) params.append("height", String(options.height));
+    if (options.quality) params.append("quality", String(options.quality));
+    return `${SUPABASE_URL}/storage/v1/render/image/public/${STORAGE_BUCKET}/${imagePath}?${params}`;
   }
 
-  // Avant migration: URL Directus
-  const url = new URL(`${DIRECTUS_URL}/assets/${imageId}`);
-  if (options?.width) url.searchParams.append("width", String(options.width));
-  if (options?.height)
-    url.searchParams.append("height", String(options.height));
-  if (options?.fit) url.searchParams.append("fit", options.fit);
-  if (options?.quality)
-    url.searchParams.append("quality", String(options.quality));
-
-  return url.toString();
+  // Sinon, retourner l'URL directe
+  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${imagePath}`;
 }
 
 /**
- * Récupère tous les établissements
+ * Recupere tous les etablissements
  */
 export async function getEstablishments(): Promise<Establishment[]> {
   const supabase = createClient();
@@ -133,7 +115,7 @@ export async function getEstablishments(): Promise<Establishment[]> {
 }
 
 /**
- * Récupère un établissement par ID
+ * Recupere un etablissement par ID
  */
 export async function getEstablishment(
   id: number
@@ -156,7 +138,7 @@ export async function getEstablishment(
 }
 
 /**
- * Récupère toutes les bières avec leurs brasseries
+ * Recupere toutes les bieres avec leurs brasseries
  */
 export async function getBeers(): Promise<Beer[]> {
   const supabase = createClient();
@@ -176,7 +158,7 @@ export async function getBeers(): Promise<Beer[]> {
 }
 
 /**
- * Récupère une bière par ID avec sa brasserie
+ * Recupere une biere par ID avec sa brasserie
  */
 export async function getBeer(id: number): Promise<Beer | null> {
   const supabase = createClient();
@@ -197,7 +179,7 @@ export async function getBeer(id: number): Promise<Beer | null> {
 }
 
 /**
- * Récupère toutes les brasseries
+ * Recupere toutes les brasseries
  */
 export async function getBreweries(): Promise<Brewery[]> {
   const supabase = createClient();
@@ -217,8 +199,7 @@ export async function getBreweries(): Promise<Brewery[]> {
 }
 
 /**
- * Récupère tous les styles de bières
- * Note: Table renommée de "styles" à "beer_styles" lors de la migration
+ * Recupere tous les styles de bieres
  */
 export async function getStyles(): Promise<BeerStyle[]> {
   const supabase = createClient();
@@ -238,7 +219,7 @@ export async function getStyles(): Promise<BeerStyle[]> {
 }
 
 /**
- * Récupère toutes les liaisons bières-établissements
+ * Recupere toutes les liaisons bieres-etablissements
  */
 export async function getBeersEstablishments(): Promise<BeersEstablishments[]> {
   const supabase = createClient();
@@ -257,14 +238,14 @@ export async function getBeersEstablishments(): Promise<BeersEstablishments[]> {
 }
 
 /**
- * Récupère les bières disponibles dans un établissement
+ * Recupere les bieres disponibles dans un etablissement
  */
 export async function getBeersByEstablishment(
   establishmentId: number
 ): Promise<Beer[]> {
   const supabase = createClient();
 
-  // Récupérer les IDs des bières liées à cet établissement
+  // Recuperer les IDs des bieres liees a cet etablissement
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: junctions, error: junctionError } = await (supabase as any)
     .from("beers_establishments")
@@ -277,7 +258,7 @@ export async function getBeersByEstablishment(
 
   const beerIds = (junctions as { beer_id: number }[]).map((j) => j.beer_id);
 
-  // Récupérer les bières
+  // Recuperer les bieres
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: beers, error: beersError } = await (supabase as any)
     .from("beers")
@@ -294,14 +275,14 @@ export async function getBeersByEstablishment(
 }
 
 /**
- * Récupère les établissements où une bière est disponible
+ * Recupere les etablissements ou une biere est disponible
  */
 export async function getEstablishmentsByBeer(
   beerId: number
 ): Promise<Establishment[]> {
   const supabase = createClient();
 
-  // Récupérer les IDs des établissements liés à cette bière
+  // Recuperer les IDs des etablissements lies a cette biere
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: junctions, error: junctionError } = await (supabase as any)
     .from("beers_establishments")
@@ -316,7 +297,7 @@ export async function getEstablishmentsByBeer(
     (j) => j.establishment_id
   );
 
-  // Récupérer les établissements
+  // Recuperer les etablissements
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: establishments, error: establishmentsError } = await (
     supabase as any
@@ -339,14 +320,12 @@ export interface ContentStatsResult {
   totalBeers: number;
   totalBreweries: number;
   totalStyles: number;
-  available: boolean;
 }
 
 /**
- * Récupère les statistiques de contenu
- * Remplace getDirectusStats() - les données viennent maintenant de Supabase
+ * Recupere les statistiques de contenu
  */
-export async function getDirectusStats(): Promise<ContentStatsResult> {
+export async function getContentStats(): Promise<ContentStatsResult> {
   const supabase = createClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -364,13 +343,5 @@ export async function getDirectusStats(): Promise<ContentStatsResult> {
     totalBeers: beers.count || 0,
     totalBreweries: breweries.count || 0,
     totalStyles: styles.count || 0,
-    available: true, // Supabase est toujours disponible
   };
-}
-
-/**
- * @deprecated Utilisez getDirectusStats() - Supabase est toujours disponible
- */
-export function isDirectusAvailable(): boolean {
-  return true;
 }

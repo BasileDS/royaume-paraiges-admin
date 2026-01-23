@@ -59,7 +59,7 @@ export default function EditTemplatePage() {
             amount: template.amount?.toString() || "",
             percentage: template.percentage?.toString() || "",
             validityDays: template.validity_days?.toString() || "",
-            isActive: template.is_active,
+            isActive: template.is_active ?? true,
           });
         }
       } catch (error) {

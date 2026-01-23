@@ -196,14 +196,14 @@ export default function TemplatesPage() {
                     </TableCell>
                     <TableCell>
                       <Switch
-                        checked={template.is_active}
+                        checked={template.is_active ?? false}
                         onCheckedChange={(checked) =>
                           handleToggleActive(template.id, checked)
                         }
                       />
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDate(template.created_at)}
+                      {template.created_at ? formatDate(template.created_at) : "-"}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

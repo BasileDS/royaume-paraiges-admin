@@ -26,7 +26,7 @@ import {
   type ReceiptFilters,
   type ReceiptWithDetails,
 } from "@/lib/services/receiptService";
-import { getEstablishments, type Establishment } from "@/lib/services/directusService";
+import { getEstablishments, type Establishment } from "@/lib/services/contentService";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 

@@ -62,6 +62,7 @@ const statusConfig: Record<
   pending: { label: "En attente", variant: "warning", icon: Clock },
   distributed: { label: "Distribue", variant: "success", icon: CheckCircle },
   cancelled: { label: "Annule", variant: "destructive", icon: XCircle },
+  failed: { label: "Echoue", variant: "destructive", icon: XCircle },
 };
 
 export default function PeriodConfigPage() {
@@ -190,7 +191,7 @@ export default function PeriodConfigPage() {
     );
   }
 
-  const status = config ? statusConfig[config.status] : null;
+  const status = config?.status ? statusConfig[config.status as DistributionStatus] : null;
   const StatusIcon = status?.icon;
   const isDistributed = config?.status === "distributed";
 

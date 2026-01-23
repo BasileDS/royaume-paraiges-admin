@@ -52,7 +52,7 @@ const navigationGroups = [
     ],
   },
   {
-    title: "Contenu (Directus)",
+    title: "Contenu",
     items: [
       { name: "Etablissements", href: "/content/establishments", icon: Building2 },
       { name: "Bieres", href: "/content/beers", icon: Beer },
