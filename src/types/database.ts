@@ -80,18 +80,21 @@ export type Database = {
           description: string | null
           id: number
           title: string
+          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           description?: string | null
           id: number
           title: string
+          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           description?: string | null
           id?: number
           title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -105,6 +108,7 @@ export type Database = {
           ibu: number | null
           id: number
           title: string
+          updated_at: string | null
         }
         Insert: {
           abv?: number | null
@@ -115,6 +119,7 @@ export type Database = {
           ibu?: number | null
           id: number
           title: string
+          updated_at?: string | null
         }
         Update: {
           abv?: number | null
@@ -125,6 +130,7 @@ export type Database = {
           ibu?: number | null
           id?: number
           title?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -174,21 +180,21 @@ export type Database = {
       }
       beers_establishments: {
         Row: {
-          added_time: string | null
+          added_at: string | null
           beer_id: number
           created_at: string | null
           establishment_id: number
           id: number
         }
         Insert: {
-          added_time?: string | null
+          added_at?: string | null
           beer_id: number
           created_at?: string | null
           establishment_id: number
           id?: never
         }
         Update: {
-          added_time?: string | null
+          added_at?: string | null
           beer_id?: number
           created_at?: string | null
           establishment_id?: number
@@ -217,18 +223,21 @@ export type Database = {
           created_at: string | null
           id: number
           title: string
+          updated_at: string | null
         }
         Insert: {
           country?: string | null
           created_at?: string | null
           id: number
           title: string
+          updated_at?: string | null
         }
         Update: {
           country?: string | null
           created_at?: string | null
           id?: number
           title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -268,6 +277,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "comments_beer_id_fkey"
+            columns: ["beer_id"]
+            isOneToOne: false
+            referencedRelation: "beers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "comments_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -280,6 +296,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "comments_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -486,6 +509,13 @@ export type Database = {
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
+          {
+            foreignKeyName: "coupon_templates_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
         ]
       }
       coupons: {
@@ -563,6 +593,7 @@ export type Database = {
           logo: string | null
           short_description: string | null
           title: string
+          updated_at: string | null
           zipcode: string | null
         }
         Insert: {
@@ -578,6 +609,7 @@ export type Database = {
           logo?: string | null
           short_description?: string | null
           title: string
+          updated_at?: string | null
           zipcode?: string | null
         }
         Update: {
@@ -593,6 +625,7 @@ export type Database = {
           logo?: string | null
           short_description?: string | null
           title?: string
+          updated_at?: string | null
           zipcode?: string | null
         }
         Relationships: []
@@ -623,6 +656,13 @@ export type Database = {
           xp?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "gains_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gains_receipt_id_fkey"
             columns: ["receipt_id"]
@@ -714,6 +754,7 @@ export type Database = {
           level: number
           name: string
           sort_order: number | null
+          updated_at: string | null
           xp_required: number
         }
         Insert: {
@@ -723,6 +764,7 @@ export type Database = {
           level: number
           name: string
           sort_order?: number | null
+          updated_at?: string | null
           xp_required: number
         }
         Update: {
@@ -732,6 +774,7 @@ export type Database = {
           level?: number
           name?: string
           sort_order?: number | null
+          updated_at?: string | null
           xp_required?: number
         }
         Relationships: []
@@ -763,6 +806,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "likes_beer_id_fkey"
+            columns: ["beer_id"]
+            isOneToOne: false
+            referencedRelation: "beers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "likes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -785,6 +835,7 @@ export type Database = {
           featured_image: string | null
           id: number
           title: string
+          updated_at: string | null
         }
         Insert: {
           content?: string | null
@@ -792,6 +843,7 @@ export type Database = {
           featured_image?: string | null
           id: number
           title: string
+          updated_at?: string | null
         }
         Update: {
           content?: string | null
@@ -799,6 +851,7 @@ export type Database = {
           featured_image?: string | null
           id?: number
           title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1390,6 +1443,13 @@ export type Database = {
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
+          {
+            foreignKeyName: "receipts_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
         ]
       }
       reward_tiers: {
@@ -1488,6 +1548,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "spendings_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "spendings_receipt_id_fkey"
