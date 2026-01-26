@@ -203,13 +203,16 @@ export default function CouponsPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">
+                          <Link
+                            href={`/users/${coupon.customer_id}`}
+                            className="font-medium hover:underline"
+                          >
                             {coupon.profiles
                               ? `${coupon.profiles.first_name || ""} ${
                                   coupon.profiles.last_name || ""
                                 }`.trim() || coupon.profiles.email
                               : "Inconnu"}
-                          </p>
+                          </Link>
                           <p className="text-sm text-muted-foreground">
                             {coupon.profiles?.email}
                           </p>

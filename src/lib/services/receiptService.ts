@@ -16,6 +16,7 @@ export interface ReceiptWithDetails extends Receipt {
     last_name: string | null;
   };
   lines?: ReceiptLine[];
+  receipt_lines?: ReceiptLine[];
 }
 
 export async function getReceipts(
@@ -30,7 +31,8 @@ export async function getReceipts(
     .select(
       `
       *,
-      customer:profiles!customer_id(id, email, first_name, last_name)
+      customer:profiles!customer_id(id, email, first_name, last_name),
+      receipt_lines(id, amount, payment_method)
     `,
       { count: "exact" }
     )

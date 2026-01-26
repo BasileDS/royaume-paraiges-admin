@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -11,6 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -197,10 +205,41 @@ export default function ReceiptsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Liste des tickets</CardTitle>
-          <CardDescription>
-            {total} ticket{total > 1 ? "s" : ""} au total
-          </CardDescription>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Liste des tickets</CardTitle>
+              <CardDescription>
+                {total} ticket{total > 1 ? "s" : ""} au total
+              </CardDescription>
+            </div>
+            <div className="w-full sm:w-64">
+              <Select
+                value={filters.establishmentId?.toString() || "all"}
+                onValueChange={(value) => {
+                  setPage(0);
+                  setFilters({
+                    ...filters,
+                    establishmentId: value === "all" ? undefined : parseInt(value),
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrer par etablissement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les etablissements</SelectItem>
+                  {establishments.map((establishment) => (
+                    <SelectItem
+                      key={establishment.id}
+                      value={establishment.id.toString()}
+                    >
+                      {establishment.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -220,6 +259,7 @@ export default function ReceiptsPage() {
                     <TableHead>Client</TableHead>
                     <TableHead>Etablissement</TableHead>
                     <TableHead>Montant</TableHead>
+                    <TableHead>Paiement</TableHead>
                     <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -231,13 +271,16 @@ export default function ReceiptsPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">
+                          <Link
+                            href={`/users/${receipt.customer_id}`}
+                            className="font-medium hover:underline"
+                          >
                             {receipt.customer
                               ? `${receipt.customer.first_name || ""} ${
                                   receipt.customer.last_name || ""
                                 }`.trim() || receipt.customer.email
                               : "Inconnu"}
-                          </p>
+                          </Link>
                           <p className="text-sm text-muted-foreground">
                             {receipt.customer?.email}
                           </p>
@@ -250,6 +293,26 @@ export default function ReceiptsPage() {
                         <Badge variant="default">
                           {formatCurrency(receipt.amount)}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {receipt.receipt_lines && receipt.receipt_lines.length > 0 ? (
+                            [...new Set(receipt.receipt_lines.map((line) => line.payment_method))].map(
+                              (method) => (
+                                <Badge
+                                  key={method}
+                                  variant="outline"
+                                  className="flex items-center gap-1"
+                                >
+                                  {paymentMethodIcons[method]}
+                                  {paymentMethodLabels[method] || method}
+                                </Badge>
+                              )
+                            )
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDateTime(receipt.created_at)}

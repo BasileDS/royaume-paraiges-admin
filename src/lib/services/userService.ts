@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { Profile, ProfileUpdate, UserRole } from "@/types/database";
+import { Profile, ProfileUpdate, UserRole, Coupon, Receipt, ReceiptLine } from "@/types/database";
 
 export interface UserFilters {
   role?: UserRole;
@@ -11,6 +11,15 @@ export interface UserWithStats extends Profile {
   totalSpent?: number;
   totalCoupons?: number;
   activeCoupons?: number;
+}
+
+export interface UserCoupon extends Coupon {
+  coupon_templates: { name: string } | null;
+}
+
+export interface UserReceipt extends Receipt {
+  receipt_lines?: ReceiptLine[];
+  establishment?: { id: number; title: string } | null;
 }
 
 export async function getUsers(
@@ -174,4 +183,123 @@ export async function updateUser(
   }
 
   return updated as Profile;
+}
+
+export async function getUserCoupons(
+  userId: string,
+  limit = 20,
+  offset = 0
+): Promise<{ data: UserCoupon[]; count: number }> {
+  const supabase = createClient();
+
+  const { data: coupons, error, count } = await supabase
+    .from("coupons")
+    .select("*", { count: "exact" })
+    .eq("customer_id", userId)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error("Error fetching user coupons:", error);
+    throw error;
+  }
+
+  const couponsData = (coupons || []) as Coupon[];
+
+  if (couponsData.length === 0) {
+    return { data: [], count: count || 0 };
+  }
+
+  const templateIds = Array.from(
+    new Set(couponsData.map((c) => c.template_id).filter((id): id is number => id !== null))
+  );
+
+  type TemplateData = { id: number; name: string };
+  let templatesData: TemplateData[] = [];
+  if (templateIds.length > 0) {
+    const res = await supabase.from("coupon_templates").select("id, name").in("id", templateIds);
+    templatesData = (res.data || []) as TemplateData[];
+  }
+
+  const templatesMap = new Map(templatesData.map((t) => [t.id, t] as const));
+
+  const data = couponsData.map((coupon) => ({
+    ...coupon,
+    coupon_templates: coupon.template_id ? templatesMap.get(coupon.template_id) || null : null,
+  }));
+
+  return { data, count: count || 0 };
+}
+
+export async function getUserReceipts(
+  userId: string,
+  limit = 20,
+  offset = 0
+): Promise<{ data: UserReceipt[]; count: number }> {
+  const supabase = createClient();
+
+  const { data: receipts, error, count } = await supabase
+    .from("receipts")
+    .select(
+      `
+      *,
+      receipt_lines(id, amount, payment_method),
+      establishment:establishments!establishment_id(id, title)
+    `,
+      { count: "exact" }
+    )
+    .eq("customer_id", userId)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error("Error fetching user receipts:", error);
+    throw error;
+  }
+
+  return { data: (receipts || []) as UserReceipt[], count: count || 0 };
+}
+
+export async function getUserFullStats(userId: string): Promise<{
+  totalXp: number;
+  cashbackBalance: number;
+  cashbackEarned: number;
+  cashbackSpent: number;
+  weeklyRank: number | null;
+  monthlyRank: number | null;
+  yearlyRank: number | null;
+} | null> {
+  const supabase = createClient();
+
+  type UserStatsRow = {
+    id: string;
+    total_xp: number;
+    cashback_available: number;
+    cashback_earned: number;
+    cashback_spent: number;
+  };
+
+  type LeaderboardRow = {
+    user_id: string;
+    rank: number;
+  };
+
+  const [statsResult, weeklyResult, monthlyResult, yearlyResult] = await Promise.all([
+    supabase.from("user_stats").select("*").eq("id", userId).single(),
+    supabase.from("weekly_xp_leaderboard").select("user_id, rank").eq("user_id", userId).single(),
+    supabase.from("monthly_xp_leaderboard").select("user_id, rank").eq("user_id", userId).single(),
+    supabase.from("yearly_xp_leaderboard").select("user_id, rank").eq("user_id", userId).single(),
+  ]);
+
+  const userStats = statsResult.data as UserStatsRow | null;
+
+  return {
+    totalXp: userStats?.total_xp || 0,
+    cashbackBalance: userStats?.cashback_available || 0,
+    cashbackEarned: userStats?.cashback_earned || 0,
+    cashbackSpent: userStats?.cashback_spent || 0,
+    weeklyRank: (weeklyResult.data as LeaderboardRow | null)?.rank || null,
+    monthlyRank: (monthlyResult.data as LeaderboardRow | null)?.rank || null,
+    yearlyRank: (yearlyResult.data as LeaderboardRow | null)?.rank || null,
+  };
 }
