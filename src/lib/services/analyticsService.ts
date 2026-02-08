@@ -17,6 +17,12 @@ export interface DistributionStats {
   type: string;
 }
 
+export interface DailyCashback {
+  date: string;
+  credited: number;
+  spent: number;
+}
+
 export async function getCouponStats(): Promise<CouponStats> {
   const supabase = createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,4 +162,120 @@ export async function getDashboardStats() {
     distributionsThisMonth: distributedThisMonth || 0,
     pendingDistributions: pendingPeriods || 0,
   };
+}
+
+/**
+ * Count receipts (sales) within a date range.
+ */
+export async function getSalesCount(
+  startDate: string,
+  endDate: string
+): Promise<number> {
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from("receipts")
+    .select("*", { count: "exact", head: true })
+    .gte("created_at", startDate)
+    .lt("created_at", endDate);
+
+  if (error) throw error;
+  return count || 0;
+}
+
+/**
+ * Get total sales amount (in centimes) within a date range.
+ */
+export async function getSalesTotal(
+  startDate: string,
+  endDate: string
+): Promise<number> {
+  const supabase = createClient();
+  type ReceiptAmount = { amount: number };
+  const { data, error } = await supabase
+    .from("receipts")
+    .select("amount")
+    .gte("created_at", startDate)
+    .lt("created_at", endDate);
+
+  if (error) throw error;
+  return ((data || []) as ReceiptAmount[]).reduce((sum, r) => sum + (r.amount || 0), 0);
+}
+
+/**
+ * Get daily cashback credited (gains) and spent (receipt_lines) within a date range.
+ * Returns an array sorted by date with both values in centimes.
+ */
+export async function getDailyCashbackStats(
+  startDate: string,
+  endDate: string
+): Promise<DailyCashback[]> {
+  const supabase = createClient();
+
+  type GainRow = { created_at: string; cashback_money: number | null };
+  type LineRow = { created_at: string; amount: number };
+
+  const [gainsRes, spentRes] = await Promise.all([
+    supabase
+      .from("gains")
+      .select("created_at, cashback_money")
+      .gte("created_at", startDate)
+      .lt("created_at", endDate)
+      .not("cashback_money", "is", null)
+      .order("created_at", { ascending: true }),
+    (supabase.from("receipt_lines") as any)
+      .select("created_at, amount")
+      .eq("payment_method", "cashback")
+      .gte("created_at", startDate)
+      .lt("created_at", endDate)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (gainsRes.error) throw gainsRes.error;
+  if (spentRes.error) throw spentRes.error;
+
+  const creditedByDay: Record<string, number> = {};
+  for (const row of (gainsRes.data || []) as GainRow[]) {
+    const date = row.created_at.split("T")[0];
+    creditedByDay[date] = (creditedByDay[date] || 0) + (row.cashback_money || 0);
+  }
+
+  const spentByDay: Record<string, number> = {};
+  for (const row of (spentRes.data || []) as LineRow[]) {
+    const date = row.created_at.split("T")[0];
+    spentByDay[date] = (spentByDay[date] || 0) + (row.amount || 0);
+  }
+
+  // Fill in all days in range
+  const result: DailyCashback[] = [];
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+  while (current < end) {
+    const dateStr = current.toISOString().split("T")[0];
+    result.push({
+      date: dateStr,
+      credited: creditedByDay[dateStr] || 0,
+      spent: spentByDay[dateStr] || 0,
+    });
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
+}
+
+/**
+ * Get total unspent cashback across all users.
+ * Queries the user_stats materialized view (cashback_available = earned - spent).
+ * Returns amount in centimes.
+ */
+export async function getUnspentCashbackTotal(): Promise<number> {
+  const supabase = createClient();
+  type StatsRow = { cashback_available: number | null };
+  const { data, error } = await (supabase.from("user_stats") as any)
+    .select("cashback_available");
+
+  if (error) throw error;
+  return ((data || []) as StatsRow[]).reduce(
+    (sum, row) => sum + (row.cashback_available || 0),
+    0
+  );
 }

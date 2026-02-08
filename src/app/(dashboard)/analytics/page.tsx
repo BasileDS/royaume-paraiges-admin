@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,56 +8,161 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Loader2, Ticket, TrendingUp } from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, ShoppingCart, Euro, Wallet } from "lucide-react";
 import {
-  getCouponStats,
-  getTopUsers,
-  type CouponStats,
+  getSalesCount,
+  getSalesTotal,
+  getDailyCashbackStats,
+  getUnspentCashbackTotal,
+  type DailyCashback,
 } from "@/lib/services/analyticsService";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import {
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   Tooltip,
+  Legend,
 } from "recharts";
 
-interface TopUser {
-  customerId: string;
-  name: string;
-  received: number;
-  used: number;
+type PeriodKey =
+  | "current_week"
+  | "last_week"
+  | "last_7_days"
+  | "last_30_days"
+  | "current_month"
+  | "last_month";
+
+interface PeriodDates {
+  start: string;
+  end: string;
+  label: string;
+}
+
+function getMonday(d: Date): Date {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getPeriodDates(key: PeriodKey): PeriodDates {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (key) {
+    case "current_week": {
+      const monday = getMonday(today);
+      const nextMonday = new Date(monday);
+      nextMonday.setDate(nextMonday.getDate() + 7);
+      return {
+        start: monday.toISOString(),
+        end: nextMonday.toISOString(),
+        label: "Semaine en cours",
+      };
+    }
+    case "last_week": {
+      const monday = getMonday(today);
+      monday.setDate(monday.getDate() - 7);
+      const nextMonday = new Date(monday);
+      nextMonday.setDate(nextMonday.getDate() + 7);
+      return {
+        start: monday.toISOString(),
+        end: nextMonday.toISOString(),
+        label: "Semaine derniere",
+      };
+    }
+    case "last_7_days": {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 7);
+      const end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      return {
+        start: start.toISOString(),
+        end: end.toISOString(),
+        label: "7 derniers jours",
+      };
+    }
+    case "last_30_days": {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 30);
+      const end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      return {
+        start: start.toISOString(),
+        end: end.toISOString(),
+        label: "30 derniers jours",
+      };
+    }
+    case "current_month": {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      return {
+        start: start.toISOString(),
+        end: end.toISOString(),
+        label: "Mois en cours",
+      };
+    }
+    case "last_month": {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const end = new Date(today.getFullYear(), today.getMonth(), 1);
+      return {
+        start: start.toISOString(),
+        end: end.toISOString(),
+        label: "Mois precedent",
+      };
+    }
+  }
+}
+
+function formatShortDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(date);
 }
 
 export default function AnalyticsPage() {
-  const [stats, setStats] = useState<CouponStats | null>(null);
-  const [topUsers, setTopUsers] = useState<TopUser[]>([]);
+  const [period, setPeriod] = useState<PeriodKey>("last_7_days");
+  const [salesCount, setSalesCount] = useState(0);
+  const [salesTotal, setSalesTotal] = useState(0);
+  const [dailyCashback, setDailyCashback] = useState<DailyCashback[]>([]);
+  const [unspentCashback, setUnspentCashback] = useState(0);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = useCallback(
+    async (periodKey: PeriodKey) => {
+      setLoading(true);
       try {
-        const [statsData, usersData] = await Promise.all([
-          getCouponStats(),
-          getTopUsers(10),
+        const { start, end } = getPeriodDates(periodKey);
+
+        const [count, total, daily, unspent] = await Promise.all([
+          getSalesCount(start, end),
+          getSalesTotal(start, end),
+          getDailyCashbackStats(start, end),
+          getUnspentCashbackTotal(),
         ]);
 
-        setStats(statsData);
-        setTopUsers(usersData);
-      } catch (error) {
+        setSalesCount(count);
+        setSalesTotal(total);
+        setDailyCashback(daily);
+        setUnspentCashback(unspent);
+      } catch {
         toast({
           variant: "destructive",
           title: "Erreur",
@@ -66,188 +171,166 @@ export default function AnalyticsPage() {
       } finally {
         setLoading(false);
       }
-    };
+    },
+    [toast]
+  );
 
-    fetchData();
-  }, [toast]);
+  useEffect(() => {
+    fetchData(period);
+  }, [period, fetchData]);
 
-  if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const statusData = stats
-    ? [
-        { name: "Actifs", value: stats.activeCoupons, color: "#22c55e" },
-        { name: "Utilises", value: stats.usedCoupons, color: "#3b82f6" },
-        { name: "Expires", value: stats.expiredCoupons, color: "#ef4444" },
-      ]
-    : [];
+  const chartData = dailyCashback.map((d) => ({
+    date: formatShortDate(d.date),
+    credited: d.credited / 100,
+    spent: d.spent / 100,
+  }));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Analytics</h1>
-        <p className="text-muted-foreground">
-          Statistiques et metriques du systeme de coupons
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Analytics</h1>
+          <p className="text-muted-foreground">
+            Chiffres cles et statistiques globales
+          </p>
+        </div>
+        <Select
+          value={period}
+          onValueChange={(v) => setPeriod(v as PeriodKey)}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="current_week">Semaine en cours</SelectItem>
+            <SelectItem value="last_week">Semaine derniere</SelectItem>
+            <SelectItem value="last_7_days">7 derniers jours</SelectItem>
+            <SelectItem value="last_30_days">30 derniers jours</SelectItem>
+            <SelectItem value="current_month">Mois en cours</SelectItem>
+            <SelectItem value="last_month">Mois precedent</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total coupons</CardTitle>
-            <Ticket className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalCoupons || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.activeCoupons || 0} actifs
-            </p>
-          </CardContent>
-        </Card>
+      {loading ? (
+        <div className="flex h-96 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {/* KPIs */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Nombre de ventes
+                </CardTitle>
+                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{salesCount}</div>
+                <p className="text-xs text-muted-foreground">
+                  {getPeriodDates(period).label}
+                </p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Taux d&apos;utilisation
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.usageRate?.toFixed(1) || 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.usedCoupons || 0} utilises
-            </p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Montant total des ventes
+                </CardTitle>
+                <Euro className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(salesTotal)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {getPeriodDates(period).label}
+                </p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valeur distribuee</CardTitle>
-            <Ticket className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats?.totalValueDistributed || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(stats?.totalValueUsed || 0)} utilise
-            </p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Cashback non depense
+                </CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">
+                  {formatCurrency(unspentCashback)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Solde total en circulation
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Taux d&apos;expiration</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.expirationRate?.toFixed(1) || 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.expiredCoupons || 0} expires
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="status" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="status">Statut des coupons</TabsTrigger>
-          <TabsTrigger value="users">Top utilisateurs</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="status">
+          {/* Cashback chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Repartition par statut</CardTitle>
+              <CardTitle>Cashback par jour</CardTitle>
               <CardDescription>
-                Distribution des coupons selon leur statut actuel
+                Comparaison du cashback credite et depense chaque jour
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={statusData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value, percent }) =>
-                        `${name}: ${value} (${(percent * 100).toFixed(0)}%)`
-                      }
-                      outerRadius={150}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top utilisateurs</CardTitle>
-              <CardDescription>
-                Utilisateurs ayant recu le plus de coupons
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {topUsers.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground">
-                  Aucune donnee disponible
+              {chartData.length === 0 ? (
+                <div className="flex h-[350px] items-center justify-center text-muted-foreground">
+                  Aucune donnee sur cette periode
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">#</TableHead>
-                      <TableHead>Utilisateur</TableHead>
-                      <TableHead className="text-right">Recus</TableHead>
-                      <TableHead className="text-right">Utilises</TableHead>
-                      <TableHead className="text-right">Taux</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {topUsers.map((user, i) => (
-                      <TableRow key={user.customerId}>
-                        <TableCell className="font-medium">{i + 1}</TableCell>
-                        <TableCell>{user.name}</TableCell>
-                        <TableCell className="text-right">{user.received}</TableCell>
-                        <TableCell className="text-right">{user.used}</TableCell>
-                        <TableCell className="text-right">
-                          {user.received > 0
-                            ? ((user.used / user.received) * 100).toFixed(1)
-                            : 0}
-                          %
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="date"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => `${v} €`}
+                      />
+                      <Tooltip
+                        formatter={(value: number, name: string) => [
+                          `${value.toFixed(2)} €`,
+                          name === "credited" ? "Credite" : "Depense",
+                        ]}
+                      />
+                      <Legend
+                        formatter={(value: string) =>
+                          value === "credited" ? "Credite" : "Depense"
+                        }
+                      />
+                      <Bar
+                        dataKey="credited"
+                        name="credited"
+                        fill="#2563eb"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="spent"
+                        name="spent"
+                        fill="#f59e0b"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </>
+      )}
     </div>
   );
 }

@@ -272,7 +272,7 @@ export async function getUserFullStats(userId: string): Promise<{
   const supabase = createClient();
 
   type UserStatsRow = {
-    id: string;
+    customer_id: string;
     total_xp: number;
     cashback_available: number;
     cashback_earned: number;
@@ -280,15 +280,15 @@ export async function getUserFullStats(userId: string): Promise<{
   };
 
   type LeaderboardRow = {
-    user_id: string;
+    customer_id: string;
     rank: number;
   };
 
   const [statsResult, weeklyResult, monthlyResult, yearlyResult] = await Promise.all([
-    supabase.from("user_stats").select("*").eq("id", userId).single(),
-    supabase.from("weekly_xp_leaderboard").select("user_id, rank").eq("user_id", userId).single(),
-    supabase.from("monthly_xp_leaderboard").select("user_id, rank").eq("user_id", userId).single(),
-    supabase.from("yearly_xp_leaderboard").select("user_id, rank").eq("user_id", userId).single(),
+    supabase.from("user_stats").select("*").eq("customer_id", userId).single(),
+    supabase.from("weekly_xp_leaderboard").select("customer_id, rank").eq("customer_id", userId).single(),
+    supabase.from("monthly_xp_leaderboard").select("customer_id, rank").eq("customer_id", userId).single(),
+    supabase.from("yearly_xp_leaderboard").select("customer_id, rank").eq("customer_id", userId).single(),
   ]);
 
   const userStats = statsResult.data as UserStatsRow | null;
