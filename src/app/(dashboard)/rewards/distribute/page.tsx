@@ -56,6 +56,8 @@ interface PreviewItem {
   tier_name: string;
   coupon_name: string | null;
   coupon_value: string | null;
+  coupon_amount: number | null;
+  coupon_percentage: number | null;
   badge_name: string | null;
 }
 
@@ -275,7 +277,7 @@ export default function DistributePage() {
                   <TableHead>Utilisateur</TableHead>
                   <TableHead>XP</TableHead>
                   <TableHead>Palier</TableHead>
-                  <TableHead>Coupon</TableHead>
+                  <TableHead>Recompense</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -299,13 +301,14 @@ export default function DistributePage() {
                     <TableCell>{item.xp?.toLocaleString()} XP</TableCell>
                     <TableCell>{item.tier_name}</TableCell>
                     <TableCell>
-                      {item.coupon_name ? (
-                        <div>
-                          <p>{item.coupon_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {item.coupon_value}
-                          </p>
-                        </div>
+                      {item.coupon_amount ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                          Bonus CB: {formatCurrency(item.coupon_amount)}
+                        </Badge>
+                      ) : item.coupon_percentage ? (
+                        <Badge variant="secondary">
+                          Coupon: {item.coupon_percentage}%
+                        </Badge>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
@@ -324,8 +327,9 @@ export default function DistributePage() {
             <AlertDialogTitle>Confirmer la distribution</AlertDialogTitle>
             <AlertDialogDescription>
               Vous etes sur le point de distribuer les recompenses pour la
-              periode {periodIdentifier}. Cette action creera {preview.length}{" "}
-              coupon{preview.length > 1 ? "s" : ""}.
+              periode {periodIdentifier}. Cette action creditera les bonus
+              cashback et attribuera les coupons pour {preview.length}{" "}
+              utilisateur{preview.length > 1 ? "s" : ""}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

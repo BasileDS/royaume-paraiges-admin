@@ -118,14 +118,29 @@ export default function CreateCouponPage() {
       await createManualCoupon({
         customerId: form.customerId,
         templateId: form.mode === "template" && form.templateId ? parseInt(form.templateId) : undefined,
-        amount: form.mode === "custom" && form.amount ? parseInt(form.amount) : undefined,
+        amount: form.mode === "custom" && form.amount ? Math.round(parseFloat(form.amount) * 100) : undefined,
         percentage: form.mode === "custom" && form.percentage ? parseInt(form.percentage) : undefined,
         expiresAt: form.expiresAt || undefined,
         notes: form.notes || undefined,
         adminId: user?.id,
       });
 
-      toast({ title: "Coupon cree avec succes" });
+      let successMessage = "Coupon attribue avec succes";
+      if (form.mode === "custom") {
+        if (form.amount) {
+          successMessage = `Bonus cashback de ${form.amount} EUR credite`;
+        } else if (form.percentage) {
+          successMessage = `Coupon de ${form.percentage}% attribue`;
+        }
+      } else if (form.mode === "template" && selectedTemplate) {
+        if (selectedTemplate.amount) {
+          successMessage = `Bonus cashback de ${formatCurrency(selectedTemplate.amount)} credite`;
+        } else if (selectedTemplate.percentage) {
+          successMessage = `Coupon de ${selectedTemplate.percentage}% attribue`;
+        }
+      }
+
+      toast({ title: successMessage });
       router.push("/coupons");
     } catch (error) {
       toast({
@@ -151,9 +166,9 @@ export default function CreateCouponPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Creer un coupon</h1>
+          <h1 className="text-3xl font-bold">Attribution manuelle</h1>
           <p className="text-muted-foreground">
-            Attribuez un coupon manuellement a un utilisateur
+            Attribuez un bonus cashback ou coupon a un utilisateur
           </p>
         </div>
       </div>
@@ -307,31 +322,35 @@ export default function CreateCouponPage() {
                   </Select>
                   {selectedTemplate && (
                     <p className="text-sm text-muted-foreground">
-                      {selectedTemplate.description}
+                      {selectedTemplate.description}{" "}
+                      {selectedTemplate.amount
+                        ? "(Bonus Cashback immediat)"
+                        : selectedTemplate.percentage
+                        ? "(Coupon % sur commande)"
+                        : ""}
                     </p>
                   )}
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Montant (centimes)</Label>
+                    <Label>Bonus Cashback (EUR)</Label>
                     <Input
                       type="number"
-                      placeholder="Ex: 500"
+                      placeholder="Ex: 5"
                       value={form.amount}
                       onChange={(e) =>
                         setForm({ ...form, amount: e.target.value, percentage: "" })
                       }
-                      min={1}
+                      min={0.01}
+                      step="0.01"
                     />
-                    {form.amount && (
-                      <p className="text-xs text-muted-foreground">
-                        = {(parseInt(form.amount) / 100).toFixed(2)} EUR
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Sera credite immediatement au solde cashback
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Ou pourcentage</Label>
+                    <Label>Coupon (%)</Label>
                     <Input
                       type="number"
                       placeholder="Ex: 10"
@@ -342,6 +361,9 @@ export default function CreateCouponPage() {
                       min={1}
                       max={100}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Cashback supplementaire sur la prochaine commande
+                    </p>
                   </div>
                 </div>
               )}
@@ -393,7 +415,7 @@ export default function CreateCouponPage() {
                   }
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Creer le coupon
+                  Attribuer
                 </Button>
               </div>
             </CardContent>

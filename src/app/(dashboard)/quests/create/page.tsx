@@ -32,6 +32,7 @@ import {
   getCurrentPeriodIdentifier,
 } from "@/lib/services/periodService";
 import { useToast } from "@/components/ui/use-toast";
+import { formatCurrency } from "@/lib/utils";
 import type {
   CouponTemplate,
   QuestInsert,
@@ -157,7 +158,7 @@ export default function CreateQuestPage() {
             ? parseInt(form.couponTemplateId)
             : null,
         bonus_xp: parseInt(form.bonusXp) || 0,
-        bonus_cashback: parseInt(form.bonusCashback) || 0,
+        bonus_cashback: Math.round(parseFloat(form.bonusCashback) * 100) || 0,
         display_order: parseInt(form.displayOrder) || 0,
         is_active: form.isActive,
       };
@@ -392,9 +393,9 @@ export default function CreateQuestPage() {
                         <SelectItem key={template.id} value={template.id.toString()}>
                           {template.name}
                           {template.amount
-                            ? ` (${(template.amount / 100).toFixed(2)}€)`
+                            ? ` (${formatCurrency(template.amount)} - Bonus CB immediat)`
                             : template.percentage
-                            ? ` (${template.percentage}%)`
+                            ? ` (${template.percentage}% - Coupon sur commande)`
                             : ""}
                         </SelectItem>
                       ))}
@@ -431,7 +432,7 @@ export default function CreateQuestPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="bonusCashback">Bonus Cashback (centimes)</Label>
+                  <Label htmlFor="bonusCashback">Bonus Cashback (EUR)</Label>
                   <Input
                     id="bonusCashback"
                     type="number"
@@ -439,9 +440,10 @@ export default function CreateQuestPage() {
                     value={form.bonusCashback}
                     onChange={(e) => setForm({ ...form, bonusCashback: e.target.value })}
                     min={0}
+                    step="0.01"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Cashback supplementaire (ex: 500 = 5€)
+                    Cashback supplementaire (ex: 5 = 5€)
                   </p>
                 </div>
               </div>

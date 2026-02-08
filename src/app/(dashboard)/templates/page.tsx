@@ -152,6 +152,7 @@ export default function TemplatesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nom</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Valeur</TableHead>
                   <TableHead>Validite</TableHead>
                   <TableHead>Actif</TableHead>
@@ -171,6 +172,15 @@ export default function TemplatesPage() {
                           </p>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {template.amount ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Bonus Cashback</Badge>
+                      ) : template.percentage ? (
+                        <Badge variant="secondary">Coupon</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {template.amount ? (

@@ -633,29 +633,59 @@ export type Database = {
       gains: {
         Row: {
           cashback_money: number | null
+          coupon_id: number | null
           created_at: string
-          establishment_id: number
+          customer_id: string
+          establishment_id: number | null
           id: number
           receipt_id: number | null
+          source_type: string | null
           xp: number | null
         }
         Insert: {
           cashback_money?: number | null
+          coupon_id?: number | null
           created_at?: string
-          establishment_id: number
+          customer_id: string
+          establishment_id?: number | null
           id?: number
           receipt_id?: number | null
+          source_type?: string | null
           xp?: number | null
         }
         Update: {
           cashback_money?: number | null
+          coupon_id?: number | null
           created_at?: string
-          establishment_id?: number
+          customer_id?: string
+          establishment_id?: number | null
           id?: number
           receipt_id?: number | null
+          source_type?: string | null
           xp?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "gains_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gains_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "user_stats"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "gains_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gains_establishment_id_fkey"
             columns: ["establishment_id"]
@@ -1766,6 +1796,15 @@ export type Database = {
       check_period_closed: {
         Args: { p_period_identifier: string; p_period_type: string }
         Returns: boolean
+      }
+      credit_bonus_cashback: {
+        Args: {
+          p_customer_id: string
+          p_amount: number
+          p_coupon_id: number
+          p_source_type?: string
+        }
+        Returns: number
       }
       create_frequency_coupon: {
         Args: { p_customer_id: string }

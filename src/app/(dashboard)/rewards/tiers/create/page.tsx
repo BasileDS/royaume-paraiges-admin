@@ -25,6 +25,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { createRewardTier } from "@/lib/services/rewardService";
 import { getActiveTemplates } from "@/lib/services/templateService";
 import { useToast } from "@/components/ui/use-toast";
+import { formatCurrency } from "@/lib/utils";
 import type { CouponTemplate, RewardTierInsert, PeriodType } from "@/types/database";
 
 export default function CreateTierPage() {
@@ -201,6 +202,11 @@ export default function CreateTierPage() {
                   {templates.map((template) => (
                     <SelectItem key={template.id} value={template.id.toString()}>
                       {template.name}
+                      {template.amount
+                        ? ` (${formatCurrency(template.amount)} - Bonus CB)`
+                        : template.percentage
+                        ? ` (${template.percentage}% - Coupon)`
+                        : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

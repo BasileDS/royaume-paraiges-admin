@@ -56,7 +56,7 @@ function CreateTemplateForm() {
               name: `${template.name} (copie)`,
               description: template.description || "",
               valueType: template.amount ? "amount" : "percentage",
-              amount: template.amount?.toString() || "",
+              amount: template.amount ? (template.amount / 100).toString() : "",
               percentage: template.percentage?.toString() || "",
               validityDays: template.validity_days?.toString() || "",
               isActive: true,
@@ -81,7 +81,7 @@ function CreateTemplateForm() {
       const template: CouponTemplateInsert = {
         name: form.name,
         description: form.description || null,
-        amount: form.valueType === "amount" ? parseInt(form.amount) : null,
+        amount: form.valueType === "amount" ? Math.round(parseFloat(form.amount) * 100) : null,
         percentage:
           form.valueType === "percentage" ? parseInt(form.percentage) : null,
         validity_days: form.validityDays ? parseInt(form.validityDays) : null,
@@ -157,28 +157,26 @@ function CreateTemplateForm() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="amount">Montant fixe (EUR)</SelectItem>
-                  <SelectItem value="percentage">Pourcentage (%)</SelectItem>
+                  <SelectItem value="amount">Bonus Cashback (EUR)</SelectItem>
+                  <SelectItem value="percentage">Coupon (%)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {form.valueType === "amount" ? (
               <div className="space-y-2">
-                <Label htmlFor="amount">Montant (en centimes) *</Label>
+                <Label htmlFor="amount">Montant (EUR) *</Label>
                 <Input
                   id="amount"
                   type="number"
-                  placeholder="Ex: 500 pour 5EUR"
+                  placeholder="Ex: 5 pour 5€"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
                   required
-                  min={1}
+                  min={0.01}
+                  step="0.01"
                 />
-                <p className="text-xs text-muted-foreground">
-                  {form.amount &&
-                    `= ${(parseInt(form.amount) / 100).toFixed(2)} EUR`}
-                </p>
+                <p className="text-xs text-muted-foreground">Credite immediatement au solde cashback du joueur</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -195,24 +193,27 @@ function CreateTemplateForm() {
                   min={1}
                   max={100}
                 />
+                <p className="text-xs text-muted-foreground">Cashback supplementaire applique sur la commande</p>
               </div>
             )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="validity">Duree de validite (jours)</Label>
-              <Input
-                id="validity"
-                type="number"
-                placeholder="Laisser vide pour sans expiration"
-                value={form.validityDays}
-                onChange={(e) =>
-                  setForm({ ...form, validityDays: e.target.value })
-                }
-                min={1}
-              />
-            </div>
+            {form.valueType === "percentage" && (
+              <div className="space-y-2">
+                <Label htmlFor="validity">Duree de validite (jours)</Label>
+                <Input
+                  id="validity"
+                  type="number"
+                  placeholder="Laisser vide pour sans expiration"
+                  value={form.validityDays}
+                  onChange={(e) =>
+                    setForm({ ...form, validityDays: e.target.value })
+                  }
+                  min={1}
+                />
+              </div>
+            )}
 
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">

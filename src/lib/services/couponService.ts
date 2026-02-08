@@ -6,6 +6,7 @@ export interface CouponFilters {
   distributionType?: string;
   customerId?: string;
   isExpired?: boolean;
+  couponType?: "amount" | "percentage";
 }
 
 export async function getCoupons(filters?: CouponFilters, limit = 50, offset = 0) {
@@ -33,6 +34,11 @@ export async function getCoupons(filters?: CouponFilters, limit = 50, offset = 0
     query = query.lt("expires_at", new Date().toISOString());
   } else if (filters?.isExpired === false) {
     query = query.or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);
+  }
+  if (filters?.couponType === "amount") {
+    query = query.not("amount", "is", null).is("percentage", null);
+  } else if (filters?.couponType === "percentage") {
+    query = query.not("percentage", "is", null).is("amount", null);
   }
 
   const { data: coupons, error, count } = await query;

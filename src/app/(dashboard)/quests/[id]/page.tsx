@@ -43,6 +43,7 @@ import {
   getCurrentPeriodIdentifier,
 } from "@/lib/services/periodService";
 import { useToast } from "@/components/ui/use-toast";
+import { formatCurrency } from "@/lib/utils";
 import type {
   CouponTemplate,
   QuestUpdate,
@@ -106,7 +107,7 @@ export default function EditQuestPage() {
             periodType: quest.period_type as PeriodType,
             couponTemplateId: quest.coupon_template_id?.toString() || "none",
             bonusXp: quest.bonus_xp.toString(),
-            bonusCashback: quest.bonus_cashback.toString(),
+            bonusCashback: (quest.bonus_cashback / 100).toString(),
             displayOrder: quest.display_order.toString(),
             isActive: quest.is_active,
             periods,
@@ -192,7 +193,7 @@ export default function EditQuestPage() {
             ? parseInt(form.couponTemplateId)
             : null,
         bonus_xp: parseInt(form.bonusXp) || 0,
-        bonus_cashback: parseInt(form.bonusCashback) || 0,
+        bonus_cashback: Math.round(parseFloat(form.bonusCashback) * 100) || 0,
         display_order: parseInt(form.displayOrder) || 0,
         is_active: form.isActive,
       };
@@ -466,7 +467,7 @@ export default function EditQuestPage() {
                         <SelectItem key={template.id} value={template.id.toString()}>
                           {template.name}
                           {template.amount
-                            ? ` (${(template.amount / 100).toFixed(2)}€)`
+                            ? ` (${formatCurrency(template.amount)})`
                             : template.percentage
                             ? ` (${template.percentage}%)`
                             : ""}
@@ -501,13 +502,14 @@ export default function EditQuestPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="bonusCashback">Bonus Cashback (centimes)</Label>
+                  <Label htmlFor="bonusCashback">Bonus Cashback (EUR)</Label>
                   <Input
                     id="bonusCashback"
                     type="number"
                     value={form.bonusCashback}
                     onChange={(e) => setForm({ ...form, bonusCashback: e.target.value })}
                     min={0}
+                    step="0.01"
                   />
                 </div>
               </div>

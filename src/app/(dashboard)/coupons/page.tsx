@@ -161,6 +161,26 @@ export default function CouponsPage() {
                 <SelectItem value="true">Expire</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select
+              value={filters.couponType || "all"}
+              onValueChange={(value) => {
+                setPage(0);
+                setFilters({
+                  ...filters,
+                  couponType: value === "all" ? undefined : value as "amount" | "percentage",
+                });
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                <SelectItem value="amount">Bonus Cashback</SelectItem>
+                <SelectItem value="percentage">Coupons (%)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -220,12 +240,12 @@ export default function CouponsPage() {
                       </TableCell>
                       <TableCell>
                         {coupon.amount ? (
-                          <Badge variant="default">
-                            {formatCurrency(coupon.amount)}
+                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                            Bonus CB: {formatCurrency(coupon.amount)}
                           </Badge>
                         ) : coupon.percentage ? (
                           <Badge variant="secondary">
-                            {formatPercentage(coupon.percentage)}
+                            Coupon: {formatPercentage(coupon.percentage)}
                           </Badge>
                         ) : (
                           "-"
@@ -247,7 +267,9 @@ export default function CouponsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {coupon.used ? (
+                        {coupon.amount && coupon.used ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Credite</Badge>
+                        ) : coupon.used ? (
                           <Badge variant="secondary">Utilise</Badge>
                         ) : isExpired(coupon.expires_at) ? (
                           <Badge variant="destructive">Expire</Badge>
