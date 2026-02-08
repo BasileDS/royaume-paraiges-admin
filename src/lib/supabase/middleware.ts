@@ -54,7 +54,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && !isPublicRoute) {
+  if (user) {
     // Check if user is admin
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: profile } = await (supabase
@@ -63,20 +63,22 @@ export async function updateSession(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!profile || profile.role !== "admin") {
+    const isAdmin = profile?.role === "admin";
+
+    if (!isAdmin && !isPublicRoute) {
       // Not an admin, redirect to login with error
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("error", "unauthorized");
       return NextResponse.redirect(url);
     }
-  }
 
-  if (user && request.nextUrl.pathname === "/login") {
-    // User is logged in, redirect to dashboard
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+    if (isAdmin && request.nextUrl.pathname === "/login") {
+      // Admin is logged in, redirect to dashboard
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;
