@@ -23,16 +23,13 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Loader2, X, Calendar } from "lucide-react";
+import { ArrowLeft, Loader2, X } from "lucide-react";
+import { PeriodCalendar } from "@/components/period-calendar";
 import { createQuest, setQuestPeriods } from "@/lib/services/questService";
 import { getActiveTemplates } from "@/lib/services/templateService";
 import {
   getAvailablePeriodsByType,
   getCurrentPeriodIdentifier,
-  formatPeriodLabel,
-  getAvailableYears,
 } from "@/lib/services/periodService";
 import { useToast } from "@/components/ui/use-toast";
 import type {
@@ -59,8 +56,6 @@ export default function CreateQuestPage() {
   const [loading, setLoading] = useState(false);
   const [templates, setTemplates] = useState<CouponTemplate[]>([]);
   const [availablePeriods, setAvailablePeriods] = useState<AvailablePeriod[]>([]);
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [loadingPeriods, setLoadingPeriods] = useState(false);
 
   const [form, setForm] = useState({
@@ -91,30 +86,12 @@ export default function CreateQuestPage() {
     fetchTemplates();
   }, []);
 
-  // Charger les années disponibles
-  useEffect(() => {
-    const fetchYears = async () => {
-      try {
-        const years = await getAvailableYears();
-        setAvailableYears(years);
-        if (years.length > 0 && !years.includes(selectedYear)) {
-          setSelectedYear(years[0]);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    fetchYears();
-  }, []);
-
-  // Charger les périodes quand le type ou l'année change
+  // Charger toutes les périodes quand le type change
   useEffect(() => {
     const fetchPeriods = async () => {
       setLoadingPeriods(true);
       try {
-        const periods = await getAvailablePeriodsByType(form.periodType, {
-          year: selectedYear,
-        });
+        const periods = await getAvailablePeriodsByType(form.periodType);
         setAvailablePeriods(periods);
       } catch (error) {
         console.error(error);
@@ -124,7 +101,7 @@ export default function CreateQuestPage() {
       }
     };
     fetchPeriods();
-  }, [form.periodType, selectedYear]);
+  }, [form.periodType]);
 
   const handleNameChange = (name: string) => {
     setForm((prev) => ({
@@ -155,23 +132,6 @@ export default function CreateQuestPage() {
     const current = getCurrentPeriodIdentifier(form.periodType);
     if (!form.periods.includes(current)) {
       setForm({ ...form, periods: [...form.periods, current] });
-    }
-  };
-
-  const handleSelectAllYear = () => {
-    const yearPeriods = availablePeriods.map((p) => p.period_identifier);
-    const allSelected = yearPeriods.every((p) => form.periods.includes(p));
-
-    if (allSelected) {
-      // Désélectionner toutes les périodes de l'année
-      setForm({
-        ...form,
-        periods: form.periods.filter((p) => !yearPeriods.includes(p)),
-      });
-    } else {
-      // Sélectionner toutes les périodes de l'année
-      const newPeriods = [...new Set([...form.periods, ...yearPeriods])];
-      setForm({ ...form, periods: newPeriods });
     }
   };
 
@@ -221,12 +181,6 @@ export default function CreateQuestPage() {
       setLoading(false);
     }
   };
-
-  const yearPeriods = availablePeriods.map((p) => p.period_identifier);
-  const allYearSelected =
-    yearPeriods.length > 0 && yearPeriods.every((p) => form.periods.includes(p));
-  const someYearSelected =
-    yearPeriods.some((p) => form.periods.includes(p)) && !allYearSelected;
 
   return (
     <div className="space-y-6">
@@ -393,78 +347,24 @@ export default function CreateQuestPage() {
                 </p>
               )}
 
-              {/* Sélecteur d'année et liste de périodes */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <Label>Annee:</Label>
-                    <Select
-                      value={selectedYear.toString()}
-                      onValueChange={(v) => setSelectedYear(parseInt(v))}
-                    >
-                      <SelectTrigger className="w-[100px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableYears.map((year) => (
-                          <SelectItem key={year} value={year.toString()}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddCurrentPeriod}
-                  >
-                    Ajouter periode actuelle
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSelectAllYear}
-                  >
-                    {allYearSelected ? "Desélectionner" : "Selectionner"} tout {selectedYear}
-                  </Button>
-                </div>
-
-                {loadingPeriods ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[200px] rounded-md border p-2">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                      {availablePeriods.map((period) => {
-                        const isSelected = form.periods.includes(period.period_identifier);
-                        return (
-                          <label
-                            key={period.id}
-                            className={`flex items-center space-x-2 rounded-md border p-2 cursor-pointer transition-colors ${
-                              isSelected ? "bg-primary/10 border-primary" : "hover:bg-muted"
-                            }`}
-                          >
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => handleTogglePeriod(period.period_identifier)}
-                            />
-                            <span className="text-sm flex-1">
-                              {formatPeriodLabel(form.periodType, period.period_identifier)}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                )}
+              <div className="flex items-center gap-4 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddCurrentPeriod}
+                >
+                  Ajouter periode actuelle
+                </Button>
               </div>
+
+              <PeriodCalendar
+                periodType={form.periodType}
+                availablePeriods={availablePeriods}
+                selectedPeriods={form.periods}
+                onTogglePeriod={handleTogglePeriod}
+                loadingPeriods={loadingPeriods}
+              />
             </div>
 
             {/* Recompenses */}
