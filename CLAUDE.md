@@ -32,6 +32,7 @@ royaume-paraiges-admin/
 │   │   │   │   ├── create/       # Creation de modele
 │   │   │   │   └── [id]/         # Edition de modele
 │   │   │   ├── users/            # Gestion des utilisateurs
+│   │   │   │   └── [id]/         # Detail utilisateur
 │   │   │   ├── receipts/         # Historique des tickets
 │   │   │   ├── history/          # Historique general
 │   │   │   ├── rewards/          # Systeme de recompenses
@@ -39,13 +40,17 @@ royaume-paraiges-admin/
 │   │   │   │   │   ├── create/   # Creation de palier
 │   │   │   │   │   └── [id]/     # Edition de palier
 │   │   │   │   ├── periods/      # Configuration des periodes
+│   │   │   │   │   ├── create/   # Creation de periode
+│   │   │   │   │   └── [periodType]/[identifier]/ # Detail periode
 │   │   │   │   └── distribute/   # Distribution des recompenses
 │   │   │   ├── quests/           # Gestion des quetes
 │   │   │   │   ├── create/       # Creation de quete
 │   │   │   │   └── [id]/         # Edition de quete
 │   │   │   ├── content/          # Contenu (bieres, etablissements)
 │   │   │   │   ├── beers/
+│   │   │   │   │   └── [id]/     # Detail biere
 │   │   │   │   └── establishments/
+│   │   │   │       └── [id]/     # Detail etablissement
 │   │   │   └── page.tsx          # Dashboard principal
 │   │   └── layout.tsx
 │   │
@@ -94,13 +99,23 @@ royaume-paraiges-admin/
 | Coupons | `docs/docs/supabase/tables/coupons.md` | Table des coupons |
 | Coupon Templates | `docs/docs/supabase/tables/coupon_templates.md` | Modeles de coupons |
 | Profiles | `docs/docs/supabase/tables/profiles.md` | Table des utilisateurs |
+| Gains | `docs/docs/supabase/tables/gains.md` | Table des gains (XP, cashback) |
 | Receipts | `docs/docs/supabase/tables/receipts.md` | Table des tickets |
+| Receipt Lines | `docs/docs/supabase/tables/receipt_lines.md` | Lignes de paiement |
+| Spendings | `docs/docs/supabase/tables/spendings.md` | Depenses cashback |
 | Reward Tiers | `docs/docs/supabase/tables/reward_tiers.md` | Paliers de recompenses |
 | Period Reward Configs | `docs/docs/supabase/tables/period_reward_configs.md` | Config des periodes |
 | Badge Types | `docs/docs/supabase/tables/badge_types.md` | Types de badges |
+| Quests | `docs/docs/supabase/tables/quests.md` | Quetes |
+| Quest Progress | `docs/docs/supabase/tables/quest_progress.md` | Progression des quetes |
+| Available Periods | `docs/docs/supabase/tables/available_periods.md` | Periodes disponibles |
+| Legal Pages | `docs/docs/supabase/tables/legal_pages.md` | Pages legales (CGU, confidentialite) |
 | Fonctions | `docs/docs/supabase/functions/` | Fonctions PostgreSQL |
-| create_manual_coupon | `docs/docs/supabase/functions/create_manual_coupon.md` | Creation manuelle de coupons |
-| distribute_leaderboard_rewards | `docs/docs/supabase/functions/distribute_leaderboard_rewards.md` | Distribution recompenses |
+| create_receipt | `docs/docs/supabase/functions/create_receipt.md` | Creation de ticket (POS) |
+| calculate_gains | `docs/docs/supabase/functions/calculate_gains.md` | Calcul XP et cashback |
+| credit_bonus_cashback | `docs/docs/supabase/functions/credit_bonus_cashback.md` | Credit bonus cashback |
+| distribute_leaderboard_rewards | `docs/docs/supabase/functions/distribute_leaderboard_rewards.md` | Distribution recompenses (legacy) |
+| handle_new_user | `docs/docs/supabase/functions/handle_new_user.md` | Trigger creation profil |
 | Politiques RLS | `docs/docs/supabase/policies/README.md` | Toutes les politiques de securite |
 
 ### Tables de contenu
@@ -116,6 +131,7 @@ royaume-paraiges-admin/
 | `beers_establishments` | Liaison M2M bieres-etablissements |
 | `beers_beer_styles` | Liaison M2M bieres-styles |
 | `news_establishments` | Liaison M2M news-etablissements |
+| `legal_pages` | Pages legales (CGU, confidentialite) |
 
 ## Fonctionnalites Principales
 
@@ -126,7 +142,7 @@ royaume-paraiges-admin/
 - `src/app/(dashboard)/coupons/create/page.tsx` - Creation de coupon
 - `src/lib/services/couponService.ts` - Service metier
 
-**Fonction RPC** : `create_manual_coupon()` - Voir `docs/docs/supabase/functions/create_manual_coupon.md`
+**Fonction RPC** : `create_manual_coupon()` - Cree un coupon manuel. Si montant fixe, credite directement en bonus cashback.
 
 ```typescript
 // Exemple d'utilisation
@@ -144,6 +160,7 @@ await createManualCoupon({
 
 **Fichiers cles** :
 - `src/app/(dashboard)/users/page.tsx` - Liste des utilisateurs
+- `src/app/(dashboard)/users/[id]/page.tsx` - Detail utilisateur
 - `src/lib/services/userService.ts` - Service metier
 
 ### 3. Analytics Dashboard
@@ -184,11 +201,12 @@ await toggleTemplateActive(templateId, false);
 Systeme complet de gestion des recompenses par classement (leaderboard).
 
 **Fichiers cles** :
-- `src/app/(dashboard)/rewards/page.tsx` - Vue d'ensemble
-- `src/app/(dashboard)/rewards/tiers/page.tsx` - Paliers de recompenses
+- `src/app/(dashboard)/rewards/page.tsx` - Vue d'ensemble (inclut la liste des paliers)
 - `src/app/(dashboard)/rewards/tiers/create/page.tsx` - Creation de palier
 - `src/app/(dashboard)/rewards/tiers/[id]/page.tsx` - Edition de palier
 - `src/app/(dashboard)/rewards/periods/page.tsx` - Configuration des periodes
+- `src/app/(dashboard)/rewards/periods/create/page.tsx` - Creation de periode
+- `src/app/(dashboard)/rewards/periods/[periodType]/[identifier]/page.tsx` - Detail periode
 - `src/app/(dashboard)/rewards/distribute/page.tsx` - Distribution des recompenses
 - `src/lib/services/rewardService.ts` - Service metier
 
@@ -281,6 +299,15 @@ import {
 } from '@/lib/services/questService';
 ```
 
+### 7. Gestion du Contenu
+
+**Fichiers cles** :
+- `src/app/(dashboard)/content/beers/page.tsx` - Liste des bieres
+- `src/app/(dashboard)/content/beers/[id]/page.tsx` - Detail/edition biere
+- `src/app/(dashboard)/content/establishments/page.tsx` - Liste des etablissements
+- `src/app/(dashboard)/content/establishments/[id]/page.tsx` - Detail/edition etablissement
+- `src/lib/services/contentService.ts` - Service metier
+
 ## Schema de la Base de Donnees (Resume)
 
 ### Table `coupons`
@@ -295,6 +322,7 @@ import {
 | expires_at | TIMESTAMPTZ | Date d'expiration |
 | distribution_type | VARCHAR | Source (manual, leaderboard, etc.) |
 | template_id | BIGINT | FK vers coupon_templates |
+| period_identifier | VARCHAR | Periode associee (ex: 2026-W06) |
 
 > Documentation complete : `docs/docs/supabase/tables/coupons.md`
 
@@ -306,11 +334,73 @@ import {
 | email | TEXT | Email |
 | first_name | TEXT | Prenom |
 | last_name | TEXT | Nom |
+| username | TEXT | Nom d'utilisateur (genere auto) |
 | role | user_role | client, employee, establishment, admin |
-| total_xp | INTEGER | XP total |
-| cashback_balance | INTEGER | Solde cashback (centimes) |
+| avatar_url | TEXT | URL de l'avatar |
+| phone | TEXT | Telephone |
+| birthdate | DATE | Date de naissance |
+| xp_coefficient | INTEGER | Coefficient XP (defaut: 100) |
+| cashback_coefficient | INTEGER | Coefficient cashback (defaut: 100) |
+| attached_establishment_id | INTEGER | FK vers establishments (pour employees/gerants) |
+
+> **Note** : `total_xp` et `cashback_balance` ne sont PAS des colonnes de `profiles`. Ils sont calcules via la vue materialisee `user_stats` (qui agrege depuis `gains`).
 
 > Documentation complete : `docs/docs/supabase/tables/profiles.md`
+
+### Table `gains`
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| id | BIGINT | PK |
+| customer_id | UUID | FK vers profiles (NOT NULL) |
+| receipt_id | BIGINT | FK vers receipts (NULL pour bonus cashback) |
+| establishment_id | INTEGER | FK vers establishments (NULL pour bonus cashback) |
+| xp | INTEGER | XP gagne |
+| cashback_money | INTEGER | Cashback gagne (centimes) |
+| source_type | VARCHAR | Source: receipt, bonus_cashback_manual, bonus_cashback_leaderboard, bonus_cashback_quest, bonus_cashback_trigger |
+| coupon_id | BIGINT | FK vers coupons (pour bonus cashback) |
+| period_identifier | VARCHAR | Periode associee (ex: 2026-W06) |
+
+> Table centrale du systeme de gains. Relie les profils aux XP et cashback gagnes, que ce soit via des tickets ou des bonus cashback directs.
+
+> Documentation complete : `docs/docs/supabase/tables/gains.md`
+
+## Systeme Bonus Cashback (Fevrier 2026)
+
+Refonte majeure du systeme de coupons : les coupons a montant fixe sont desormais credites directement en cashback.
+
+### Coupons montant fixe → Bonus Cashback
+
+- Credites **immediatement** au solde cashback du client via la table `gains`
+- Le coupon est cree avec `used = true` et `expires_at = NULL`
+- La fonction `credit_bonus_cashback()` insere un gain avec `source_type` = `bonus_cashback_manual`, `bonus_cashback_leaderboard`, `bonus_cashback_quest` ou `bonus_cashback_trigger`
+- `validate_coupons()` **rejette** les coupons montant fixe (deja consommes)
+- `get_customer_available_coupons()` ne retourne **que** les coupons pourcentage
+
+### Coupons pourcentage → Bonus cashback sur commande
+
+- Toujours utilisables sur les commandes via `create_receipt()`
+- Ajoutent un bonus cashback de X% du montant total au lieu de reduire le prix
+- Plus de `receipt_lines` avec `payment_method = 'coupon'`
+
+### Vue materialisee `user_stats`
+
+- Joint `profiles → gains` directement (plus via receipts)
+- Calcule `total_xp`, `cashback_earned`, `cashback_spent`, `cashback_available`
+- Rafraichie automatiquement par `credit_bonus_cashback()` et `create_receipt()`
+
+### Fonction `credit_bonus_cashback()`
+
+```typescript
+// Via RPC
+await (supabase.rpc as any)('credit_bonus_cashback', {
+  p_customer_id: 'uuid',
+  p_amount: 500,           // 5.00€ en centimes
+  p_coupon_id: 123,        // Optionnel
+  p_source_type: 'bonus_cashback_manual',
+  p_period_identifier: '2026-W06'  // Optionnel
+});
+```
 
 ## Roles Utilisateurs
 
@@ -409,12 +499,18 @@ export type CouponWithRelations = Coupon & {
 
 ### Points d'attention
 
-- La colonne s'appelle `used` (pas `is_used`)
+- La colonne s'appelle `used` (pas `is_used`) dans la table `coupons`
 - Il n'y a PAS de colonne `establishment_id` dans la table `coupons`
 - Il n'y a PAS de colonne `used_at` dans la table `coupons`
+- Il n'y a PAS de colonnes `total_xp` / `cashback_balance` dans `profiles` (voir vue `user_stats`)
+- `establishment_id` dans `gains` est **nullable** (NULL pour les bonus cashback directs)
 - Les fonctions RPC utilisent `SECURITY DEFINER` et bypass RLS
 - Les admins creent des coupons via `create_manual_coupon()` RPC
+- **Coupons montant fixe** = bonus cashback credite immediatement (used=true des la creation)
+- **Coupons pourcentage** = seuls coupons utilisables sur les commandes
 - **Quetes** : Le `target_value` pour `amount_spent` est en **centimes** en BDD mais en **euros** dans le frontend (conversion x100)
+- Utiliser `(supabase.rpc as any)` pour les appels RPC (limitation de typage)
+- Utiliser `(supabase.from("table") as any)` pour insert/update/delete
 
 ### Apres modification
 
@@ -428,4 +524,4 @@ export type CouponWithRelations = Coupon & {
 
 ---
 
-**Derniere mise a jour** : 2026-01-23
+**Derniere mise a jour** : 2026-02-09

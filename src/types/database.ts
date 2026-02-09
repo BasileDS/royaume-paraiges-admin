@@ -638,6 +638,7 @@ export type Database = {
           customer_id: string
           establishment_id: number | null
           id: number
+          period_identifier: string | null
           receipt_id: number | null
           source_type: string | null
           xp: number | null
@@ -649,6 +650,7 @@ export type Database = {
           customer_id: string
           establishment_id?: number | null
           id?: number
+          period_identifier?: string | null
           receipt_id?: number | null
           source_type?: string | null
           xp?: number | null
@@ -660,6 +662,7 @@ export type Database = {
           customer_id?: string
           establishment_id?: number | null
           id?: number
+          period_identifier?: string | null
           receipt_id?: number | null
           source_type?: string | null
           xp?: number | null
@@ -2164,6 +2167,9 @@ export type BadgeType = Database["public"]["Tables"]["badge_types"]["Row"];
 
 // User Badges
 export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"];
+
+// Gains
+export type Gain = Database["public"]["Tables"]["gains"]["Row"];
 
 // Beers
 export type Beer = Database["public"]["Tables"]["beers"]["Row"];

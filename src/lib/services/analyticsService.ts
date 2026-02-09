@@ -269,13 +269,14 @@ export async function getDailyCashbackStats(
  */
 export async function getUnspentCashbackTotal(): Promise<number> {
   const supabase = createClient();
-  type StatsRow = { cashback_available: number | null };
+  type StatsRow = { cashback_available: number | string | null };
   const { data, error } = await (supabase.from("user_stats") as any)
     .select("cashback_available");
 
   if (error) throw error;
+  // user_stats columns are bigint (from SUM), PostgREST returns bigints as strings
   return ((data || []) as StatsRow[]).reduce(
-    (sum, row) => sum + (row.cashback_available || 0),
+    (sum, row) => sum + (Number(row.cashback_available) || 0),
     0
   );
 }

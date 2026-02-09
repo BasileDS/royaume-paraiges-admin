@@ -44,7 +44,7 @@ const navigationGroups = [
   {
     title: "Recompenses",
     items: [
-      { name: "Coupons", href: "/coupons", icon: Ticket },
+      { name: "Recompenses", href: "/coupons", icon: Ticket },
       { name: "Templates", href: "/templates", icon: FileText },
       { name: "Tiers", href: "/rewards", icon: Trophy },
       { name: "Quetes", href: "/quests", icon: Target },

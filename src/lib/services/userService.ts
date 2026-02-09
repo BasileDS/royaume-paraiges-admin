@@ -271,17 +271,19 @@ export async function getUserFullStats(userId: string): Promise<{
 } | null> {
   const supabase = createClient();
 
+  // user_stats and leaderboard columns are bigint (from SUM/row_number),
+  // PostgREST returns bigints as strings — must convert with Number()
   type UserStatsRow = {
     customer_id: string;
-    total_xp: number;
-    cashback_available: number;
-    cashback_earned: number;
-    cashback_spent: number;
+    total_xp: number | string;
+    cashback_available: number | string;
+    cashback_earned: number | string;
+    cashback_spent: number | string;
   };
 
   type LeaderboardRow = {
     customer_id: string;
-    rank: number;
+    rank: number | string;
   };
 
   const [statsResult, weeklyResult, monthlyResult, yearlyResult] = await Promise.all([
@@ -292,14 +294,17 @@ export async function getUserFullStats(userId: string): Promise<{
   ]);
 
   const userStats = statsResult.data as UserStatsRow | null;
+  const weeklyRank = (weeklyResult.data as LeaderboardRow | null)?.rank;
+  const monthlyRank = (monthlyResult.data as LeaderboardRow | null)?.rank;
+  const yearlyRank = (yearlyResult.data as LeaderboardRow | null)?.rank;
 
   return {
-    totalXp: userStats?.total_xp || 0,
-    cashbackBalance: userStats?.cashback_available || 0,
-    cashbackEarned: userStats?.cashback_earned || 0,
-    cashbackSpent: userStats?.cashback_spent || 0,
-    weeklyRank: (weeklyResult.data as LeaderboardRow | null)?.rank || null,
-    monthlyRank: (monthlyResult.data as LeaderboardRow | null)?.rank || null,
-    yearlyRank: (yearlyResult.data as LeaderboardRow | null)?.rank || null,
+    totalXp: Number(userStats?.total_xp) || 0,
+    cashbackBalance: Number(userStats?.cashback_available) || 0,
+    cashbackEarned: Number(userStats?.cashback_earned) || 0,
+    cashbackSpent: Number(userStats?.cashback_spent) || 0,
+    weeklyRank: weeklyRank != null ? Number(weeklyRank) : null,
+    monthlyRank: monthlyRank != null ? Number(monthlyRank) : null,
+    yearlyRank: yearlyRank != null ? Number(yearlyRank) : null,
   };
 }

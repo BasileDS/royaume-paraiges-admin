@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Coupon, CouponDistributionLog, Profile } from "@/types/database";
+import type { Coupon, CouponDistributionLog, Gain, Profile } from "@/types/database";
 
 export interface CouponFilters {
   isUsed?: boolean;
@@ -224,6 +224,47 @@ export async function getDistributionLogs(
     profiles: profilesMap.get(log.customer_id) || null,
     coupon_templates: log.coupon_template_id ? templatesMap.get(log.coupon_template_id) || null : null,
     reward_tiers: log.tier_id ? tiersMap.get(log.tier_id) || null : null,
+  }));
+
+  return { data, count };
+}
+
+export type GainWithProfile = Gain & {
+  profiles: { first_name: string | null; last_name: string | null; email: string | null } | null;
+};
+
+export async function getBonusCashbackGains(limit = 100, offset = 0) {
+  const supabase = createClient();
+
+  const { data: gains, error, count } = await supabase
+    .from("gains")
+    .select("*", { count: "exact" })
+    .like("source_type", "bonus_cashback_%")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+
+  const gainsData = gains as Gain[] | null;
+
+  if (!gainsData || gainsData.length === 0) {
+    return { data: [] as GainWithProfile[], count };
+  }
+
+  const customerIds = Array.from(new Set(gainsData.map((g) => g.customer_id)));
+
+  type ProfileData = { id: string; first_name: string | null; last_name: string | null; email: string | null };
+
+  const { data: profilesData } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, email")
+    .in("id", customerIds);
+
+  const profilesMap = new Map(((profilesData || []) as ProfileData[]).map((p) => [p.id, p] as const));
+
+  const data: GainWithProfile[] = gainsData.map((gain) => ({
+    ...gain,
+    profiles: profilesMap.get(gain.customer_id) || null,
   }));
 
   return { data, count };

@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,9 +26,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2, Search, Filter } from "lucide-react";
-import { getCoupons, type CouponFilters } from "@/lib/services/couponService";
-import { formatCurrency, formatPercentage, formatDate, formatDateTime } from "@/lib/utils";
+import { Plus, Loader2 } from "lucide-react";
+import {
+  getCoupons,
+  getBonusCashbackGains,
+  type CouponFilters,
+  type GainWithProfile,
+} from "@/lib/services/couponService";
+import { formatCurrency, formatPercentage, formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import type { Coupon } from "@/types/database";
 
@@ -38,27 +42,120 @@ type CouponWithRelations = Coupon & {
   coupon_templates: { name: string } | null;
 };
 
-export default function CouponsPage() {
+type RewardItem = {
+  kind: "coupon" | "gain";
+  id: number;
+  customer_id: string;
+  created_at: string;
+  profiles: { first_name: string | null; last_name: string | null; email: string | null } | null;
+  // Coupon fields
+  percentage?: number | null;
+  amount?: number | null;
+  used?: boolean;
+  expires_at?: string | null;
+  distribution_type?: string | null;
+  period_identifier?: string | null;
+  template_name?: string | null;
+  // Gain fields
+  cashback_money?: number | null;
+  source_type?: string | null;
+};
+
+type RewardTypeFilter = "all" | "coupons" | "gains";
+
+function couponToRewardItem(coupon: CouponWithRelations): RewardItem {
+  return {
+    kind: "coupon",
+    id: coupon.id,
+    customer_id: coupon.customer_id,
+    created_at: coupon.created_at,
+    profiles: coupon.profiles,
+    percentage: coupon.percentage,
+    amount: coupon.amount,
+    used: coupon.used,
+    expires_at: coupon.expires_at,
+    distribution_type: coupon.distribution_type,
+    period_identifier: coupon.period_identifier,
+    template_name: coupon.coupon_templates?.name ?? null,
+  };
+}
+
+function gainToRewardItem(gain: GainWithProfile): RewardItem {
+  return {
+    kind: "gain",
+    id: gain.id,
+    customer_id: gain.customer_id,
+    created_at: gain.created_at,
+    profiles: gain.profiles,
+    cashback_money: gain.cashback_money,
+    source_type: gain.source_type,
+    period_identifier: gain.period_identifier,
+  };
+}
+
+function getSourceLabel(item: RewardItem): string {
+  if (item.kind === "gain") {
+    const st = item.source_type || "";
+    if (st.includes("manual")) return "Manuel";
+    if (st.includes("leaderboard")) return "Leaderboard";
+    if (st.includes("quest")) return "Quete";
+    if (st.includes("trigger")) return "Trigger";
+    return st.replace("bonus_cashback_", "").replace(/_/g, " ") || "-";
+  }
+  if (item.distribution_type === "manual") return "Manuel";
+  if (item.distribution_type?.startsWith("leaderboard")) return "Leaderboard";
+  if (item.distribution_type === "trigger_legacy") return "Legacy";
+  if (item.distribution_type === "quest") return "Quete";
+  return item.distribution_type || "-";
+}
+
+function isExpired(expiresAt: string | null | undefined) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt) < new Date();
+}
+
+export default function RewardsPage() {
   const [coupons, setCoupons] = useState<CouponWithRelations[]>([]);
+  const [gains, setGains] = useState<GainWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [rewardTypeFilter, setRewardTypeFilter] = useState<RewardTypeFilter>("all");
+  const [couponFilters, setCouponFilters] = useState<CouponFilters>({});
   const [page, setPage] = useState(0);
-  const [filters, setFilters] = useState<CouponFilters>({});
   const { toast } = useToast();
 
   const limit = 20;
 
-  const fetchCoupons = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const { data, count } = await getCoupons(filters, limit, page * limit);
-      setCoupons(data as CouponWithRelations[]);
-      setTotal(count || 0);
+      const promises: Promise<void>[] = [];
+
+      if (rewardTypeFilter !== "gains") {
+        promises.push(
+          getCoupons(couponFilters, 100, 0).then(({ data }) => {
+            setCoupons(data as CouponWithRelations[]);
+          })
+        );
+      } else {
+        setCoupons([]);
+      }
+
+      if (rewardTypeFilter !== "coupons") {
+        promises.push(
+          getBonusCashbackGains(100, 0).then(({ data }) => {
+            setGains(data);
+          })
+        );
+      } else {
+        setGains([]);
+      }
+
+      await Promise.all(promises);
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de charger les coupons",
+        description: "Impossible de charger les recompenses",
       });
     } finally {
       setLoading(false);
@@ -66,23 +163,31 @@ export default function CouponsPage() {
   };
 
   useEffect(() => {
-    fetchCoupons();
-  }, [filters, page]);
+    fetchData();
+  }, [rewardTypeFilter, couponFilters]);
 
-  const isExpired = (expiresAt: string | null) => {
-    if (!expiresAt) return false;
-    return new Date(expiresAt) < new Date();
-  };
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [rewardTypeFilter, couponFilters]);
 
-  const totalPages = Math.ceil(total / limit);
+  // Merge and sort
+  const allItems: RewardItem[] = [
+    ...coupons.map(couponToRewardItem),
+    ...gains.map(gainToRewardItem),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const totalItems = allItems.length;
+  const totalPages = Math.ceil(totalItems / limit);
+  const paginatedItems = allItems.slice(page * limit, (page + 1) * limit);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Coupons</h1>
+          <h1 className="text-3xl font-bold">Recompenses</h1>
           <p className="text-muted-foreground">
-            Liste de tous les coupons distribues
+            Liste de toutes les recompenses distribuees
           </p>
         </div>
         <Link href="/coupons/create">
@@ -100,96 +205,93 @@ export default function CouponsPage() {
         <CardContent>
           <div className="flex flex-wrap gap-4">
             <Select
-              value={filters.isUsed?.toString() || "all"}
+              value={rewardTypeFilter}
               onValueChange={(value) => {
-                setPage(0);
-                setFilters({
-                  ...filters,
-                  isUsed: value === "all" ? undefined : value === "true",
-                });
+                setRewardTypeFilter(value as RewardTypeFilter);
               }}
             >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="false">Non utilise</SelectItem>
-                <SelectItem value="true">Utilise</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={filters.distributionType || "all"}
-              onValueChange={(value) => {
-                setPage(0);
-                setFilters({
-                  ...filters,
-                  distributionType: value === "all" ? undefined : value,
-                });
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les types</SelectItem>
-                <SelectItem value="leaderboard_weekly">Leaderboard Hebdo</SelectItem>
-                <SelectItem value="leaderboard_monthly">Leaderboard Mensuel</SelectItem>
-                <SelectItem value="leaderboard_yearly">Leaderboard Annuel</SelectItem>
-                <SelectItem value="manual">Manuel</SelectItem>
-                <SelectItem value="trigger_legacy">Legacy</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={filters.isExpired?.toString() || "all"}
-              onValueChange={(value) => {
-                setPage(0);
-                setFilters({
-                  ...filters,
-                  isExpired: value === "all" ? undefined : value === "true",
-                });
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Expiration" />
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Type de recompense" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="false">Valide</SelectItem>
-                <SelectItem value="true">Expire</SelectItem>
+                <SelectItem value="coupons">Coupons (%)</SelectItem>
+                <SelectItem value="gains">Bonus Cashback</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select
-              value={filters.couponType || "all"}
-              onValueChange={(value) => {
-                setPage(0);
-                setFilters({
-                  ...filters,
-                  couponType: value === "all" ? undefined : value as "amount" | "percentage",
-                });
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les types</SelectItem>
-                <SelectItem value="amount">Bonus Cashback</SelectItem>
-                <SelectItem value="percentage">Coupons (%)</SelectItem>
-              </SelectContent>
-            </Select>
+            {rewardTypeFilter !== "gains" && (
+              <>
+                <Select
+                  value={couponFilters.isUsed?.toString() || "all"}
+                  onValueChange={(value) => {
+                    setCouponFilters({
+                      ...couponFilters,
+                      isUsed: value === "all" ? undefined : value === "true",
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Statut coupon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="false">Non utilise</SelectItem>
+                    <SelectItem value="true">Utilise</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={couponFilters.distributionType || "all"}
+                  onValueChange={(value) => {
+                    setCouponFilters({
+                      ...couponFilters,
+                      distributionType: value === "all" ? undefined : value,
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes les sources</SelectItem>
+                    <SelectItem value="leaderboard_weekly">Leaderboard Hebdo</SelectItem>
+                    <SelectItem value="leaderboard_monthly">Leaderboard Mensuel</SelectItem>
+                    <SelectItem value="leaderboard_yearly">Leaderboard Annuel</SelectItem>
+                    <SelectItem value="manual">Manuel</SelectItem>
+                    <SelectItem value="trigger_legacy">Legacy</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={couponFilters.isExpired?.toString() || "all"}
+                  onValueChange={(value) => {
+                    setCouponFilters({
+                      ...couponFilters,
+                      isExpired: value === "all" ? undefined : value === "true",
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Expiration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous</SelectItem>
+                    <SelectItem value="false">Valide</SelectItem>
+                    <SelectItem value="true">Expire</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Liste des coupons</CardTitle>
+          <CardTitle>Liste des recompenses</CardTitle>
           <CardDescription>
-            {total} coupon{total > 1 ? "s" : ""} au total
+            {totalItems} recompense{totalItems > 1 ? "s" : ""} au total
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -197,9 +299,9 @@ export default function CouponsPage() {
             <div className="flex h-32 items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : coupons.length === 0 ? (
+          ) : paginatedItems.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              Aucun coupon trouve
+              Aucune recompense trouvee
             </div>
           ) : (
             <>
@@ -209,81 +311,72 @@ export default function CouponsPage() {
                     <TableHead>ID</TableHead>
                     <TableHead>Utilisateur</TableHead>
                     <TableHead>Valeur</TableHead>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Source</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead>Expiration</TableHead>
-                    <TableHead>Cree le</TableHead>
+                    <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {coupons.map((coupon) => (
-                    <TableRow key={coupon.id}>
+                  {paginatedItems.map((item) => (
+                    <TableRow key={`${item.kind}-${item.id}`}>
                       <TableCell className="font-mono text-sm">
-                        #{coupon.id}
+                        {item.kind === "coupon" ? `#C${item.id}` : `#G${item.id}`}
                       </TableCell>
                       <TableCell>
                         <div>
                           <Link
-                            href={`/users/${coupon.customer_id}`}
+                            href={`/users/${item.customer_id}`}
                             className="font-medium hover:underline"
                           >
-                            {coupon.profiles
-                              ? `${coupon.profiles.first_name || ""} ${
-                                  coupon.profiles.last_name || ""
-                                }`.trim() || coupon.profiles.email
+                            {item.profiles
+                              ? `${item.profiles.first_name || ""} ${item.profiles.last_name || ""}`.trim() || item.profiles.email
                               : "Inconnu"}
                           </Link>
                           <p className="text-sm text-muted-foreground">
-                            {coupon.profiles?.email}
+                            {item.profiles?.email}
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        {coupon.amount ? (
+                        {item.kind === "gain" ? (
                           <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                            Bonus CB: {formatCurrency(coupon.amount)}
+                            Cashback: {formatCurrency(item.cashback_money || 0)}
                           </Badge>
-                        ) : coupon.percentage ? (
+                        ) : item.percentage ? (
                           <Badge variant="secondary">
-                            Coupon: {formatPercentage(coupon.percentage)}
+                            Coupon: {formatPercentage(item.percentage)}
+                          </Badge>
+                        ) : item.amount ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                            Bonus CB: {formatCurrency(item.amount)}
                           </Badge>
                         ) : (
                           "-"
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm">
-                          {coupon.distribution_type === "manual" && "Manuel"}
-                          {coupon.distribution_type?.startsWith("leaderboard") &&
-                            "Leaderboard"}
-                          {coupon.distribution_type === "trigger_legacy" &&
-                            "Legacy"}
-                          {!coupon.distribution_type && "-"}
-                        </span>
-                        {coupon.period_identifier && (
+                        <span className="text-sm">{getSourceLabel(item)}</span>
+                        {item.period_identifier && (
                           <p className="text-xs text-muted-foreground">
-                            {coupon.period_identifier}
+                            {item.period_identifier}
                           </p>
                         )}
                       </TableCell>
                       <TableCell>
-                        {coupon.amount && coupon.used ? (
+                        {item.kind === "gain" ? (
                           <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Credite</Badge>
-                        ) : coupon.used ? (
+                        ) : item.amount && item.used ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Credite</Badge>
+                        ) : item.used ? (
                           <Badge variant="secondary">Utilise</Badge>
-                        ) : isExpired(coupon.expires_at) ? (
+                        ) : isExpired(item.expires_at) ? (
                           <Badge variant="destructive">Expire</Badge>
                         ) : (
                           <Badge variant="success">Actif</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {coupon.expires_at
-                          ? formatDate(coupon.expires_at)
-                          : "Sans expiration"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(coupon.created_at)}
+                        {formatDate(item.created_at)}
                       </TableCell>
                     </TableRow>
                   ))}
