@@ -34,6 +34,7 @@ import {
   Copy,
   Loader2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { getTemplates, toggleTemplateActive, deleteTemplate } from "@/lib/services/templateService";
 import { formatCurrency, formatPercentage, formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -54,6 +55,7 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const fetchTemplates = async () => {
     try {
@@ -81,7 +83,7 @@ export default function TemplatesPage() {
         prev.map((t) => (t.id === id ? { ...t, is_active: isActive } : t))
       );
       toast({
-        title: isActive ? "Template active" : "Template desactive",
+        title: isActive ? "Template active" : "Template désactivé",
       });
     } catch (error) {
       toast({
@@ -124,7 +126,7 @@ export default function TemplatesPage() {
         <div>
           <h1 className="text-3xl font-bold">Templates de coupons</h1>
           <p className="text-muted-foreground">
-            Gerez les modeles de coupons reutilisables
+            Gérez les modèles de coupons réutilisables
           </p>
         </div>
         <Link href="/templates/create">
@@ -145,7 +147,7 @@ export default function TemplatesPage() {
         <CardContent>
           {templates.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              Aucun template. Creez-en un pour commencer.
+              Aucun template. Créez-en un pour commencer.
             </div>
           ) : (
             <Table>
@@ -162,7 +164,11 @@ export default function TemplatesPage() {
               </TableHeader>
               <TableBody>
                 {templates.map((template) => (
-                  <TableRow key={template.id}>
+                  <TableRow
+                    key={template.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/templates/${template.id}`)}
+                  >
                     <TableCell>
                       <div>
                         <p className="font-medium">{template.name}</p>
@@ -204,7 +210,7 @@ export default function TemplatesPage() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={template.is_active ?? false}
                         onCheckedChange={(checked) =>
@@ -215,7 +221,7 @@ export default function TemplatesPage() {
                     <TableCell className="text-muted-foreground">
                       {template.created_at ? formatDate(template.created_at) : "-"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
@@ -223,12 +229,6 @@ export default function TemplatesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <Link href={`/templates/${template.id}`}>
-                            <DropdownMenuItem>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Modifier
-                            </DropdownMenuItem>
-                          </Link>
                           <Link href={`/templates/create?duplicate=${template.id}`}>
                             <DropdownMenuItem>
                               <Copy className="mr-2 h-4 w-4" />
@@ -258,7 +258,7 @@ export default function TemplatesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer ce template ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irreversible. Les coupons existants bases sur ce
+              Cette action est irréversible. Les coupons existants bases sur ce
               template ne seront pas affectes.
             </AlertDialogDescription>
           </AlertDialogHeader>

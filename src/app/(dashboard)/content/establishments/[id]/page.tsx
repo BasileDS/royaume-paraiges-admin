@@ -14,7 +14,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Upload, X } from "lucide-react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ArrowLeft,
+  Loader2,
+  Upload,
+  X,
+  Edit,
+  BarChart3,
+  ShoppingCart,
+  Banknote,
+  Coins,
+  TrendingUp,
+  Award,
+  PiggyBank,
+} from "lucide-react";
+import { StatCard } from "@/components/stat-card";
 import {
   getEstablishment,
   updateEstablishment,
@@ -22,7 +49,16 @@ import {
   deleteEstablishmentImage,
   getImageUrl,
 } from "@/lib/services/contentService";
+import {
+  getAnalyticsRevenue,
+  getAnalyticsDebts,
+  getEmployeesByEstablishment,
+  type RevenueData,
+  type DebtsData,
+} from "@/lib/services/analyticsService";
+import { PeriodSelector, getPresetDates, type PeriodDates } from "@/components/period-selector";
 import { useToast } from "@/components/ui/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 export default function EditEstablishmentPage() {
   const router = useRouter();
@@ -32,6 +68,7 @@ export default function EditEstablishmentPage() {
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [activeTab, setActiveTab] = useState("info");
 
   // Image principale
   const [currentFeaturedImage, setCurrentFeaturedImage] = useState<string | null>(null);
@@ -54,6 +91,17 @@ export default function EditEstablishmentPage() {
     country: "",
     anniversary: "",
   });
+
+  // Stats tab state
+  const [statsPeriod, setStatsPeriod] = useState<PeriodDates>(() => {
+    const { start, end } = getPresetDates("last_7_days");
+    return { startDate: start.toISOString(), endDate: end.toISOString() };
+  });
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
+  const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
+  const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
+  const [debtsData, setDebtsData] = useState<DebtsData | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -80,7 +128,7 @@ export default function EditEstablishmentPage() {
           toast({
             variant: "destructive",
             title: "Erreur",
-            description: "Etablissement introuvable",
+            description: "Établissement introuvable",
           });
           router.push("/content/establishments");
         }
@@ -88,7 +136,7 @@ export default function EditEstablishmentPage() {
         toast({
           variant: "destructive",
           title: "Erreur",
-          description: "Impossible de charger l'etablissement",
+          description: "Impossible de charger l'établissement",
         });
         router.push("/content/establishments");
       } finally {
@@ -98,6 +146,52 @@ export default function EditEstablishmentPage() {
 
     fetchData();
   }, [id, router, toast]);
+
+  // Load employees for this establishment
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const data = await getEmployeesByEstablishment(id);
+        setEmployees(data);
+      } catch (error) {
+        // Non-blocking
+      }
+    };
+    fetchEmployees();
+  }, [id]);
+
+  // Load stats when tab is active or filters change
+  useEffect(() => {
+    if (activeTab === "stats") {
+      fetchStats();
+    }
+  }, [activeTab, statsPeriod, selectedEmployeeId]);
+
+  const fetchStats = async () => {
+    setLoadingStats(true);
+    try {
+      const filters = {
+        startDate: statsPeriod.startDate,
+        endDate: statsPeriod.endDate,
+        establishmentId: id,
+        employeeId: selectedEmployeeId && selectedEmployeeId !== "all" ? selectedEmployeeId : undefined,
+      };
+      const [revenue, debts] = await Promise.all([
+        getAnalyticsRevenue(filters),
+        getAnalyticsDebts(filters),
+      ]);
+      setRevenueData(revenue);
+      setDebtsData(debts);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de charger les statistiques",
+      });
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   const handleFeaturedImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -171,13 +265,13 @@ export default function EditEstablishmentPage() {
         logo: newLogoPath,
       });
 
-      toast({ title: "Etablissement mis a jour" });
+      toast({ title: "Établissement mis à jour" });
       router.push("/content/establishments");
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de mettre a jour l'etablissement",
+        description: "Impossible de mettre à jour l'établissement",
       });
     } finally {
       setLoading(false);
@@ -201,275 +295,376 @@ export default function EditEstablishmentPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Modifier l'etablissement</h1>
-          <p className="text-muted-foreground">{form.title}</p>
+          <h1 className="text-3xl font-bold">{form.title || "Établissement"}</h1>
+          <p className="text-muted-foreground">Gestion de l'établissement</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Informations generales</CardTitle>
-            <CardDescription>
-              Modifiez les informations de l'etablissement
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="title">Nom de l'etablissement *</Label>
-              <Input
-                id="title"
-                placeholder="Ex: Le Royaume des Paraiges"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                required
-              />
-            </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="info" className="flex items-center gap-2">
+            <Edit className="h-4 w-4" />
+            Informations
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Statistiques
+          </TabsTrigger>
+        </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="shortDescription">Description courte</Label>
-              <Input
-                id="shortDescription"
-                placeholder="Resume en une ligne"
-                value={form.shortDescription}
-                onChange={(e) =>
-                  setForm({ ...form, shortDescription: e.target.value })
-                }
-                maxLength={150}
-              />
-              <p className="text-xs text-muted-foreground">
-                {form.shortDescription.length}/150 caracteres
-              </p>
-            </div>
+        {/* Informations Tab - existing edit form */}
+        <TabsContent value="info">
+          <form onSubmit={handleSubmit}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Informations générales</CardTitle>
+                <CardDescription>
+                  Modifiez les informations de l'établissement
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Nom de l'établissement *</Label>
+                  <Input
+                    id="title"
+                    placeholder="Ex: Le Royaume des Paraiges"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    required
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Description complete</Label>
-              <Textarea
-                id="description"
-                placeholder="Description detaillee de l'etablissement"
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-                rows={4}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shortDescription">Description courte</Label>
+                  <Input
+                    id="shortDescription"
+                    placeholder="Résumé en une ligne"
+                    value={form.shortDescription}
+                    onChange={(e) =>
+                      setForm({ ...form, shortDescription: e.target.value })
+                    }
+                    maxLength={150}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {form.shortDescription.length}/150 caractères
+                  </p>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="anniversary">Date anniversaire</Label>
-              <Input
-                id="anniversary"
-                type="date"
-                value={form.anniversary}
-                onChange={(e) =>
-                  setForm({ ...form, anniversary: e.target.value })
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                Date de creation ou d'ouverture de l'etablissement
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description complète</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Description détaillée de l'établissement"
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm({ ...form, description: e.target.value })
+                    }
+                    rows={4}
+                  />
+                </div>
 
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Images</CardTitle>
-            <CardDescription>
-              Image principale et logo de l'etablissement
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Image principale */}
-            <div className="space-y-2">
-              <Label>Image principale</Label>
-              <div className="flex items-start gap-4">
-                {(featuredPreview || currentFeaturedImage) && (
-                  <div className="relative">
-                    <div className="flex h-32 w-48 items-center justify-center overflow-hidden rounded-lg border bg-muted/10">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={featuredPreview || getImageUrl(currentFeaturedImage) || ""}
-                        alt="Image principale"
-                        className="h-full w-full object-cover"
+                <div className="space-y-2">
+                  <Label htmlFor="anniversary">Date anniversaire</Label>
+                  <Input
+                    id="anniversary"
+                    type="date"
+                    value={form.anniversary}
+                    onChange={(e) =>
+                      setForm({ ...form, anniversary: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Date de création ou d'ouverture de l'établissement
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Images</CardTitle>
+                <CardDescription>
+                  Image principale et logo de l'établissement
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Image principale */}
+                <div className="space-y-2">
+                  <Label>Image principale</Label>
+                  <div className="flex items-start gap-4">
+                    {(featuredPreview || currentFeaturedImage) && (
+                      <div className="relative">
+                        <div className="flex h-32 w-48 items-center justify-center overflow-hidden rounded-lg border bg-muted/10">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={featuredPreview || getImageUrl(currentFeaturedImage) || ""}
+                            alt="Image principale"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        {featuredPreview && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveFeaturedImage}
+                            className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <label
+                        htmlFor="featured-upload"
+                        className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 transition-colors hover:border-muted-foreground/50"
+                      >
+                        <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          {newFeaturedFile
+                            ? newFeaturedFile.name
+                            : currentFeaturedImage
+                            ? "Changer l'image"
+                            : "Importer une image"}
+                        </span>
+                        <span className="mt-1 text-xs text-muted-foreground">
+                          PNG, JPG, WebP, AVIF jusqu'à 5MB
+                        </span>
+                      </label>
+                      <input
+                        id="featured-upload"
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/avif"
+                        className="hidden"
+                        onChange={handleFeaturedImageChange}
                       />
                     </div>
-                    {featuredPreview && (
-                      <button
-                        type="button"
-                        onClick={handleRemoveFeaturedImage}
-                        className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
                   </div>
-                )}
-                <div className="flex-1">
-                  <label
-                    htmlFor="featured-upload"
-                    className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 transition-colors hover:border-muted-foreground/50"
-                  >
-                    <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {newFeaturedFile
-                        ? newFeaturedFile.name
-                        : currentFeaturedImage
-                        ? "Changer l'image"
-                        : "Importer une image"}
-                    </span>
-                    <span className="mt-1 text-xs text-muted-foreground">
-                      PNG, JPG, WebP, AVIF jusqu'a 5MB
-                    </span>
-                  </label>
-                  <input
-                    id="featured-upload"
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/avif"
-                    className="hidden"
-                    onChange={handleFeaturedImageChange}
+                </div>
+
+                {/* Logo */}
+                <div className="space-y-2">
+                  <Label>Logo</Label>
+                  <div className="flex items-start gap-4">
+                    {(logoPreview || currentLogo) && (
+                      <div className="relative">
+                        <div className="flex h-24 items-center justify-center overflow-hidden rounded-lg border bg-muted/10 p-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={logoPreview || getImageUrl(currentLogo) || ""}
+                            alt="Logo"
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        </div>
+                        {logoPreview && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveLogo}
+                            className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <label
+                        htmlFor="logo-upload"
+                        className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 transition-colors hover:border-muted-foreground/50"
+                      >
+                        <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          {newLogoFile
+                            ? newLogoFile.name
+                            : currentLogo
+                            ? "Changer le logo"
+                            : "Importer un logo"}
+                        </span>
+                        <span className="mt-1 text-xs text-muted-foreground">
+                          PNG, JPG, WebP, AVIF jusqu'à 2MB
+                        </span>
+                      </label>
+                      <input
+                        id="logo-upload"
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/avif"
+                        className="hidden"
+                        onChange={handleLogoChange}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Adresse</CardTitle>
+                <CardDescription>
+                  Localisation de l'établissement
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="lineAddress1">Adresse ligne 1</Label>
+                  <Input
+                    id="lineAddress1"
+                    placeholder="Numéro et rue"
+                    value={form.lineAddress1}
+                    onChange={(e) =>
+                      setForm({ ...form, lineAddress1: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lineAddress2">Adresse ligne 2</Label>
+                  <Input
+                    id="lineAddress2"
+                    placeholder="Complément d'adresse (optionnel)"
+                    value={form.lineAddress2}
+                    onChange={(e) =>
+                      setForm({ ...form, lineAddress2: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="zipcode">Code postal</Label>
+                    <Input
+                      id="zipcode"
+                      placeholder="Ex: 57000"
+                      value={form.zipcode}
+                      onChange={(e) =>
+                        setForm({ ...form, zipcode: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Ville</Label>
+                    <Input
+                      id="city"
+                      placeholder="Ex: Metz"
+                      value={form.city}
+                      onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Pays</Label>
+                    <Input
+                      id="country"
+                      placeholder="Ex: France"
+                      value={form.country}
+                      onChange={(e) =>
+                        setForm({ ...form, country: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-4">
+                  <Link href="/content/establishments">
+                    <Button type="button" variant="outline">
+                      Annuler
+                    </Button>
+                  </Link>
+                  <Button type="submit" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Enregistrer
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </form>
+        </TabsContent>
+
+        {/* Statistiques Tab */}
+        <TabsContent value="stats" className="space-y-6">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <h2 className="hidden text-lg font-semibold sm:block">Statistiques</h2>
+            <div className="flex flex-1 items-center gap-2 sm:flex-none sm:gap-3">
+              {employees.length > 0 && (
+                <Select
+                  value={selectedEmployeeId}
+                  onValueChange={setSelectedEmployeeId}
+                >
+                  <SelectTrigger className="min-w-0 flex-1 sm:flex-none sm:w-[200px]">
+                    <SelectValue placeholder="Tous les employés" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les employés</SelectItem>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <PeriodSelector
+                defaultPreset="last_7_days"
+                onPeriodChange={setStatsPeriod}
+              />
+            </div>
+          </div>
+
+          {loadingStats ? (
+            <div className="flex h-32 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : revenueData && debtsData ? (
+            <div className="space-y-6">
+              {/* Ligne 1 - Recettes */}
+              <div>
+                <h3 className="mb-3 text-sm font-medium text-muted-foreground">Recettes</h3>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <StatCard
+                    title="Ventes"
+                    icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
+                    value={revenueData.salesCount}
+                  />
+                  <StatCard
+                    title="CA Enregistré"
+                    icon={<Banknote className="h-4 w-4 text-muted-foreground" />}
+                    value={formatCurrency(revenueData.totalEuros)}
+                    subtitle={`${formatCurrency(revenueData.cardTotal)} carte · ${formatCurrency(revenueData.cashTotal)} espèces`}
+                  />
+                  <StatCard
+                    title="PdB Dépensés"
+                    icon={<Coins className="h-4 w-4 text-muted-foreground" />}
+                    value={formatCurrency(revenueData.cashbackSpentTotal)}
+                  />
+                </div>
+              </div>
+
+              {/* Ligne 2 - Dettes PdB */}
+              <div>
+                <h3 className="mb-3 text-sm font-medium text-muted-foreground">Dettes PdB</h3>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <StatCard
+                    title="PdB Organiques"
+                    icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+                    value={formatCurrency(debtsData.pdbOrganic)}
+                  />
+                  <StatCard
+                    title="PdB Récompenses"
+                    icon={<Award className="h-4 w-4 text-muted-foreground" />}
+                    value={formatCurrency(debtsData.pdbRewards)}
+                    subtitle={debtsData.hasFilter ? "Non filtrable par établissement" : undefined}
+                  />
+                  <StatCard
+                    title="Total Dettes PdB"
+                    icon={<PiggyBank className="h-4 w-4 text-muted-foreground" />}
+                    value={formatCurrency(debtsData.pdbTotal)}
                   />
                 </div>
               </div>
             </div>
-
-            {/* Logo */}
-            <div className="space-y-2">
-              <Label>Logo</Label>
-              <div className="flex items-start gap-4">
-                {(logoPreview || currentLogo) && (
-                  <div className="relative">
-                    <div className="flex h-24 items-center justify-center overflow-hidden rounded-lg border bg-muted/10 p-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={logoPreview || getImageUrl(currentLogo) || ""}
-                        alt="Logo"
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    </div>
-                    {logoPreview && (
-                      <button
-                        type="button"
-                        onClick={handleRemoveLogo}
-                        className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                )}
-                <div className="flex-1">
-                  <label
-                    htmlFor="logo-upload"
-                    className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 transition-colors hover:border-muted-foreground/50"
-                  >
-                    <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {newLogoFile
-                        ? newLogoFile.name
-                        : currentLogo
-                        ? "Changer le logo"
-                        : "Importer un logo"}
-                    </span>
-                    <span className="mt-1 text-xs text-muted-foreground">
-                      PNG, JPG, WebP, AVIF jusqu'a 2MB
-                    </span>
-                  </label>
-                  <input
-                    id="logo-upload"
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/avif"
-                    className="hidden"
-                    onChange={handleLogoChange}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Adresse</CardTitle>
-            <CardDescription>
-              Localisation de l'etablissement
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="lineAddress1">Adresse ligne 1</Label>
-              <Input
-                id="lineAddress1"
-                placeholder="Numero et rue"
-                value={form.lineAddress1}
-                onChange={(e) =>
-                  setForm({ ...form, lineAddress1: e.target.value })
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="lineAddress2">Adresse ligne 2</Label>
-              <Input
-                id="lineAddress2"
-                placeholder="Complement d'adresse (optionnel)"
-                value={form.lineAddress2}
-                onChange={(e) =>
-                  setForm({ ...form, lineAddress2: e.target.value })
-                }
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="zipcode">Code postal</Label>
-                <Input
-                  id="zipcode"
-                  placeholder="Ex: 57000"
-                  value={form.zipcode}
-                  onChange={(e) =>
-                    setForm({ ...form, zipcode: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="city">Ville</Label>
-                <Input
-                  id="city"
-                  placeholder="Ex: Metz"
-                  value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="country">Pays</Label>
-                <Input
-                  id="country"
-                  placeholder="Ex: France"
-                  value={form.country}
-                  onChange={(e) =>
-                    setForm({ ...form, country: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-4">
-              <Link href="/content/establishments">
-                <Button type="button" variant="outline">
-                  Annuler
-                </Button>
-              </Link>
-              <Button type="submit" disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Enregistrer
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </form>
+          ) : null}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

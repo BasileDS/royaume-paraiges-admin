@@ -74,13 +74,13 @@ export default function CreatePeriodPage() {
         notes: form.notes || null,
       });
 
-      toast({ title: "Periode creee avec succes" });
+      toast({ title: "Periode créée avec succes" });
       router.push(`/rewards/periods/${form.periodType}/${form.periodIdentifier}`);
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de creer la periode. Elle existe peut-etre deja.",
+        description: "Impossible de creer la periode. Elle existe peut-être deja.",
       });
     } finally {
       setLoading(false);
@@ -98,7 +98,7 @@ export default function CreatePeriodPage() {
         <div>
           <h1 className="text-3xl font-bold">Nouvelle periode</h1>
           <p className="text-muted-foreground">
-            Creez une configuration de periode personnalisee
+            Créez une configuration de periode personnalisee
           </p>
         </div>
       </div>
@@ -108,7 +108,7 @@ export default function CreatePeriodPage() {
           <CardHeader>
             <CardTitle>Configuration de la periode</CardTitle>
             <CardDescription>
-              Definissez la periode que vous souhaitez configurer
+              Définissez la periode que vous souhaitez configurer
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -159,7 +159,7 @@ export default function CreatePeriodPage() {
               <Label htmlFor="notes">Notes</Label>
               <Textarea
                 id="notes"
-                placeholder="Ex: Semaine speciale anniversaire, configuration personnalisee"
+                placeholder="Ex: Semaine spéciale anniversaire, configuration personnalisee"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 rows={2}

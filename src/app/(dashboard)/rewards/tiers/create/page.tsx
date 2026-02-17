@@ -75,13 +75,13 @@ export default function CreateTierPage() {
       };
 
       await createRewardTier(tier);
-      toast({ title: "Palier cree avec succes" });
+      toast({ title: "Palier créé avec succes" });
       router.push("/rewards");
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de creer le palier",
+        description: "Impossible de créer le palier",
       });
     } finally {
       setLoading(false);
@@ -99,7 +99,7 @@ export default function CreateTierPage() {
         <div>
           <h1 className="text-3xl font-bold">Nouveau palier</h1>
           <p className="text-muted-foreground">
-            Creez un nouveau palier de recompenses
+            Créez un nouveau palier de recompenses
           </p>
         </div>
       </div>
@@ -109,7 +109,7 @@ export default function CreateTierPage() {
           <CardHeader>
             <CardTitle>Configuration du palier</CardTitle>
             <CardDescription>
-              Definissez les rangs et les recompenses associees
+              Définissez les rangs et les recompenses associees
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -195,7 +195,7 @@ export default function CreateTierPage() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selectionner un template" />
+                  <SelectValue placeholder="Sélectionner un template" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucun coupon</SelectItem>
@@ -236,7 +236,7 @@ export default function CreateTierPage() {
               </Link>
               <Button type="submit" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Creer le palier
+                Créer le palier
               </Button>
             </div>
           </CardContent>

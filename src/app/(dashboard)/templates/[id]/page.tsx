@@ -93,7 +93,7 @@ export default function EditTemplatePage() {
       };
 
       await updateTemplate(id, template);
-      toast({ title: "Template mis a jour" });
+      toast({ title: "Template mis à jour" });
       router.push("/templates");
     } catch (error) {
       toast({
@@ -133,7 +133,7 @@ export default function EditTemplatePage() {
           <CardHeader>
             <CardTitle>Informations du template</CardTitle>
             <CardDescription>
-              Modifiez les caracteristiques du coupon
+              Modifiez les caractéristiques du coupon
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -193,7 +193,7 @@ export default function EditTemplatePage() {
                     min={0.01}
                     step="0.01"
                   />
-                  <p className="text-xs text-muted-foreground">Credite immediatement au solde cashback du joueur</p>
+                  <p className="text-xs text-muted-foreground">Crédité immediatement au solde cashback du joueur</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -210,7 +210,7 @@ export default function EditTemplatePage() {
                     min={1}
                     max={100}
                   />
-                  <p className="text-xs text-muted-foreground">Cashback supplementaire applique sur la commande</p>
+                  <p className="text-xs text-muted-foreground">Cashback supplémentaire applique sur la commande</p>
                 </div>
               )}
             </div>
@@ -218,7 +218,7 @@ export default function EditTemplatePage() {
             <div className="grid gap-4 md:grid-cols-2">
               {form.valueType === "percentage" && (
                 <div className="space-y-2">
-                  <Label htmlFor="validity">Duree de validite (jours)</Label>
+                  <Label htmlFor="validity">Durée de validite (jours)</Label>
                   <Input
                     id="validity"
                     type="number"

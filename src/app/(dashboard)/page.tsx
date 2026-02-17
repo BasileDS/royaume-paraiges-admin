@@ -13,12 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Ticket,
-  TrendingUp,
   Calendar,
   ArrowRight,
   Loader2,
   Users,
-  Receipt,
   Building2,
   Beer,
   AlertCircle,
@@ -26,9 +24,8 @@ import {
 import { getDashboardStats } from "@/lib/services/analyticsService";
 import { getPeriodConfigs } from "@/lib/services/rewardService";
 import { getUserStats } from "@/lib/services/userService";
-import { getReceiptStats } from "@/lib/services/receiptService";
 import { getContentStats } from "@/lib/services/contentService";
-import { formatCurrency, formatDate, getPeriodIdentifier } from "@/lib/utils";
+import { formatDate, getPeriodIdentifier } from "@/lib/utils";
 import type { PeriodRewardConfig } from "@/types/database";
 
 interface DashboardStats {
@@ -47,14 +44,6 @@ interface UserStats {
   newUsersThisMonth: number;
 }
 
-interface ReceiptStats {
-  totalReceipts: number;
-  totalRevenue: number;
-  averageAmount: number;
-  receiptsThisMonth: number;
-  revenueThisMonth: number;
-}
-
 interface ContentStats {
   totalEstablishments: number;
   totalBeers: number;
@@ -65,7 +54,6 @@ interface ContentStats {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
-  const [receiptStats, setReceiptStats] = useState<ReceiptStats | null>(null);
   const [contentStats, setContentStats] = useState<ContentStats | null>(null);
   const [pendingPeriods, setPendingPeriods] = useState<PeriodRewardConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,21 +61,19 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dashboardStats, periods, users, receipts, content] = await Promise.all([
+        const [dashboardStats, periods, users, content] = await Promise.all([
           getDashboardStats(),
           getPeriodConfigs(),
           getUserStats(),
-          getReceiptStats(),
           getContentStats(),
         ]);
 
         setStats(dashboardStats);
         setPendingPeriods(periods?.filter((p) => p.status === "pending") || []);
         setUserStats(users);
-        setReceiptStats(receipts);
         setContentStats(content);
       } catch (error) {
-        console.error("Erreur lors du chargement des donnees:", error);
+        console.error("Erreur lors du chargement des données:", error);
       } finally {
         setLoading(false);
       }
@@ -117,7 +103,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Utilisateurs</CardTitle>
@@ -133,41 +119,13 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Chiffre d&apos;affaires</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(receiptStats?.totalRevenue || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(receiptStats?.revenueThisMonth || 0)} ce mois
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tickets</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{receiptStats?.totalReceipts || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Panier moyen: {formatCurrency(Math.round(receiptStats?.averageAmount || 0))}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Coupons actifs</CardTitle>
             <Ticket className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.totalActiveCoupons || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {stats?.couponsUsedThisWeek || 0} utilises cette semaine
+              {stats?.couponsUsedThisWeek || 0} utilisés cette semaine
             </p>
           </CardContent>
         </Card>
@@ -177,7 +135,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Etablissements</CardTitle>
+            <CardTitle className="text-sm font-medium">Établissements</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -190,7 +148,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bieres</CardTitle>
+            <CardTitle className="text-sm font-medium">Bières</CardTitle>
             <Beer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -213,7 +171,7 @@ export default function DashboardPage() {
               {stats?.pendingDistributions || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Periodes a distribuer
+              Périodes à distribuer
             </p>
           </CardContent>
         </Card>
@@ -240,7 +198,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Actions rapides</CardTitle>
             <CardDescription>
-              Actions frequentes pour l&apos;administration
+              Actions fréquentes pour l&apos;administration
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -258,19 +216,19 @@ export default function DashboardPage() {
             </Link>
             <Link href="/coupons/create">
               <Button variant="outline" className="w-full justify-between">
-                Creer un coupon manuel
+                Créer un coupon manuel
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/rewards/distribute">
               <Button variant="outline" className="w-full justify-between">
-                Distribuer des recompenses
+                Distribuer des récompenses
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/analytics">
               <Button variant="outline" className="w-full justify-between">
-                Voir les statistiques detaillees
+                Voir les statistiques détaillées
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -282,7 +240,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Distributions en attente</CardTitle>
             <CardDescription>
-              Periodes configurees mais non encore distribuees
+              Périodes configurées mais non encore distribuées
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -311,7 +269,7 @@ export default function DashboardPage() {
                 {pendingPeriods.length > 5 && (
                   <Link href="/rewards/periods">
                     <Button variant="link" className="w-full">
-                      Voir toutes les periodes ({pendingPeriods.length})
+                      Voir toutes les périodes ({pendingPeriods.length})
                     </Button>
                   </Link>
                 )}

@@ -51,7 +51,7 @@ export default function PeriodsPage() {
         toast({
           variant: "destructive",
           title: "Erreur",
-          description: "Impossible de charger les periodes",
+          description: "Impossible de charger les périodes",
         });
       } finally {
         setLoading(false);
@@ -81,9 +81,9 @@ export default function PeriodsPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Periodes</h1>
+            <h1 className="text-3xl font-bold">Périodes</h1>
             <p className="text-muted-foreground">
-              Historique et configuration des periodes de distribution
+              Historique et configuration des périodes de distribution
             </p>
           </div>
         </div>
@@ -105,9 +105,9 @@ export default function PeriodsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Historique des periodes</CardTitle>
+          <CardTitle>Historique des périodes</CardTitle>
           <CardDescription>
-            Visualisez l&apos;etat des distributions par periode
+            Visualisez l&apos;état des distributions par periode
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -124,7 +124,7 @@ export default function PeriodsPage() {
             <TabsContent value={selectedPeriod}>
               {filteredConfigs.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">
-                  Aucune periode configuree
+                  Aucune periode configurée
                 </div>
               ) : (
                 <Table>
@@ -157,7 +157,7 @@ export default function PeriodsPage() {
                           </TableCell>
                           <TableCell>
                             <Badge variant={hasCustomTiers ? "secondary" : "outline"}>
-                              {hasCustomTiers ? "Personnalisee" : "Par defaut"}
+                              {hasCustomTiers ? "Personnalisée" : "Par défaut"}
                             </Badge>
                           </TableCell>
                           <TableCell>

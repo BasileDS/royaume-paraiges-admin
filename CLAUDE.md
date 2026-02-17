@@ -114,8 +114,13 @@ royaume-paraiges-admin/
 | create_receipt | `docs/docs/supabase/functions/create_receipt.md` | Creation de ticket (POS) |
 | calculate_gains | `docs/docs/supabase/functions/calculate_gains.md` | Calcul XP et cashback |
 | credit_bonus_cashback | `docs/docs/supabase/functions/credit_bonus_cashback.md` | Credit bonus cashback |
+| create_manual_coupon | `docs/docs/supabase/functions/create_manual_coupon.md` | Creation coupon manuel (admin) |
+| distribute_period_rewards_v2 | `docs/docs/supabase/functions/distribute_period_rewards_v2.md` | Distribution recompenses leaderboard (v2) |
 | distribute_leaderboard_rewards | `docs/docs/supabase/functions/distribute_leaderboard_rewards.md` | Distribution recompenses (legacy) |
 | handle_new_user | `docs/docs/supabase/functions/handle_new_user.md` | Trigger creation profil |
+| get_analytics_revenue | `docs/docs/supabase/functions/get_analytics_revenue.md` | Recettes (ventes, euros, PdB) |
+| get_analytics_debts | `docs/docs/supabase/functions/get_analytics_debts.md` | Dettes PdB par categorie |
+| get_analytics_stock | `docs/docs/supabase/functions/get_analytics_stock.md` | Stock PdB ouverture/fermeture |
 | Politiques RLS | `docs/docs/supabase/policies/README.md` | Toutes les politiques de securite |
 
 ### Tables de contenu
@@ -160,15 +165,55 @@ await createManualCoupon({
 
 **Fichiers cles** :
 - `src/app/(dashboard)/users/page.tsx` - Liste des utilisateurs
-- `src/app/(dashboard)/users/[id]/page.tsx` - Detail utilisateur
+- `src/app/(dashboard)/users/[id]/page.tsx` - Detail utilisateur (5 onglets)
 - `src/lib/services/userService.ts` - Service metier
+
+**Onglets detail utilisateur** : Profil | **Activité** | Coupons | Tickets | Modifier
+
+**Onglet Activité** : Affiche 5 KPI filtrables par période via `PeriodSelector` :
+- Commandes (nombre de receipts)
+- Dépensé EUR (somme des montants receipts)
+- XP Gagné (somme gains.xp)
+- Cashback Gagné (somme gains.cashback_money, sous-titre organique/récompenses)
+- Cashback Dépensé (somme spendings.amount)
+
+**Fonction** : `getUserActivityStats(userId, startDate, endDate)` dans `userService.ts` — 3 requêtes parallèles (receipts, gains, spendings)
 
 ### 3. Analytics Dashboard
 
 **Fichiers cles** :
 - `src/app/(dashboard)/page.tsx` - Dashboard principal
-- `src/app/(dashboard)/analytics/page.tsx` - Tableau de bord analytique detaille
+- `src/app/(dashboard)/analytics/page.tsx` - Tableau de bord analytique detaille (3 onglets)
 - `src/lib/services/analyticsService.ts` - Statistiques et metriques
+
+**Architecture** : 3 onglets avec filtres periode/etablissement/employe :
+
+| Onglet | RPC | Contenu |
+|--------|-----|---------|
+| Recettes | `get_analytics_revenue` | Nombre de ventes, total euros (carte+especes), PdB depenses |
+| Dettes | `get_analytics_debts` | PdB par categorie (organique/recompenses) + coupons % actifs |
+| Stock PdB | `get_analytics_stock` | Stock ouverture/fermeture par categorie avec allocation proportionnelle |
+
+**Filtres** :
+- **Periode** : 6 presets (aujourd'hui, 7j, 30j, mois en cours, mois precedent, depuis le debut)
+- **Etablissement** : filtre les recettes et PdB organiques. Recompenses affichent 0 quand filtre actif
+- **Employe** : filtre via `receipts.employee_id`. Reset automatique au changement d'etablissement
+
+**Categories PdB affichees (dettes)** :
+- **Organique** : `source_type = 'receipt'` — PdB gagnes via depenses euros
+- **Recompenses** : `source_type IN ('bonus_cashback_quest', 'bonus_cashback_leaderboard')` — quetes/classement
+
+> **Note** : La categorie "Bonus Coupons" (`bonus_cashback_manual`, `bonus_cashback_trigger`, `bonus_cashback_migration`) existe toujours cote backend (les RPC `get_analytics_debts` et `get_analytics_stock` retournent les champs `pdb_bonus_coupons` / `bonus_coupons` / `earned_bonus_coupons`) mais n'est plus affichee dans le frontend admin. Les donnees historiques ont ete reclassees en `bonus_cashback_leaderboard`.
+
+**Fonctions du service** :
+```typescript
+import {
+  getAnalyticsRevenue,
+  getAnalyticsDebts,
+  getAnalyticsStock,
+  getEmployeesByEstablishment
+} from '@/lib/services/analyticsService';
+```
 
 ### 4. Gestion des Modeles de Coupons (Templates)
 
@@ -305,8 +350,16 @@ import {
 - `src/app/(dashboard)/content/beers/page.tsx` - Liste des bieres
 - `src/app/(dashboard)/content/beers/[id]/page.tsx` - Detail/edition biere
 - `src/app/(dashboard)/content/establishments/page.tsx` - Liste des etablissements
-- `src/app/(dashboard)/content/establishments/[id]/page.tsx` - Detail/edition etablissement
+- `src/app/(dashboard)/content/establishments/[id]/page.tsx` - Detail/edition etablissement (2 onglets)
 - `src/lib/services/contentService.ts` - Service metier
+
+**Onglets detail etablissement** : Informations | **Statistiques**
+
+**Onglet Statistiques** : Affiche 6 KPI filtrables par période via `PeriodSelector` + filtre employé :
+- *Recettes* : Ventes (nombre), CA Enregistré (euros, detail carte/espèces), PdB Dépensés
+- *Dettes PdB* : PdB Organiques, PdB Récompenses, Total Dettes PdB
+
+Réutilise `getAnalyticsRevenue()`, `getAnalyticsDebts()` et `getEmployeesByEstablishment()` de `analyticsService.ts`.
 
 ## Schema de la Base de Donnees (Resume)
 
@@ -504,6 +557,8 @@ export type CouponWithRelations = Coupon & {
 - Il n'y a PAS de colonne `used_at` dans la table `coupons`
 - Il n'y a PAS de colonnes `total_xp` / `cashback_balance` dans `profiles` (voir vue `user_stats`)
 - `establishment_id` dans `gains` est **nullable** (NULL pour les bonus cashback directs)
+- `employee_id` dans `receipts` est **nullable** (NULL pour les receipts historiques, rempli via `create_receipt(p_employee_id)`)
+- Les fonctions RPC analytics (`get_analytics_revenue`, `get_analytics_debts`, `get_analytics_stock`) : quand un filtre etablissement/employe est actif, les PdB Recompenses et Bonus Coupons retournent 0 (pas de lien etablissement/employe)
 - Les fonctions RPC utilisent `SECURITY DEFINER` et bypass RLS
 - Les admins creent des coupons via `create_manual_coupon()` RPC
 - **Coupons montant fixe** = bonus cashback credite immediatement (used=true des la creation)
@@ -524,4 +579,4 @@ export type CouponWithRelations = Coupon & {
 
 ---
 
-**Derniere mise a jour** : 2026-02-09
+**Derniere mise a jour** : 2026-02-18

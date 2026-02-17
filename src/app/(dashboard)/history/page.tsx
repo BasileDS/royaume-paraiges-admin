@@ -83,8 +83,8 @@ export default function HistoryPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <CardTitle>Distributions</CardTitle>
               <CardDescription>
                 {total} distribution{total > 1 ? "s" : ""} au total
@@ -100,8 +100,8 @@ export default function HistoryPage() {
                 });
               }}
             >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Type de distribution" />
+              <SelectTrigger className="w-[150px] shrink-0 sm:w-[200px]">
+                <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les types</SelectItem>
@@ -120,7 +120,7 @@ export default function HistoryPage() {
             </div>
           ) : logs.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              Aucune distribution trouvee
+              Aucune distribution trouvée
             </div>
           ) : (
             <>
@@ -198,7 +198,7 @@ export default function HistoryPage() {
                       disabled={page === 0}
                       onClick={() => setPage(page - 1)}
                     >
-                      Precedent
+                      Précédent
                     </Button>
                     <Button
                       variant="outline"

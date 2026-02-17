@@ -115,7 +115,7 @@ export default function EditTierPage() {
         display_order: parseInt(form.displayOrder),
         is_active: form.isActive,
       });
-      toast({ title: "Palier mis a jour" });
+      toast({ title: "Palier mis à jour" });
       router.push("/rewards");
     } catch (error) {
       toast({
@@ -176,7 +176,7 @@ export default function EditTierPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Supprimer ce palier ?</AlertDialogTitle>
               <AlertDialogDescription>
-                Cette action est irreversible.
+                Cette action est irréversible.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -197,7 +197,7 @@ export default function EditTierPage() {
           <CardHeader>
             <CardTitle>Configuration du palier</CardTitle>
             <CardDescription>
-              Modifiez les rangs et les recompenses associees
+              Modifiez les rangs et les récompenses associees
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -281,7 +281,7 @@ export default function EditTierPage() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selectionner un template" />
+                  <SelectValue placeholder="Sélectionner un template" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucun coupon</SelectItem>

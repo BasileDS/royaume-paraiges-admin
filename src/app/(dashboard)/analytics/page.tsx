@@ -1,167 +1,131 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Loader2, ShoppingCart, Euro, Wallet } from "lucide-react";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Button } from "@/components/ui/button";
 import {
-  getSalesCount,
-  getSalesTotal,
+  Loader2,
+  ShoppingCart,
+  Euro,
+  Coins,
+  TrendingUp,
+  TrendingDown,
+  Trophy,
+  Ticket,
+  Info,
+  ChevronsUpDown,
+  Check,
+  SlidersHorizontal,
+} from "lucide-react";
+import {
+  getAnalyticsRevenue,
+  getAnalyticsDebts,
+  getAnalyticsStock,
+  getEstablishmentsWithTicketCount,
+  getEmployeesWithTicketCount,
   getDailyCashbackStats,
-  getUnspentCashbackTotal,
+  getDailyRevenueStats,
+  type RevenueData,
+  type DebtsData,
+  type StockData,
   type DailyCashback,
+  type DailyRevenue,
+  type DrilldownMetric,
 } from "@/lib/services/analyticsService";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from "recharts";
-
-type PeriodKey =
-  | "current_week"
-  | "last_week"
-  | "last_7_days"
-  | "last_30_days"
-  | "current_month"
-  | "last_month";
-
-interface PeriodDates {
-  start: string;
-  end: string;
-  label: string;
-}
-
-function getMonday(d: Date): Date {
-  const date = new Date(d);
-  const day = date.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  date.setDate(date.getDate() + diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-function getPeriodDates(key: PeriodKey): PeriodDates {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  switch (key) {
-    case "current_week": {
-      const monday = getMonday(today);
-      const nextMonday = new Date(monday);
-      nextMonday.setDate(nextMonday.getDate() + 7);
-      return {
-        start: monday.toISOString(),
-        end: nextMonday.toISOString(),
-        label: "Semaine en cours",
-      };
-    }
-    case "last_week": {
-      const monday = getMonday(today);
-      monday.setDate(monday.getDate() - 7);
-      const nextMonday = new Date(monday);
-      nextMonday.setDate(nextMonday.getDate() + 7);
-      return {
-        start: monday.toISOString(),
-        end: nextMonday.toISOString(),
-        label: "Semaine derniere",
-      };
-    }
-    case "last_7_days": {
-      const start = new Date(today);
-      start.setDate(start.getDate() - 7);
-      const end = new Date(today);
-      end.setDate(end.getDate() + 1);
-      return {
-        start: start.toISOString(),
-        end: end.toISOString(),
-        label: "7 derniers jours",
-      };
-    }
-    case "last_30_days": {
-      const start = new Date(today);
-      start.setDate(start.getDate() - 30);
-      const end = new Date(today);
-      end.setDate(end.getDate() + 1);
-      return {
-        start: start.toISOString(),
-        end: end.toISOString(),
-        label: "30 derniers jours",
-      };
-    }
-    case "current_month": {
-      const start = new Date(today.getFullYear(), today.getMonth(), 1);
-      const end = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-      return {
-        start: start.toISOString(),
-        end: end.toISOString(),
-        label: "Mois en cours",
-      };
-    }
-    case "last_month": {
-      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const end = new Date(today.getFullYear(), today.getMonth(), 1);
-      return {
-        start: start.toISOString(),
-        end: end.toISOString(),
-        label: "Mois precedent",
-      };
-    }
-  }
-}
-
-function formatShortDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-  }).format(date);
-}
+import { PeriodSelector, getPresetDates, type PeriodDates } from "@/components/period-selector";
+import { DrilldownModal } from "@/components/analytics-drilldown-modal";
+import { StatCard } from "@/components/stat-card";
+import { RevenueChartCard } from "@/components/analytics/revenue-chart-card";
+import { DebtsDonutCard } from "@/components/analytics/debts-donut-card";
+import { CashbackChartCard } from "@/components/analytics/cashback-chart-card";
+import { StockDetailCard } from "@/components/analytics/stock-detail-card";
 
 export default function AnalyticsPage() {
-  const [period, setPeriod] = useState<PeriodKey>("last_7_days");
-  const [salesCount, setSalesCount] = useState(0);
-  const [salesTotal, setSalesTotal] = useState(0);
+  // Filters
+  const [periodDates, setPeriodDates] = useState<PeriodDates>(() => {
+    const { start, end } = getPresetDates("last_7_days");
+    return { startDate: start.toISOString(), endDate: end.toISOString() };
+  });
+  const [establishmentId, setEstablishmentId] = useState<number | undefined>();
+  const [employeeId, setEmployeeId] = useState<string | undefined>();
+
+  // Reference data
+  const [establishments, setEstablishments] = useState<{ id: number; title: string; ticketCount: number }[]>([]);
+  const [employees, setEmployees] = useState<{ id: string; name: string; ticketCount: number }[]>([]);
+
+  // Data
+  const [revenue, setRevenue] = useState<RevenueData | null>(null);
+  const [debts, setDebts] = useState<DebtsData | null>(null);
+  const [stock, setStock] = useState<StockData | null>(null);
   const [dailyCashback, setDailyCashback] = useState<DailyCashback[]>([]);
-  const [unspentCashback, setUnspentCashback] = useState(0);
+  const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue[]>([]);
+
+  // UI
   const [loading, setLoading] = useState(true);
+  const [estOpen, setEstOpen] = useState(false);
+  const [empOpen, setEmpOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const { toast } = useToast();
 
+  // Drilldown
+  const [drilldownMetric, setDrilldownMetric] = useState<DrilldownMetric | null>(null);
+  const [drilldownTitle, setDrilldownTitle] = useState("");
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
+
+  const openDrilldown = (metric: DrilldownMetric, title: string) => {
+    setDrilldownMetric(metric);
+    setDrilldownTitle(title);
+    setDrilldownOpen(true);
+  };
+
+  // Track previous dates to avoid duplicate fetches on mount
+  const prevDatesRef = useRef<string>("");
+
+  // Load establishments with ticket count when period changes
+  useEffect(() => {
+    getEstablishmentsWithTicketCount(periodDates.startDate, periodDates.endDate).then(setEstablishments);
+  }, [periodDates.startDate, periodDates.endDate]);
+
+  // Load employees when establishment or period changes
+  useEffect(() => {
+    setEmployeeId(undefined);
+    getEmployeesWithTicketCount(establishmentId, periodDates.startDate, periodDates.endDate).then(setEmployees);
+  }, [establishmentId, periodDates.startDate, periodDates.endDate]);
+
+  // Fetch analytics data
   const fetchData = useCallback(
-    async (periodKey: PeriodKey) => {
+    async (dates: PeriodDates) => {
       setLoading(true);
       try {
-        const { start, end } = getPeriodDates(periodKey);
+        const filters = { startDate: dates.startDate, endDate: dates.endDate, establishmentId, employeeId };
 
-        const [count, total, daily, unspent] = await Promise.all([
-          getSalesCount(start, end),
-          getSalesTotal(start, end),
-          getDailyCashbackStats(start, end),
-          getUnspentCashbackTotal(),
+        const [rev, dbt, stk, daily, dailyRev] = await Promise.all([
+          getAnalyticsRevenue(filters),
+          getAnalyticsDebts(filters),
+          getAnalyticsStock({ startDate: dates.startDate, endDate: dates.endDate, establishmentId }),
+          getDailyCashbackStats(dates.startDate, dates.endDate),
+          getDailyRevenueStats(dates.startDate, dates.endDate),
         ]);
 
-        setSalesCount(count);
-        setSalesTotal(total);
+        setRevenue(rev);
+        setDebts(dbt);
+        setStock(stk);
         setDailyCashback(daily);
-        setUnspentCashback(unspent);
+        setDailyRevenue(dailyRev);
       } catch {
         toast({
           variant: "destructive",
@@ -172,165 +136,334 @@ export default function AnalyticsPage() {
         setLoading(false);
       }
     },
-    [toast]
+    [establishmentId, employeeId, toast]
   );
 
   useEffect(() => {
-    fetchData(period);
-  }, [period, fetchData]);
+    const key = `${periodDates.startDate}|${periodDates.endDate}|${establishmentId}|${employeeId}`;
+    if (key === prevDatesRef.current) return;
+    prevDatesRef.current = key;
+    fetchData(periodDates);
+  }, [periodDates, establishmentId, employeeId, fetchData]);
 
-  const chartData = dailyCashback.map((d) => ({
-    date: formatShortDate(d.date),
-    credited: d.credited / 100,
-    spent: d.spent / 100,
-  }));
+  const hasFilter = !!(establishmentId || employeeId);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Analytics</h1>
-          <p className="text-muted-foreground">
-            Chiffres cles et statistiques globales
-          </p>
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Analytics</h1>
+        <p className="text-muted-foreground">
+          Recettes, dettes et stock de Paraiges de Bronze — uniquement les transactions enregistrées via le Royaume
+        </p>
+      </div>
+
+      {/* Filters - sticky under title */}
+      <div className="sticky -top-4 z-10 -mx-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-3 sm:-top-6 sm:-mx-6 sm:px-6">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-3 sm:gap-3">
+          {/* Mobile: Filters toggle button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="order-1 sm:hidden"
+            onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+          >
+            <SlidersHorizontal className="mr-2 h-4 w-4" />
+            Filtres
+            {hasFilter && (
+              <span className="ml-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                {(establishmentId ? 1 : 0) + (employeeId ? 1 : 0)}
+              </span>
+            )}
+          </Button>
+
+          {/* Period selector - always visible */}
+          <div className="order-2 ml-auto sm:order-last sm:ml-0">
+            <PeriodSelector
+              defaultPreset="last_7_days"
+              onPeriodChange={setPeriodDates}
+            />
+          </div>
+
+          {/* Combobox filters - collapsible on mobile, always inline on desktop */}
+          <div className={cn(
+            "order-3 flex w-full flex-col gap-2 sm:order-first sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:gap-3",
+            !mobileFiltersOpen && "hidden sm:flex"
+          )}>
+            <Popover open={estOpen} onOpenChange={setEstOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={estOpen}
+                  className="w-full justify-between font-normal sm:w-auto sm:min-w-[350px]"
+                >
+                  {establishmentId
+                    ? (() => {
+                        const est = establishments.find((e) => e.id === establishmentId);
+                        return est ? `${est.title} (${est.ticketCount})` : "Tous les établissements";
+                      })()
+                    : "Tous les établissements"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="min-w-[350px] p-0" side="bottom">
+                <Command>
+                  <CommandInput placeholder="Rechercher..." />
+                  <CommandList>
+                    <CommandEmpty>Aucun résultat.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="tous les établissements"
+                        onSelect={() => {
+                          setEstablishmentId(undefined);
+                          setEstOpen(false);
+                        }}
+                      >
+                        <Check className={cn("mr-2 h-4 w-4", !establishmentId ? "opacity-100" : "opacity-0")} />
+                        Tous les établissements
+                      </CommandItem>
+                      {establishments.map((e) => (
+                        <CommandItem
+                          key={e.id}
+                          value={e.title}
+                          onSelect={() => {
+                            setEstablishmentId(e.id);
+                            setEstOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", establishmentId === e.id ? "opacity-100" : "opacity-0")} />
+                          <span className="flex-1">{e.title}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">{e.ticketCount} ticket{e.ticketCount !== 1 ? "s" : ""}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            <Popover open={empOpen} onOpenChange={setEmpOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={empOpen}
+                  className="w-full justify-between font-normal sm:w-auto sm:min-w-[350px]"
+                >
+                  {employeeId
+                    ? (() => {
+                        const emp = employees.find((e) => e.id === employeeId);
+                        return emp ? `${emp.name} (${emp.ticketCount})` : "Tous les employés";
+                      })()
+                    : "Tous les employés"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="min-w-[350px] p-0" side="bottom">
+                <Command>
+                  <CommandInput placeholder="Rechercher..." />
+                  <CommandList>
+                    <CommandEmpty>Aucun résultat.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="tous les employés"
+                        onSelect={() => {
+                          setEmployeeId(undefined);
+                          setEmpOpen(false);
+                        }}
+                      >
+                        <Check className={cn("mr-2 h-4 w-4", !employeeId ? "opacity-100" : "opacity-0")} />
+                        Tous les employés
+                      </CommandItem>
+                      {employees.map((e) => (
+                        <CommandItem
+                          key={e.id}
+                          value={e.name}
+                          onSelect={() => {
+                            setEmployeeId(e.id);
+                            setEmpOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", employeeId === e.id ? "opacity-100" : "opacity-0")} />
+                          <span className="flex-1">{e.name}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">{e.ticketCount} ticket{e.ticketCount !== 1 ? "s" : ""}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
-        <Select
-          value={period}
-          onValueChange={(v) => setPeriod(v as PeriodKey)}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="current_week">Semaine en cours</SelectItem>
-            <SelectItem value="last_week">Semaine derniere</SelectItem>
-            <SelectItem value="last_7_days">7 derniers jours</SelectItem>
-            <SelectItem value="last_30_days">30 derniers jours</SelectItem>
-            <SelectItem value="current_month">Mois en cours</SelectItem>
-            <SelectItem value="last_month">Mois precedent</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {loading ? (
-        <div className="flex h-96 items-center justify-center">
+        <div className="mt-6 flex h-96 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <>
-          {/* KPIs */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Nombre de ventes
-                </CardTitle>
-                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{salesCount}</div>
-                <p className="text-xs text-muted-foreground">
-                  {getPeriodDates(period).label}
-                </p>
-              </CardContent>
-            </Card>
+        <div className="mt-6 space-y-8">
+          {/* ==================== RECETTES ==================== */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">Recettes</h2>
+            <div className="grid gap-4 lg:grid-cols-[1fr_3fr]">
+              <div className="flex flex-col gap-4 [&>*]:flex-1">
+                <StatCard
+                  title="Ventes Royaume enregistrées"
+                  icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
+                  value={revenue?.salesCount ?? 0}
+                  subtitle="Scannées via le Royaume"
+                  onClick={() => openDrilldown("receipts", "Ventes enregistrées")}
+                />
+                <StatCard
+                  title="Recettes enregistrées"
+                  icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+                  value={formatCurrency(revenue?.totalEuros ?? 0)}
+                  subtitle={`Carte : ${formatCurrency(revenue?.cardTotal ?? 0)} / Espèces : ${formatCurrency(revenue?.cashTotal ?? 0)}`}
+                  onClick={() => openDrilldown("receipts", "Recettes enregistrées")}
+                />
+                <StatCard
+                  title="PdB dépensés"
+                  icon={<Coins className="h-4 w-4 text-amber-500" />}
+                  value={formatCurrency(revenue?.cashbackSpentTotal ?? 0)}
+                  valueClassName="text-amber-600"
+                  subtitle="Utilisés sur les commandes Royaume"
+                  onClick={() => openDrilldown("spendings", "PdB dépensés")}
+                />
+              </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Montant total des ventes
-                </CardTitle>
-                <Euro className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(salesTotal)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {getPeriodDates(period).label}
-                </p>
-              </CardContent>
-            </Card>
+              <RevenueChartCard data={dailyRevenue} />
+            </div>
+          </section>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Cashback non depense
-                </CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-amber-600">
-                  {formatCurrency(unspentCashback)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Solde total en circulation
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <hr className="-mx-4 border-border sm:-mx-6" />
 
-          {/* Cashback chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Cashback par jour</CardTitle>
-              <CardDescription>
-                Comparaison du cashback credite et depense chaque jour
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {chartData.length === 0 ? (
-                <div className="flex h-[350px] items-center justify-center text-muted-foreground">
-                  Aucune donnee sur cette periode
-                </div>
-              ) : (
-                <div className="h-[350px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="date"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(v) => `${v} €`}
-                      />
-                      <Tooltip
-                        formatter={(value: number, name: string) => [
-                          `${value.toFixed(2)} €`,
-                          name === "credited" ? "Credite" : "Depense",
-                        ]}
-                      />
-                      <Legend
-                        formatter={(value: string) =>
-                          value === "credited" ? "Credite" : "Depense"
-                        }
-                      />
-                      <Bar
-                        dataKey="credited"
-                        name="credited"
-                        fill="#2563eb"
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="spent"
-                        name="spent"
-                        fill="#f59e0b"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
+          {/* ==================== DETTES ==================== */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">Dettes</h2>
+
+            {hasFilter && (
+              <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                <Info className="h-4 w-4 shrink-0" />
+                <span>
+                  Les PdB Récompenses ne sont pas filtrables par établissement ou employé.
+                  Seuls les PdB Organiques sont filtrés.
+                </span>
+              </div>
+            )}
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 grid-cols-2">
+                <StatCard
+                  title="PdB Organiques"
+                  icon={<TrendingUp className="h-4 w-4 text-amber-500" />}
+                  value={formatCurrency(debts?.pdbOrganic ?? 0)}
+                  valueClassName="text-amber-600"
+                  subtitle="Dépenses euros"
+                  onClick={() => openDrilldown("gainsOrganic", "PdB Organiques")}
+                />
+                <StatCard
+                  title="PdB Récompenses"
+                  icon={<Trophy className="h-4 w-4 text-blue-500" />}
+                  value={formatCurrency(debts?.pdbRewards ?? 0)}
+                  valueClassName="text-blue-600"
+                  subtitle="Quêtes et classement"
+                  onClick={() => openDrilldown("gainsRewards", "PdB Récompenses")}
+                />
+                <StatCard
+                  title="Coupons % actifs"
+                  icon={<Ticket className="h-4 w-4 text-muted-foreground" />}
+                  value={debts?.activePctCouponsCount ?? 0}
+                  subtitle="Non utilisés, non expirés"
+                  onClick={() => openDrilldown("couponsActive", "Coupons % actifs")}
+                />
+                <StatCard
+                  title="Total dettes PdB"
+                  icon={<Coins className="h-4 w-4 text-muted-foreground" />}
+                  value={formatCurrency(debts?.pdbTotal ?? 0)}
+                  subtitle="Sur la période"
+                  onClick={() => openDrilldown("gainsAll", "Total dettes PdB")}
+                />
+              </div>
+
+              {debts && <DebtsDonutCard debts={debts} />}
+            </div>
+          </section>
+
+          <hr className="-mx-4 border-border sm:-mx-6" />
+
+          {/* ==================== CASHBACK & STOCK PdB ==================== */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">Cashback & Stock PdB</h2>
+
+            {stock?.hasFilter && (
+              <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                <Info className="h-4 w-4 shrink-0" />
+                <span>
+                  Filtre par établissement actif : seuls les PdB Organiques sont pris en compte.
+                </span>
+              </div>
+            )}
+
+            <div className="grid gap-4 lg:grid-cols-[1fr_3fr]">
+              <div className="flex flex-col gap-4 [&>*]:flex-1">
+                <StatCard
+                  title="Stock PdB début de période"
+                  icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+                  value={formatCurrency(stock?.opening.total ?? 0)}
+                  subtitle="Début de période"
+                />
+                <StatCard
+                  title="Stock PdB fin de période"
+                  icon={<Coins className="h-4 w-4 text-amber-500" />}
+                  value={formatCurrency(stock?.closing.total ?? 0)}
+                  subtitle="Fin de période"
+                />
+                {(() => {
+                  const netMovement =
+                    (stock?.movements.earnedOrganic ?? 0) +
+                    (stock?.movements.earnedRewards ?? 0) -
+                    (stock?.movements.spent ?? 0);
+                  return (
+                    <StatCard
+                      title="Mouvements PdB nets"
+                      icon={
+                        netMovement >= 0 ? (
+                          <TrendingUp className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4 text-red-500" />
+                        )
+                      }
+                      value={`${netMovement >= 0 ? "+" : ""}${formatCurrency(netMovement)}`}
+                      valueClassName={netMovement >= 0 ? "text-green-600" : "text-red-600"}
+                      subtitle="Gagnés - Dépensés"
+                    />
+                  );
+                })()}
+              </div>
+
+              <CashbackChartCard data={dailyCashback} />
+            </div>
+
+            {stock && <StockDetailCard stock={stock} />}
+          </section>
+        </div>
       )}
+
+      <DrilldownModal
+        open={drilldownOpen}
+        onOpenChange={setDrilldownOpen}
+        metric={drilldownMetric}
+        title={drilldownTitle}
+        filters={{
+          startDate: periodDates.startDate,
+          endDate: periodDates.endDate,
+          establishmentId,
+          employeeId,
+        }}
+      />
     </div>
   );
 }

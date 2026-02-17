@@ -102,7 +102,7 @@ export default function DistributePage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Selectionnez une periode",
+        description: "Sélectionnez une periode",
       });
       return;
     }
@@ -118,7 +118,7 @@ export default function DistributePage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de generer la previsualisation",
+        description: "Impossible de générer la previsualisation",
       });
     } finally {
       setLoading(false);
@@ -140,7 +140,7 @@ export default function DistributePage() {
       );
 
       toast({
-        title: "Distribution effectuee",
+        title: "Distribution effectuée",
         description: `${(result as { distributed_count: number })?.distributed_count || 0} coupons distribues`,
       });
       setDistributed(true);
@@ -165,18 +165,18 @@ export default function DistributePage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Distribuer les recompenses</h1>
+          <h1 className="text-3xl font-bold">Distribuér les récompenses</h1>
           <p className="text-muted-foreground">
-            Previsualiser et distribuer les recompenses du leaderboard
+            Prévisualiser et distribuer les récompenses du leaderboard
           </p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Selection de la periode</CardTitle>
+          <CardTitle>Sélection de la periode</CardTitle>
           <CardDescription>
-            Choisissez la periode pour laquelle distribuer les recompenses
+            Choisissez la periode pour laquelle distribuer les récompenses
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -212,7 +212,7 @@ export default function DistributePage() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selectionner une periode" />
+                  <SelectValue placeholder="Sélectionner une periode" />
                 </SelectTrigger>
                 <SelectContent>
                   {getPeriodSuggestions(periodType).map((period) => (
@@ -235,7 +235,7 @@ export default function DistributePage() {
                 ) : (
                   <Eye className="mr-2 h-4 w-4" />
                 )}
-                Previsualiser
+                Prévisualiser
               </Button>
             </div>
           </div>
@@ -246,10 +246,10 @@ export default function DistributePage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Previsualisation</CardTitle>
+              <CardTitle>Prévisualisation</CardTitle>
               <CardDescription>
                 {preview.length} utilisateur{preview.length > 1 ? "s" : ""}{" "}
-                recevront des recompenses
+                recevront des récompenses
               </CardDescription>
             </div>
             {!distributed && (
@@ -259,13 +259,13 @@ export default function DistributePage() {
                 ) : (
                   <PlayCircle className="mr-2 h-4 w-4" />
                 )}
-                Distribuer
+                Distribuér
               </Button>
             )}
             {distributed && (
               <Badge variant="success" className="text-base py-2 px-4">
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Distribue
+                Distribué
               </Badge>
             )}
           </CardHeader>
@@ -326,7 +326,7 @@ export default function DistributePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la distribution</AlertDialogTitle>
             <AlertDialogDescription>
-              Vous etes sur le point de distribuer les recompenses pour la
+              Vous etes sur le point de distribuer les récompenses pour la
               periode {periodIdentifier}. Cette action creditera les bonus
               cashback et attribuera les coupons pour {preview.length}{" "}
               utilisateur{preview.length > 1 ? "s" : ""}.
@@ -335,7 +335,7 @@ export default function DistributePage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={handleDistribute}>
-              Distribuer
+              Distribuér
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

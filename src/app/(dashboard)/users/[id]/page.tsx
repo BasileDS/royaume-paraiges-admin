@@ -53,15 +53,26 @@ import {
   Calendar,
   Award,
 } from "lucide-react";
+import { StatCard } from "@/components/stat-card";
 import {
   getUserWithStats,
   updateUser,
   getUserCoupons,
   getUserReceipts,
   getUserFullStats,
+  getUserActivityStats,
+  getUserDailyCashback,
   type UserCoupon,
   type UserReceipt,
+  type UserActivityStats,
+  type UserDailyCashback,
 } from "@/lib/services/userService";
+import { PeriodSelector, getPresetDates, type PeriodDates } from "@/components/period-selector";
+import { ShoppingCart, Wallet, Zap, PiggyBank, ArrowDownCircle, BarChart3 } from "lucide-react";
+import {
+  BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from "recharts";
 import { getEstablishments, type Establishment } from "@/lib/services/contentService";
 import { useToast } from "@/components/ui/use-toast";
 import { formatCurrency, formatPercentage, formatDate, formatDateTime } from "@/lib/utils";
@@ -69,7 +80,7 @@ import type { UserRole } from "@/types/database";
 
 const paymentMethodLabels: Record<string, string> = {
   card: "Carte",
-  cash: "Especes",
+  cash: "Espèces",
   cashback: "Cashback",
   coupon: "Coupon",
 };
@@ -90,7 +101,7 @@ export default function UserDetailPage() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("activity");
 
   // User data
   const [user, setUser] = useState<{
@@ -138,6 +149,15 @@ export default function UserDetailPage() {
   const [receiptsTotal, setReceiptsTotal] = useState(0);
   const [receiptsPage, setReceiptsPage] = useState(0);
   const [loadingReceipts, setLoadingReceipts] = useState(false);
+
+  // Activity stats
+  const [activityStats, setActivityStats] = useState<UserActivityStats | null>(null);
+  const [dailyCashback, setDailyCashback] = useState<UserDailyCashback[]>([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
+  const [activityPeriod, setActivityPeriod] = useState<PeriodDates>(() => {
+    const { start, end } = getPresetDates("last_7_days");
+    return { startDate: start.toISOString(), endDate: end.toISOString() };
+  });
 
   // Edit form
   const [form, setForm] = useState({
@@ -226,6 +246,33 @@ export default function UserDetailPage() {
     }
   }, [activeTab, receiptsPage]);
 
+  // Load activity stats when tab is selected or period changes
+  useEffect(() => {
+    if (activeTab === "activity") {
+      fetchActivityStats();
+    }
+  }, [activeTab, activityPeriod]);
+
+  const fetchActivityStats = async () => {
+    setLoadingActivity(true);
+    try {
+      const [data, daily] = await Promise.all([
+        getUserActivityStats(userId, activityPeriod.startDate, activityPeriod.endDate),
+        getUserDailyCashback(userId, activityPeriod.startDate, activityPeriod.endDate),
+      ]);
+      setActivityStats(data);
+      setDailyCashback(daily);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de charger les statistiques d'activité",
+      });
+    } finally {
+      setLoadingActivity(false);
+    }
+  };
+
   const fetchCoupons = async () => {
     setLoadingCoupons(true);
     try {
@@ -303,9 +350,9 @@ export default function UserDetailPage() {
       case "admin":
         return <Badge variant="default">Admin</Badge>;
       case "employee":
-        return <Badge variant="outline">Employe</Badge>;
+        return <Badge variant="outline">Employé</Badge>;
       case "establishment":
-        return <Badge variant="secondary">Etablissement</Badge>;
+        return <Badge variant="secondary">Établissement</Badge>;
       default:
         return <Badge variant="secondary">Client</Badge>;
     }
@@ -319,7 +366,7 @@ export default function UserDetailPage() {
   const getEstablishmentName = (id: number | null) => {
     if (!id) return "-";
     const establishment = establishments.find((e) => e.id === id);
-    return establishment?.title || `Etablissement #${id}`;
+    return establishment?.title || `Établissement #${id}`;
   };
 
   if (loadingData) {
@@ -361,86 +408,48 @@ export default function UserDetailPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="flex flex-wrap gap-4">
-        <Card className="min-w-[140px] flex-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">XP Total</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{fullStats?.totalXp.toLocaleString() || 0}</div>
-          </CardContent>
-        </Card>
-        <Card className="min-w-[140px] flex-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cashback</CardTitle>
-            <Coins className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(fullStats?.cashbackBalance || 0)}</div>
-          </CardContent>
-        </Card>
-        <Card className="min-w-[140px] flex-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tickets</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalReceipts}</div>
-          </CardContent>
-        </Card>
-        <Card className="min-w-[140px] flex-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Depense</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalSpent)}</div>
-          </CardContent>
-        </Card>
-        <Card className="min-w-[140px] flex-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Coupons</CardTitle>
-            <Ticket className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCoupons}</div>
-            <p className="text-xs text-muted-foreground">{stats.activeCoupons} actif(s)</p>
-          </CardContent>
-        </Card>
-        <Card className="min-w-[140px] flex-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rang Hebdo</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {fullStats?.weeklyRank ? `#${fullStats.weeklyRank}` : "-"}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="min-w-[140px] flex-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rang Mensuel</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {fullStats?.monthlyRank ? `#${fullStats.monthlyRank}` : "-"}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="min-w-[140px] flex-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rang Annuel</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {fullStats?.yearlyRank ? `#${fullStats.yearlyRank}` : "-"}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap gap-4 [&>*]:min-w-[140px] [&>*]:flex-1">
+        <StatCard
+          title="XP Total"
+          icon={<Star className="h-4 w-4 text-muted-foreground" />}
+          value={fullStats?.totalXp.toLocaleString() || 0}
+        />
+        <StatCard
+          title="Cashback"
+          icon={<Coins className="h-4 w-4 text-muted-foreground" />}
+          value={formatCurrency(fullStats?.cashbackBalance || 0)}
+        />
+        <StatCard
+          title="Tickets"
+          icon={<Receipt className="h-4 w-4 text-muted-foreground" />}
+          value={stats.totalReceipts}
+        />
+        <StatCard
+          title="Dépensé"
+          icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+          value={formatCurrency(stats.totalSpent)}
+        />
+        <StatCard
+          title="Coupons"
+          icon={<Ticket className="h-4 w-4 text-muted-foreground" />}
+          value={stats.totalCoupons}
+          subtitle={`${stats.activeCoupons} actif(s)`}
+        />
+        <StatCard
+          title="Rang Hebdo"
+          icon={<Trophy className="h-4 w-4 text-muted-foreground" />}
+          value={fullStats?.weeklyRank ? `#${fullStats.weeklyRank}` : "-"}
+        />
+        <StatCard
+          title="Rang Mensuel"
+          icon={<Trophy className="h-4 w-4 text-muted-foreground" />}
+          value={fullStats?.monthlyRank ? `#${fullStats.monthlyRank}` : "-"}
+        />
+        <StatCard
+          title="Rang Annuel"
+          icon={<Trophy className="h-4 w-4 text-muted-foreground" />}
+          value={fullStats?.yearlyRank ? `#${fullStats.yearlyRank}` : "-"}
+        />
       </div>
 
       {/* Tabs */}
@@ -449,6 +458,10 @@ export default function UserDetailPage() {
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Profil
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Activité
           </TabsTrigger>
           <TabsTrigger value="coupons" className="flex items-center gap-2">
             <Ticket className="h-4 w-4" />
@@ -499,7 +512,7 @@ export default function UserDetailPage() {
                   <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Telephone</p>
+                      <p className="text-sm text-muted-foreground">Téléphone</p>
                       <p className="font-medium">{user.phone}</p>
                     </div>
                   </div>
@@ -539,7 +552,7 @@ export default function UserDetailPage() {
                   <div className="flex items-center gap-3">
                     <Receipt className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Etablissement de reference</p>
+                      <p className="text-sm text-muted-foreground">Établissement de reference</p>
                       <p className="font-medium">{getEstablishmentName(user.attachedEstablishmentId)}</p>
                     </div>
                   </div>
@@ -561,6 +574,109 @@ export default function UserDetailPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Activity Tab */}
+        <TabsContent value="activity" className="space-y-6">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="hidden text-lg font-semibold sm:block">Activité</h2>
+            <PeriodSelector
+              defaultPreset="last_7_days"
+              onPeriodChange={setActivityPeriod}
+            />
+          </div>
+
+          {loadingActivity ? (
+            <div className="flex h-32 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : activityStats ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+                <StatCard
+                  title="Commandes"
+                  icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
+                  value={activityStats.ordersCount}
+                />
+                <StatCard
+                  title="Dépensé (EUR)"
+                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                  value={formatCurrency(activityStats.totalSpentEuros)}
+                />
+                <StatCard
+                  title="XP Gagné"
+                  icon={<Zap className="h-4 w-4 text-muted-foreground" />}
+                  value={activityStats.xpEarned.toLocaleString()}
+                />
+                <StatCard
+                  title="Cashback Gagné"
+                  icon={<PiggyBank className="h-4 w-4 text-muted-foreground" />}
+                  value={formatCurrency(activityStats.cashbackEarned)}
+                  subtitle={`${formatCurrency(activityStats.cashbackEarnedOrganic)} organique · ${formatCurrency(activityStats.cashbackEarnedRewards)} récompenses`}
+                />
+                <StatCard
+                  title="Cashback Dépensé"
+                  icon={<ArrowDownCircle className="h-4 w-4 text-muted-foreground" />}
+                  value={formatCurrency(activityStats.cashbackSpent)}
+                />
+              </div>
+
+              {dailyCashback.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Cashback gagné vs dépensé</CardTitle>
+                    <CardDescription>Évolution sur la période sélectionnée</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={dailyCashback}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(v: string) => {
+                            const d = new Date(v);
+                            return `${d.getDate()}/${d.getMonth() + 1}`;
+                          }}
+                          className="text-xs"
+                        />
+                        <YAxis
+                          tickFormatter={(v: number) => `${(v / 100).toFixed(0)}€`}
+                          className="text-xs"
+                        />
+                        <Tooltip
+                          formatter={(value: number, name: string) => {
+                            const labels: Record<string, string> = {
+                              earnedOrganic: "Gagné (organique)",
+                              earnedRewards: "Gagné (récompenses)",
+                              spent: "Dépensé",
+                            };
+                            return [formatCurrency(value), labels[name] || name];
+                          }}
+                          labelFormatter={(label: string) => {
+                            const d = new Date(label);
+                            return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+                          }}
+                        />
+                        <Legend
+                          formatter={(value: string) => {
+                            const labels: Record<string, string> = {
+                              earnedOrganic: "Organique",
+                              earnedRewards: "Récompenses",
+                              spent: "Dépensé",
+                            };
+                            return labels[value] || value;
+                          }}
+                        />
+                        <Bar dataKey="earnedOrganic" stackId="earned" fill="#16a34a" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="earnedRewards" stackId="earned" fill="#4ade80" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="spent" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          ) : null}
         </TabsContent>
 
         {/* Coupons Tab */}
@@ -592,7 +708,7 @@ export default function UserDetailPage() {
                         <TableHead>Type</TableHead>
                         <TableHead>Statut</TableHead>
                         <TableHead>Expiration</TableHead>
-                        <TableHead>Cree le</TableHead>
+                        <TableHead>Créé le</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -619,7 +735,7 @@ export default function UserDetailPage() {
                           </TableCell>
                           <TableCell>
                             {coupon.used ? (
-                              <Badge variant="secondary">Utilise</Badge>
+                              <Badge variant="secondary">Utilisé</Badge>
                             ) : isExpired(coupon.expires_at) ? (
                               <Badge variant="destructive">Expire</Badge>
                             ) : (
@@ -649,7 +765,7 @@ export default function UserDetailPage() {
                           disabled={couponsPage === 0}
                           onClick={() => setCouponsPage(couponsPage - 1)}
                         >
-                          Precedent
+                          Précédent
                         </Button>
                         <Button
                           variant="outline"
@@ -692,7 +808,7 @@ export default function UserDetailPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>ID</TableHead>
-                        <TableHead>Etablissement</TableHead>
+                        <TableHead>Établissement</TableHead>
                         <TableHead>Montant</TableHead>
                         <TableHead>Paiement</TableHead>
                         <TableHead>Date</TableHead>
@@ -703,7 +819,7 @@ export default function UserDetailPage() {
                         <TableRow key={receipt.id}>
                           <TableCell className="font-mono text-sm">#{receipt.id}</TableCell>
                           <TableCell>
-                            {receipt.establishment?.title || `Etablissement #${receipt.establishment_id}`}
+                            {receipt.establishment?.title || `Établissement #${receipt.establishment_id}`}
                           </TableCell>
                           <TableCell>
                             <Badge variant="default">{formatCurrency(receipt.amount)}</Badge>
@@ -748,7 +864,7 @@ export default function UserDetailPage() {
                           disabled={receiptsPage === 0}
                           onClick={() => setReceiptsPage(receiptsPage - 1)}
                         >
-                          Precedent
+                          Précédent
                         </Button>
                         <Button
                           variant="outline"
@@ -780,10 +896,10 @@ export default function UserDetailPage() {
               <CardContent className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">Prenom</Label>
+                    <Label htmlFor="firstName">Prénom</Label>
                     <Input
                       id="firstName"
-                      placeholder="Prenom"
+                      placeholder="Prénom"
                       value={form.firstName}
                       onChange={(e) => setForm({ ...form, firstName: e.target.value })}
                     />
@@ -810,7 +926,7 @@ export default function UserDetailPage() {
                     className="bg-muted"
                   />
                   <p className="text-xs text-muted-foreground">
-                    L'email ne peut pas etre modifie depuis cette interface
+                    L'email ne peut pas être modifié depuis cette interface
                   </p>
                 </div>
 
@@ -825,8 +941,8 @@ export default function UserDetailPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="client">Client</SelectItem>
-                      <SelectItem value="employee">Employe</SelectItem>
-                      <SelectItem value="establishment">Etablissement</SelectItem>
+                      <SelectItem value="employee">Employé</SelectItem>
+                      <SelectItem value="establishment">Établissement</SelectItem>
                       <SelectItem value="admin">Administrateur</SelectItem>
                     </SelectContent>
                   </Select>
@@ -837,7 +953,7 @@ export default function UserDetailPage() {
 
                 {(form.role === "employee" || form.role === "establishment") && (
                   <div className="space-y-2">
-                    <Label htmlFor="attachedEstablishment">Etablissement de reference</Label>
+                    <Label htmlFor="attachedEstablishment">Établissement de reference</Label>
                     <Select
                       value={form.attachedEstablishmentId}
                       onValueChange={(value) =>
@@ -848,10 +964,10 @@ export default function UserDetailPage() {
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selectionner un etablissement" />
+                        <SelectValue placeholder="Sélectionner un établissement" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Aucun etablissement</SelectItem>
+                        <SelectItem value="none">Aucun établissement</SelectItem>
                         {establishments.map((establishment) => (
                           <SelectItem key={establishment.id} value={establishment.id.toString()}>
                             {establishment.title}
@@ -860,7 +976,7 @@ export default function UserDetailPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Etablissement de reference de cet employe/gerant
+                      Établissement de reference de cet employe/gérant
                     </p>
                   </div>
                 )}

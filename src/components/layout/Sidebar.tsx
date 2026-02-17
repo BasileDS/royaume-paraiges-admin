@@ -15,10 +15,17 @@ import {
   Building2,
   LogOut,
   Target,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
@@ -66,7 +73,19 @@ const navigationGroups = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed?: boolean;
+  showToggle?: boolean;
+  onToggle?: () => void;
+  onNavigate?: () => void;
+}
+
+export function Sidebar({
+  collapsed = false,
+  showToggle = false,
+  onToggle,
+  onNavigate,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -76,22 +95,40 @@ export function Sidebar() {
     router.push("/login");
   };
 
+  const handleLinkClick = () => {
+    onNavigate?.();
+  };
+
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-background">
-      <div className="flex h-16 items-center border-b px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Trophy className="h-6 w-6" />
-          <span>Royaume Admin</span>
+    <div
+      className={cn(
+        "flex h-full flex-col border-r bg-background transition-all duration-300",
+        collapsed ? "w-16" : "w-64"
+      )}
+    >
+      {/* Header */}
+      <div className={cn("flex h-16 items-center border-b", collapsed ? "justify-center px-2" : "px-6")}>
+        <Link
+          href="/"
+          className="flex items-center gap-2 font-semibold"
+          onClick={handleLinkClick}
+        >
+          <Trophy className="h-6 w-6 shrink-0" />
+          {!collapsed && <span>Royaume Admin</span>}
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      {/* Navigation */}
+      <nav className={cn("flex-1 overflow-y-auto py-4", collapsed ? "px-2" : "px-3")}>
         {navigationGroups.map((group, groupIndex) => (
           <div key={groupIndex} className={cn(groupIndex > 0 && "mt-4")}>
-            {group.title && (
+            {group.title && !collapsed && (
               <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {group.title}
               </h3>
+            )}
+            {group.title && collapsed && (
+              <Separator className="my-2" />
             )}
             <div className="space-y-1">
               {group.items.map((item) => {
@@ -99,20 +136,42 @@ export function Sidebar() {
                   pathname === item.href ||
                   (item.href !== "/" && pathname.startsWith(item.href));
 
-                return (
+                const linkContent = (
                   <Link
-                    key={item.name}
                     href={item.href}
+                    onClick={handleLinkClick}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      "flex items-center rounded-lg text-sm font-medium transition-colors",
+                      collapsed
+                        ? "justify-center px-2 py-2"
+                        : "gap-3 px-3 py-2",
                       isActive
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     )}
                   >
-                    <item.icon className="h-4 w-4" />
-                    {item.name}
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {!collapsed && item.name}
                   </Link>
+                );
+
+                if (collapsed) {
+                  return (
+                    <Tooltip key={item.name} delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        {linkContent}
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {item.name}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return (
+                  <div key={item.name}>
+                    {linkContent}
+                  </div>
                 );
               })}
             </div>
@@ -122,15 +181,66 @@ export function Sidebar() {
 
       <Separator />
 
-      <div className="p-3">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-muted-foreground"
-          onClick={handleSignOut}
-        >
-          <LogOut className="h-4 w-4" />
-          Deconnexion
-        </Button>
+      {/* Footer */}
+      <div className={cn("p-2", !collapsed && "p-3")}>
+        {collapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-full text-muted-foreground"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              Deconnexion
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-muted-foreground"
+            onClick={handleSignOut}
+          >
+            <LogOut className="h-4 w-4" />
+            Deconnexion
+          </Button>
+        )}
+
+        {showToggle && (
+          <>
+            <Separator className="my-2" />
+            {collapsed ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-full text-muted-foreground"
+                    onClick={onToggle}
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  Agrandir
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 text-muted-foreground"
+                onClick={onToggle}
+              >
+                <ChevronsLeft className="h-4 w-4" />
+                Reduire
+              </Button>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

@@ -40,7 +40,7 @@ import { useToast } from "@/components/ui/use-toast";
 
 const paymentMethodLabels: Record<string, string> = {
   card: "Carte",
-  cash: "Especes",
+  cash: "Espèces",
   cashback: "Cashback",
   coupon: "Coupon",
 };
@@ -100,7 +100,7 @@ export default function ReceiptsPage() {
 
   const getEstablishmentName = (id: number) => {
     const establishment = establishments.find((e) => e.id === id);
-    return establishment?.title || `Etablissement #${id}`;
+    return establishment?.title || `Établissement #${id}`;
   };
 
   const totalPages = Math.ceil(total / limit);
@@ -171,7 +171,7 @@ export default function ReceiptsPage() {
           {stats.paymentMethodBreakdown.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Repartition par moyen de paiement</CardTitle>
+                <CardTitle>Répartition par moyen de paiement</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-4">
@@ -224,10 +224,10 @@ export default function ReceiptsPage() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Filtrer par etablissement" />
+                  <SelectValue placeholder="Filtrer par établissement" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les etablissements</SelectItem>
+                  <SelectItem value="all">Tous les établissements</SelectItem>
                   {establishments.map((establishment) => (
                     <SelectItem
                       key={establishment.id}
@@ -248,7 +248,7 @@ export default function ReceiptsPage() {
             </div>
           ) : receipts.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              Aucun ticket trouve
+              Aucun ticket trouvé
             </div>
           ) : (
             <>
@@ -257,7 +257,7 @@ export default function ReceiptsPage() {
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Client</TableHead>
-                    <TableHead>Etablissement</TableHead>
+                    <TableHead>Établissement</TableHead>
                     <TableHead>Montant</TableHead>
                     <TableHead>Paiement</TableHead>
                     <TableHead>Date</TableHead>
@@ -334,7 +334,7 @@ export default function ReceiptsPage() {
                       disabled={page === 0}
                       onClick={() => setPage(page - 1)}
                     >
-                      Precedent
+                      Précédent
                     </Button>
                     <Button
                       variant="outline"

@@ -117,7 +117,7 @@ export default function EditQuestPage() {
         toast({
           variant: "destructive",
           title: "Erreur",
-          description: "Impossible de charger la quete",
+          description: "Impossible de charger la quête",
         });
         router.push("/quests");
       } finally {
@@ -201,13 +201,13 @@ export default function EditQuestPage() {
       await updateQuest(id, quest);
       await setQuestPeriods(id, form.periods);
 
-      toast({ title: "Quete modifiee avec succes" });
+      toast({ title: "Quête modifiée avec succes" });
       router.push("/quests");
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de modifier la quete",
+        description: "Impossible de modifier la quête",
       });
     } finally {
       setLoading(false);
@@ -218,13 +218,13 @@ export default function EditQuestPage() {
     setDeleting(true);
     try {
       await deleteQuest(id);
-      toast({ title: "Quete supprimee" });
+      toast({ title: "Quête supprimée" });
       router.push("/quests");
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de supprimer la quete",
+        description: "Impossible de supprimer la quête",
       });
       setDeleting(false);
     }
@@ -248,7 +248,7 @@ export default function EditQuestPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Modifier la quete</h1>
+            <h1 className="text-3xl font-bold">Modifier la quête</h1>
             <p className="text-muted-foreground">{form.name}</p>
           </div>
         </div>
@@ -266,10 +266,10 @@ export default function EditQuestPage() {
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer cette quete ?</AlertDialogTitle>
+              <AlertDialogTitle>Supprimer cette quête ?</AlertDialogTitle>
               <AlertDialogDescription>
-                Cette action est irreversible. Toutes les progressions et
-                completions associees seront egalement supprimees.
+                Cette action est irréversible. Toutes les progressions et
+                completions associees seront egalement supprimées.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -288,19 +288,19 @@ export default function EditQuestPage() {
       <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
-            <CardTitle>Configuration de la quete</CardTitle>
+            <CardTitle>Configuration de la quête</CardTitle>
             <CardDescription>
-              Modifiez l&apos;objectif et les recompenses
+              Modifiez l&apos;objectif et les récompenses
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Nom et description */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Nom de la quete *</Label>
+                <Label htmlFor="name">Nom de la quête *</Label>
                 <Input
                   id="name"
-                  placeholder="Ex: Habitue de la semaine"
+                  placeholder="Ex: Habitué de la semaine"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
@@ -323,7 +323,7 @@ export default function EditQuestPage() {
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
-                placeholder="Ex: Scannez 5 tickets cette semaine pour gagner une recompense"
+                placeholder="Ex: Scannez 5 tickets cette semaine pour gagner une récompense"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={2}
@@ -333,7 +333,7 @@ export default function EditQuestPage() {
             {/* Type et objectif */}
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label>Type de quete *</Label>
+                <Label>Type de quête *</Label>
                 <Select
                   value={form.questType}
                   onValueChange={(value: QuestType) =>
@@ -394,10 +394,10 @@ export default function EditQuestPage() {
             {/* Périodes spécifiques */}
             <div className="space-y-4 rounded-lg border p-4">
               <div className="space-y-1">
-                <Label>Periodes specifiques (optionnel)</Label>
+                <Label>Périodes spécifiques (optionnel)</Label>
                 <p className="text-sm text-muted-foreground">
-                  Laissez vide pour activer la quete sur toutes les periodes.
-                  Sinon, selectionnez les periodes sur lesquelles cette quete sera active.
+                  Laissez vide pour activer la quête sur toutes les périodes.
+                  Sinon, selectionnez les périodes sur lesquelles cette quête sera active.
                 </p>
               </div>
 
@@ -421,7 +421,7 @@ export default function EditQuestPage() {
 
               {form.periods.length === 0 && (
                 <p className="text-sm text-muted-foreground italic">
-                  Aucune periode specifiee - la quete sera active sur toutes les periodes
+                  Aucune période spécifiée - la quête sera active sur toutes les périodes
                 </p>
               )}
 
@@ -432,7 +432,7 @@ export default function EditQuestPage() {
                   size="sm"
                   onClick={handleAddCurrentPeriod}
                 >
-                  Ajouter periode actuelle
+                  Ajouter période actuelle
                 </Button>
               </div>
 
@@ -459,7 +459,7 @@ export default function EditQuestPage() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selectionner un template" />
+                      <SelectValue placeholder="Sélectionner un template" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Aucun coupon</SelectItem>
@@ -518,7 +518,7 @@ export default function EditQuestPage() {
             {/* Activation */}
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <Label>Quete active</Label>
+                <Label>Quête active</Label>
                 <p className="text-sm text-muted-foreground">
                   Sera visible et accessible par les utilisateurs
                 </p>

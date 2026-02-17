@@ -89,7 +89,7 @@ function CreateTemplateForm() {
       };
 
       await createTemplate(template);
-      toast({ title: "Template cree avec succes" });
+      toast({ title: "Template créé avec succes" });
       router.push("/templates");
     } catch (error) {
       toast({
@@ -116,7 +116,7 @@ function CreateTemplateForm() {
         <CardHeader>
           <CardTitle>Informations du template</CardTitle>
           <CardDescription>
-            Definissez les caracteristiques du coupon
+            Définissez les caracteristiques du coupon
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -176,7 +176,7 @@ function CreateTemplateForm() {
                   min={0.01}
                   step="0.01"
                 />
-                <p className="text-xs text-muted-foreground">Credite immediatement au solde cashback du joueur</p>
+                <p className="text-xs text-muted-foreground">Crédité immediatement au solde cashback du joueur</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -193,7 +193,7 @@ function CreateTemplateForm() {
                   min={1}
                   max={100}
                 />
-                <p className="text-xs text-muted-foreground">Cashback supplementaire applique sur la commande</p>
+                <p className="text-xs text-muted-foreground">Cashback supplémentaire applique sur la commande</p>
               </div>
             )}
           </div>
@@ -201,7 +201,7 @@ function CreateTemplateForm() {
           <div className="grid gap-4 md:grid-cols-2">
             {form.valueType === "percentage" && (
               <div className="space-y-2">
-                <Label htmlFor="validity">Duree de validite (jours)</Label>
+                <Label htmlFor="validity">Durée de validite (jours)</Label>
                 <Input
                   id="validity"
                   type="number"
@@ -239,7 +239,7 @@ function CreateTemplateForm() {
             </Link>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Creer le template
+              Créer le template
             </Button>
           </div>
         </CardContent>
@@ -260,7 +260,7 @@ export default function CreateTemplatePage() {
         <div>
           <h1 className="text-3xl font-bold">Nouveau template</h1>
           <p className="text-muted-foreground">
-            Creez un modele de coupon reutilisable
+            Creez un modèle de coupon reutilisable
           </p>
         </div>
       </div>

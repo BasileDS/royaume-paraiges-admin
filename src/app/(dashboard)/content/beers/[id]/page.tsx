@@ -78,7 +78,7 @@ export default function EditBeerPage() {
           toast({
             variant: "destructive",
             title: "Erreur",
-            description: "Biere introuvable",
+            description: "Bière introuvable",
           });
           router.push("/content/beers");
         }
@@ -86,7 +86,7 @@ export default function EditBeerPage() {
         toast({
           variant: "destructive",
           title: "Erreur",
-          description: "Impossible de charger la biere",
+          description: "Impossible de charger la bière",
         });
         router.push("/content/beers");
       } finally {
@@ -141,13 +141,13 @@ export default function EditBeerPage() {
         featured_image: newImagePath,
       });
 
-      toast({ title: "Biere mise a jour" });
+      toast({ title: "Bière mise à jour" });
       router.push("/content/beers");
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de mettre a jour la biere",
+        description: "Impossible de mettre à jour la bière",
       });
     } finally {
       setLoading(false);
@@ -171,7 +171,7 @@ export default function EditBeerPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Modifier la biere</h1>
+          <h1 className="text-3xl font-bold">Modifier la bière</h1>
           <p className="text-muted-foreground">{form.title}</p>
         </div>
       </div>
@@ -179,14 +179,14 @@ export default function EditBeerPage() {
       <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
-            <CardTitle>Informations de la biere</CardTitle>
+            <CardTitle>Informations de la bière</CardTitle>
             <CardDescription>
-              Modifiez les caracteristiques de la biere
+              Modifiez les caractéristiques de la bière
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="title">Nom de la biere *</Label>
+              <Label htmlFor="title">Nom de la bière *</Label>
               <Input
                 id="title"
                 placeholder="Ex: Blonde des Paraiges"
@@ -200,7 +200,7 @@ export default function EditBeerPage() {
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
-                placeholder="Description de la biere"
+                placeholder="Description de la bière"
                 value={form.description}
                 onChange={(e) =>
                   setForm({ ...form, description: e.target.value })
@@ -218,7 +218,7 @@ export default function EditBeerPage() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selectionner une brasserie" />
+                  <SelectValue placeholder="Sélectionner une brasserie" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucune brasserie</SelectItem>
@@ -232,16 +232,16 @@ export default function EditBeerPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Image de la biere</Label>
+              <Label>Image de la bière</Label>
               <div className="flex items-start gap-4">
-                {/* Apercu de l'image actuelle ou nouvelle */}
+                {/* Aperçu de l'image actuelle ou nouvelle */}
                 {(imagePreview || currentImagePath) && (
                   <div className="relative">
                     <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-lg border bg-muted/10">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={imagePreview || getImageUrl(currentImagePath) || ""}
-                        alt="Apercu"
+                        alt="Aperçu"
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -272,7 +272,7 @@ export default function EditBeerPage() {
                         : "Importer une image"}
                     </span>
                     <span className="mt-1 text-xs text-muted-foreground">
-                      PNG, JPG jusqu'a 5MB
+                      PNG, JPG jusqu'à 5MB
                     </span>
                   </label>
                   <input
@@ -304,7 +304,7 @@ export default function EditBeerPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="abv">ABV (Degre d'alcool %)</Label>
+                <Label htmlFor="abv">ABV (Degré d'alcool %)</Label>
                 <Input
                   id="abv"
                   type="number"

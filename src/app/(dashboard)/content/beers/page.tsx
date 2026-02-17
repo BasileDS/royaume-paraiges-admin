@@ -25,8 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Beer, ExternalLink, Building2, Factory, Pencil } from "lucide-react";
-import Link from "next/link";
+import { Loader2, Beer, ExternalLink, Building2, Factory } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   getBeers,
   getBreweries,
@@ -56,6 +56,7 @@ export default function BeersPage() {
   const [selectedEstablishments, setSelectedEstablishments] = useState<Establishment[]>([]);
   const [loadingEstablishments, setLoadingEstablishments] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const fetchData = async () => {
     setLoading(true);
@@ -70,7 +71,7 @@ export default function BeersPage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de charger les bieres",
+        description: "Impossible de charger les bières",
       });
     } finally {
       setLoading(false);
@@ -91,7 +92,7 @@ export default function BeersPage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de charger les etablissements",
+        description: "Impossible de charger les établissements",
       });
     } finally {
       setLoadingEstablishments(false);
@@ -128,16 +129,16 @@ export default function BeersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Bieres</h1>
+        <h1 className="text-3xl font-bold">Bières</h1>
         <p className="text-muted-foreground">
-          Catalogue des bieres (lecture seule)
+          Catalogue des bières (lecture seule)
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total bieres</CardTitle>
+            <CardTitle className="text-sm font-medium">Total bières</CardTitle>
             <Beer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -177,22 +178,22 @@ export default function BeersPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Liste des bieres</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <div className="hidden sm:block">
+              <CardTitle>Liste des bières</CardTitle>
               <CardDescription>
-                {filteredBeers.length} biere{filteredBeers.length > 1 ? "s" : ""}
+                {filteredBeers.length} bière{filteredBeers.length > 1 ? "s" : ""}
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-1 gap-2 sm:flex-none">
               <Input
                 placeholder="Rechercher..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-[200px]"
+                className="min-w-0 flex-1 sm:w-[200px] sm:flex-none"
               />
               <Select value={breweryFilter} onValueChange={setBreweryFilter}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-[130px] shrink-0 sm:w-[200px]">
                   <SelectValue placeholder="Brasserie" />
                 </SelectTrigger>
                 <SelectContent>
@@ -214,21 +215,25 @@ export default function BeersPage() {
             </div>
           ) : filteredBeers.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              Aucune biere trouvee
+              Aucune bière trouvée
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Biere</TableHead>
+                  <TableHead>Bière</TableHead>
                   <TableHead>Brasserie</TableHead>
                   <TableHead>IBU</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredBeers.map((beer) => (
-                  <TableRow key={beer.id}>
+                  <TableRow
+                    key={beer.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/content/beers/${beer.id}`)}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {beer.featured_image && (
@@ -259,22 +264,17 @@ export default function BeersPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
-                        <Link href={`/content/beers/${beer.id}`}>
-                          <Button variant="outline" size="sm">
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Modifier
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewEstablishments(beer)}
-                        >
-                          <Building2 className="mr-2 h-4 w-4" />
-                          Disponibilite
-                        </Button>
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewEstablishments(beer);
+                        }}
+                      >
+                        <Building2 className="mr-2 h-4 w-4" />
+                        Disponibilité
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -287,9 +287,9 @@ export default function BeersPage() {
       <Dialog open={!!selectedBeer} onOpenChange={() => setSelectedBeer(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Disponibilite - {selectedBeer?.title}</DialogTitle>
+            <DialogTitle>Disponibilité - {selectedBeer?.title}</DialogTitle>
             <DialogDescription>
-              Etablissements ou cette biere est disponible
+              Établissements où cette bière est disponible
             </DialogDescription>
           </DialogHeader>
           {loadingEstablishments ? (
@@ -298,14 +298,14 @@ export default function BeersPage() {
             </div>
           ) : selectedEstablishments.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              Cette biere n'est configuree dans aucun etablissement
+              Cette bière n'est configurée dans aucun établissement
             </div>
           ) : (
             <div className="max-h-[400px] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Etablissement</TableHead>
+                    <TableHead>Établissement</TableHead>
                     <TableHead>Ville</TableHead>
                   </TableRow>
                 </TableHeader>

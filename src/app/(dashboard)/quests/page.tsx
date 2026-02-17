@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -25,7 +26,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
   Plus,
-  Settings,
   Loader2,
   Target,
   Zap,
@@ -97,6 +97,7 @@ export default function QuestsPage() {
   const [periodFilter, setPeriodFilter] = useState("");
   const [showPeriodFilter, setShowPeriodFilter] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const fetchQuests = async () => {
     try {
@@ -106,7 +107,7 @@ export default function QuestsPage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de charger les quetes",
+        description: "Impossible de charger les quêtes",
       });
     } finally {
       setLoading(false);
@@ -124,13 +125,13 @@ export default function QuestsPage() {
         prev.map((q) => (q.id === id ? { ...q, is_active: isActive } : q))
       );
       toast({
-        title: isActive ? "Quete activee" : "Quete desactivee",
+        title: isActive ? "Quête activée" : "Quête désactivée",
       });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de modifier la quete",
+        description: "Impossible de modifier la quête",
       });
     }
   };
@@ -171,24 +172,24 @@ export default function QuestsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Quetes</h1>
+          <h1 className="text-3xl font-bold">Quêtes</h1>
           <p className="text-muted-foreground">
-            Configurez les defis periodiques pour les utilisateurs
+            Configurez les défis périodiques pour les utilisateurs
           </p>
         </div>
         <Link href="/quests/create">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Nouvelle quete
+            Nouvelle quête
           </Button>
         </Link>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Liste des quetes</CardTitle>
+          <CardTitle>Liste des quêtes</CardTitle>
           <CardDescription>
-            Definissez les objectifs et recompenses pour chaque periode
+            Définissez les objectifs et récompenses pour chaque période
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -196,16 +197,16 @@ export default function QuestsPage() {
             value={selectedPeriod}
             onValueChange={(v) => handlePeriodTabChange(v as PeriodType)}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between gap-2 mb-4">
               <TabsList>
-                <TabsTrigger value="weekly">Hebdomadaire</TabsTrigger>
-                <TabsTrigger value="monthly">Mensuel</TabsTrigger>
-                <TabsTrigger value="yearly">Annuel</TabsTrigger>
+                <TabsTrigger value="weekly" className="text-xs sm:text-sm">Hebdo</TabsTrigger>
+                <TabsTrigger value="monthly" className="text-xs sm:text-sm">Mensuel</TabsTrigger>
+                <TabsTrigger value="yearly" className="text-xs sm:text-sm">Annuel</TabsTrigger>
               </TabsList>
 
               <div className="flex items-center gap-2">
                 {periodFilter && (
-                  <Badge variant="secondary" className="gap-1">
+                  <Badge variant="secondary" className="hidden gap-1 sm:flex">
                     <Calendar className="h-3 w-3" />
                     {periodFilter}
                     <button
@@ -221,15 +222,15 @@ export default function QuestsPage() {
                   size="sm"
                   onClick={() => setShowPeriodFilter(!showPeriodFilter)}
                 >
-                  <Filter className="mr-2 h-4 w-4" />
-                  Filtrer par periode
+                  <Filter className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Filtrer par période</span>
                 </Button>
               </div>
             </div>
 
             {showPeriodFilter && (
               <div className="mb-4 p-4 border rounded-lg space-y-3">
-                <Label>Filtrer les quetes actives pour une periode specifique</Label>
+                <Label>Filtrer les quêtes actives pour une période spécifique</Label>
                 <div className="flex gap-2">
                   <Input
                     placeholder={getPlaceholder(selectedPeriod)}
@@ -242,7 +243,7 @@ export default function QuestsPage() {
                     variant="secondary"
                     onClick={handleApplyCurrentPeriodFilter}
                   >
-                    Periode actuelle
+                    Période actuelle
                   </Button>
                   {periodFilter && (
                     <Button
@@ -255,7 +256,7 @@ export default function QuestsPage() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Affiche uniquement les quetes actives pour cette periode (ou celles sans restriction de periode)
+                  Affiche uniquement les quêtes actives pour cette période (ou celles sans restriction de période)
                 </p>
               </div>
             )}
@@ -263,19 +264,18 @@ export default function QuestsPage() {
             <TabsContent value={selectedPeriod}>
               {filteredQuests.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">
-                  Aucune quete configuree pour cette periode
+                  Aucune quête configurée pour cette période
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Quete</TableHead>
+                      <TableHead>Quête</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Objectif</TableHead>
-                      <TableHead>Periodes</TableHead>
-                      <TableHead>Recompenses</TableHead>
+                      <TableHead>Périodes</TableHead>
+                      <TableHead>Récompenses</TableHead>
                       <TableHead>Active</TableHead>
-                      <TableHead className="w-[100px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -285,7 +285,11 @@ export default function QuestsPage() {
                         const Icon = questTypeIcons[quest.quest_type];
 
                         return (
-                          <TableRow key={quest.id}>
+                          <TableRow
+                            key={quest.id}
+                            className="cursor-pointer"
+                            onClick={() => router.push(`/quests/${quest.id}`)}
+                          >
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Icon className="h-5 w-5 text-primary" />
@@ -372,20 +376,13 @@ export default function QuestsPage() {
                                   )}
                               </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
                               <Switch
                                 checked={quest.is_active}
                                 onCheckedChange={(checked) =>
                                   handleToggleActive(quest.id, checked)
                                 }
                               />
-                            </TableCell>
-                            <TableCell>
-                              <Link href={`/quests/${quest.id}`}>
-                                <Button variant="ghost" size="sm">
-                                  <Settings className="h-4 w-4" />
-                                </Button>
-                              </Link>
                             </TableCell>
                           </TableRow>
                         );

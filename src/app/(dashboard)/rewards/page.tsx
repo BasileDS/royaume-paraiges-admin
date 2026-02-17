@@ -85,7 +85,7 @@ export default function RewardsPage() {
         prev.map((t) => (t.id === id ? { ...t, is_active: isActive } : t))
       );
       toast({
-        title: isActive ? "Palier active" : "Palier desactive",
+        title: isActive ? "Palier active" : "Palier désactivé",
       });
     } catch (error) {
       toast({
@@ -110,16 +110,16 @@ export default function RewardsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Recompenses</h1>
+          <h1 className="text-3xl font-bold">Récompenses</h1>
           <p className="text-muted-foreground">
-            Configurez les paliers de recompenses du leaderboard
+            Configurez les paliers de récompenses du leaderboard
           </p>
         </div>
         <div className="flex gap-2">
           <Link href="/rewards/periods">
             <Button variant="outline">
               <Calendar className="mr-2 h-4 w-4" />
-              Periodes
+              Périodes
             </Button>
           </Link>
           <Link href="/rewards/distribute">
@@ -139,9 +139,9 @@ export default function RewardsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Paliers de recompenses</CardTitle>
+          <CardTitle>Paliers de récompenses</CardTitle>
           <CardDescription>
-            Definissez les recompenses pour chaque rang du leaderboard
+            Définissez les récompenses pour chaque rang du leaderboard
           </CardDescription>
         </CardHeader>
         <CardContent>

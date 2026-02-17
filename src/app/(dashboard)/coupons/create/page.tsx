@@ -103,7 +103,7 @@ export default function CreateCouponPage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Selectionnez un utilisateur",
+        description: "Sélectionnez un utilisateur",
       });
       return;
     }
@@ -125,18 +125,18 @@ export default function CreateCouponPage() {
         adminId: user?.id,
       });
 
-      let successMessage = "Coupon attribue avec succes";
+      let successMessage = "Coupon attribué avec succès";
       if (form.mode === "custom") {
         if (form.amount) {
-          successMessage = `Bonus cashback de ${form.amount} EUR credite`;
+          successMessage = `Bonus cashback de ${form.amount} EUR crédité`;
         } else if (form.percentage) {
-          successMessage = `Coupon de ${form.percentage}% attribue`;
+          successMessage = `Coupon de ${form.percentage}% attribué`;
         }
       } else if (form.mode === "template" && selectedTemplate) {
         if (selectedTemplate.amount) {
           successMessage = `Bonus cashback de ${formatCurrency(selectedTemplate.amount)} credite`;
         } else if (selectedTemplate.percentage) {
-          successMessage = `Coupon de ${selectedTemplate.percentage}% attribue`;
+          successMessage = `Coupon de ${selectedTemplate.percentage}% attribué`;
         }
       }
 
@@ -146,7 +146,7 @@ export default function CreateCouponPage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de creer le coupon",
+        description: "Impossible de créer le coupon",
       });
     } finally {
       setLoading(false);
@@ -168,7 +168,7 @@ export default function CreateCouponPage() {
         <div>
           <h1 className="text-3xl font-bold">Attribution manuelle</h1>
           <p className="text-muted-foreground">
-            Attribuez un bonus cashback ou coupon a un utilisateur
+            Attribuez un bonus cashback ou coupon à un utilisateur
           </p>
         </div>
       </div>
@@ -179,7 +179,7 @@ export default function CreateCouponPage() {
             <CardHeader>
               <CardTitle>Utilisateur</CardTitle>
               <CardDescription>
-                Recherchez et selectionnez l&apos;utilisateur destinataire
+                Recherchez et sélectionnez l&apos;utilisateur destinataire
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -270,7 +270,7 @@ export default function CreateCouponPage() {
             <CardHeader>
               <CardTitle>Valeur du coupon</CardTitle>
               <CardDescription>
-                Utilisez un template ou definissez une valeur personnalisee
+                Utilisez un template ou définissez une valeur personnalisée
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -287,7 +287,7 @@ export default function CreateCouponPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="template">Depuis un template</SelectItem>
-                    <SelectItem value="custom">Valeur personnalisee</SelectItem>
+                    <SelectItem value="custom">Valeur personnalisée</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -302,7 +302,7 @@ export default function CreateCouponPage() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selectionner un template" />
+                      <SelectValue placeholder="Sélectionner un template" />
                     </SelectTrigger>
                     <SelectContent>
                       {templates.map((template) => (
@@ -324,7 +324,7 @@ export default function CreateCouponPage() {
                     <p className="text-sm text-muted-foreground">
                       {selectedTemplate.description}{" "}
                       {selectedTemplate.amount
-                        ? "(Bonus Cashback immediat)"
+                        ? "(Bonus Cashback immédiat)"
                         : selectedTemplate.percentage
                         ? "(Coupon % sur commande)"
                         : ""}
@@ -346,7 +346,7 @@ export default function CreateCouponPage() {
                       step="0.01"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Sera credite immediatement au solde cashback
+                      Sera crédité immédiatement au solde cashback
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -362,7 +362,7 @@ export default function CreateCouponPage() {
                       max={100}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Cashback supplementaire sur la prochaine commande
+                      Cashback supplémentaire sur la prochaine commande
                     </p>
                   </div>
                 </div>
@@ -372,7 +372,7 @@ export default function CreateCouponPage() {
 
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>Options supplementaires</CardTitle>
+              <CardTitle>Options supplémentaires</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">

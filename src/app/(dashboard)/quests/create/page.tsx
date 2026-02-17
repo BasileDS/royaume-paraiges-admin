@@ -170,13 +170,13 @@ export default function CreateQuestPage() {
         await setQuestPeriods(createdQuest.id, form.periods);
       }
 
-      toast({ title: "Quete creee avec succes" });
+      toast({ title: "Quête créée avec succès" });
       router.push("/quests");
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de creer la quete",
+        description: "Impossible de créer la quête",
       });
     } finally {
       setLoading(false);
@@ -192,9 +192,9 @@ export default function CreateQuestPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Nouvelle quete</h1>
+          <h1 className="text-3xl font-bold">Nouvelle quête</h1>
           <p className="text-muted-foreground">
-            Creez un nouveau defi periodique
+            Créez un nouveau défi périodique
           </p>
         </div>
       </div>
@@ -202,19 +202,19 @@ export default function CreateQuestPage() {
       <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
-            <CardTitle>Configuration de la quete</CardTitle>
+            <CardTitle>Configuration de la quête</CardTitle>
             <CardDescription>
-              Definissez l&apos;objectif et les recompenses
+              Définissez l&apos;objectif et les récompenses
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Nom et description */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Nom de la quete *</Label>
+                <Label htmlFor="name">Nom de la quête *</Label>
                 <Input
                   id="name"
-                  placeholder="Ex: Habitue de la semaine"
+                  placeholder="Ex: Habitué de la semaine"
                   value={form.name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   required
@@ -237,7 +237,7 @@ export default function CreateQuestPage() {
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
-                placeholder="Ex: Scannez 5 tickets cette semaine pour gagner une recompense"
+                placeholder="Ex: Scannez 5 tickets cette semaine pour gagner une récompense"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={2}
@@ -247,7 +247,7 @@ export default function CreateQuestPage() {
             {/* Type et objectif */}
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label>Type de quete *</Label>
+                <Label>Type de quête *</Label>
                 <Select
                   value={form.questType}
                   onValueChange={(value: QuestType) =>
@@ -297,7 +297,7 @@ export default function CreateQuestPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Periode *</Label>
+                <Label>Période *</Label>
                 <Select
                   value={form.periodType}
                   onValueChange={handlePeriodTypeChange}
@@ -317,10 +317,10 @@ export default function CreateQuestPage() {
             {/* Périodes spécifiques */}
             <div className="space-y-4 rounded-lg border p-4">
               <div className="space-y-1">
-                <Label>Periodes specifiques (optionnel)</Label>
+                <Label>Périodes spécifiques (optionnel)</Label>
                 <p className="text-sm text-muted-foreground">
-                  Laissez vide pour activer la quete sur toutes les periodes.
-                  Sinon, selectionnez les periodes sur lesquelles cette quete sera active.
+                  Laissez vide pour activer la quête sur toutes les périodes.
+                  Sinon, sélectionnez les périodes sur lesquelles cette quête sera active.
                 </p>
               </div>
 
@@ -344,7 +344,7 @@ export default function CreateQuestPage() {
 
               {form.periods.length === 0 && (
                 <p className="text-sm text-muted-foreground italic">
-                  Aucune periode specifiee - la quete sera active sur toutes les periodes
+                  Aucune période spécifiée - la quête sera active sur toutes les périodes
                 </p>
               )}
 
@@ -355,7 +355,7 @@ export default function CreateQuestPage() {
                   size="sm"
                   onClick={handleAddCurrentPeriod}
                 >
-                  Ajouter periode actuelle
+                  Ajouter période actuelle
                 </Button>
               </div>
 
@@ -370,9 +370,9 @@ export default function CreateQuestPage() {
 
             {/* Recompenses */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Recompenses</h3>
+              <h3 className="text-lg font-medium">Récompenses</h3>
               <p className="text-sm text-muted-foreground">
-                Configurez au moins une recompense pour cette quete
+                Configurez au moins une récompense pour cette quete
               </p>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -385,7 +385,7 @@ export default function CreateQuestPage() {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selectionner un template" />
+                      <SelectValue placeholder="Sélectionner un template" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Aucun coupon</SelectItem>
@@ -393,7 +393,7 @@ export default function CreateQuestPage() {
                         <SelectItem key={template.id} value={template.id.toString()}>
                           {template.name}
                           {template.amount
-                            ? ` (${formatCurrency(template.amount)} - Bonus CB immediat)`
+                            ? ` (${formatCurrency(template.amount)} - Bonus CB immédiat)`
                             : template.percentage
                             ? ` (${template.percentage}% - Coupon sur commande)`
                             : ""}
@@ -427,7 +427,7 @@ export default function CreateQuestPage() {
                     min={0}
                   />
                   <p className="text-xs text-muted-foreground">
-                    XP supplementaire attribue a la completion
+                    XP supplémentaire attribué à la complétion
                   </p>
                 </div>
 
@@ -443,7 +443,7 @@ export default function CreateQuestPage() {
                     step="0.01"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Cashback supplementaire (ex: 5 = 5€)
+                    Cashback supplémentaire (ex: 5 = 5€)
                   </p>
                 </div>
               </div>
@@ -452,7 +452,7 @@ export default function CreateQuestPage() {
             {/* Activation */}
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <Label>Quete active</Label>
+                <Label>Quête active</Label>
                 <p className="text-sm text-muted-foreground">
                   Sera visible et accessible par les utilisateurs
                 </p>
@@ -472,7 +472,7 @@ export default function CreateQuestPage() {
               </Link>
               <Button type="submit" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Creer la quete
+                Créer la quête
               </Button>
             </div>
           </CardContent>

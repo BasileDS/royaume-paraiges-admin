@@ -1444,6 +1444,7 @@ export type Database = {
           amount: number
           created_at: string
           customer_id: string
+          employee_id: string | null
           establishment_id: number
           id: number
         }
@@ -1451,6 +1452,7 @@ export type Database = {
           amount: number
           created_at?: string
           customer_id: string
+          employee_id?: string | null
           establishment_id: number
           id?: number
         }
@@ -1458,6 +1460,7 @@ export type Database = {
           amount?: number
           created_at?: string
           customer_id?: string
+          employee_id?: string | null
           establishment_id?: number
           id?: number
         }
@@ -1550,6 +1553,7 @@ export type Database = {
           establishment_id: number
           id: number
           receipt_id: number | null
+          source_type: string | null
         }
         Insert: {
           amount: number
@@ -1558,6 +1562,7 @@ export type Database = {
           establishment_id: number
           id?: number
           receipt_id?: number | null
+          source_type?: string | null
         }
         Update: {
           amount?: number
@@ -1566,6 +1571,7 @@ export type Database = {
           establishment_id?: number
           id?: number
           receipt_id?: number | null
+          source_type?: string | null
         }
         Relationships: [
           {
@@ -1838,8 +1844,35 @@ export type Database = {
         Args: {
           p_coupon_ids?: number[]
           p_customer_id: string
+          p_employee_id?: string
           p_establishment_id: number
           p_payment_methods: Json
+        }
+        Returns: Json
+      }
+      get_analytics_debts: {
+        Args: {
+          p_start_date: string
+          p_end_date: string
+          p_establishment_id?: number
+          p_employee_id?: string
+        }
+        Returns: Json
+      }
+      get_analytics_revenue: {
+        Args: {
+          p_start_date: string
+          p_end_date: string
+          p_establishment_id?: number
+          p_employee_id?: string
+        }
+        Returns: Json
+      }
+      get_analytics_stock: {
+        Args: {
+          p_start_date: string
+          p_end_date: string
+          p_establishment_id?: number
         }
         Returns: Json
       }

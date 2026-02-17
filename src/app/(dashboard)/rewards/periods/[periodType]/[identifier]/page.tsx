@@ -170,7 +170,7 @@ export default function PeriodConfigPage() {
         notes || undefined
       );
 
-      toast({ title: "Configuration enregistree" });
+      toast({ title: "Configuration enregistrée" });
       router.push("/rewards/periods");
     } catch (error) {
       toast({
@@ -225,8 +225,8 @@ export default function PeriodConfigPage() {
         <Card className="border-warning bg-warning/10">
           <CardContent className="pt-6">
             <p className="text-sm text-warning-foreground">
-              Cette periode a deja ete distribuee. Les modifications n&apos;affecteront
-              pas les recompenses deja attribuees.
+              Cette periode a déjà ete distribuee. Les modifications n&apos;affecteront
+              pas les recompenses déjà attribuees.
             </p>
           </CardContent>
         </Card>
@@ -257,16 +257,16 @@ export default function PeriodConfigPage() {
             <CardHeader>
               <CardTitle>Paliers de recompenses</CardTitle>
               <CardDescription>
-                Utilisez les paliers par defaut ou definissez une configuration
-                personnalisee pour cette periode
+                Utilisez les paliers par défaut ou definissez une configuration
+                personnalisée pour cette periode
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
-                  <Label>Utiliser une configuration personnalisee</Label>
+                  <Label>Utiliser une configuration personnalisée</Label>
                   <p className="text-sm text-muted-foreground">
-                    Definir des paliers specifiques pour cette periode
+                    Definir des paliers spécifiques pour cette periode
                   </p>
                 </div>
                 <Switch
@@ -282,10 +282,10 @@ export default function PeriodConfigPage() {
 
               {!useCustomTiers ? (
                 <div className="rounded-lg border p-4">
-                  <h4 className="font-medium mb-2">Paliers par defaut</h4>
+                  <h4 className="font-medium mb-2">Paliers par défaut</h4>
                   {defaultTiers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      Aucun palier par defaut configure pour ce type de periode
+                      Aucun palier par défaut configure pour ce type de periode
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -387,7 +387,7 @@ export default function PeriodConfigPage() {
                                 }
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Selectionner" />
+                                  <SelectValue placeholder="Sélectionner" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">Aucun coupon</SelectItem>

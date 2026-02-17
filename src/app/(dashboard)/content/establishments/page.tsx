@@ -18,8 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Building2, MapPin, Search, ExternalLink, Pencil } from "lucide-react";
-import Link from "next/link";
+import { Loader2, Building2, MapPin, Search, ExternalLink } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   getEstablishments,
   getBeersByEstablishment,
@@ -52,6 +52,7 @@ export default function EstablishmentsPage() {
   const [selectedBeers, setSelectedBeers] = useState<any[]>([]);
   const [loadingBeers, setLoadingBeers] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,7 +80,7 @@ export default function EstablishmentsPage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de charger les etablissements",
+        description: "Impossible de charger les établissements",
       });
     } finally {
       setLoading(false);
@@ -100,7 +101,7 @@ export default function EstablishmentsPage() {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de charger les bieres",
+        description: "Impossible de charger les bières",
       });
     } finally {
       setLoadingBeers(false);
@@ -122,9 +123,9 @@ export default function EstablishmentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Etablissements</h1>
+        <h1 className="text-3xl font-bold">Établissements</h1>
         <p className="text-muted-foreground">
-          Donnees des etablissements (lecture seule)
+          Données des établissements (lecture seule)
         </p>
       </div>
 
@@ -132,7 +133,7 @@ export default function EstablishmentsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total etablissements
+              Total établissements
             </CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -164,22 +165,20 @@ export default function EstablishmentsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Liste des etablissements</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <div className="hidden sm:block">
+              <CardTitle>Liste des établissements</CardTitle>
               <CardDescription>
-                {filteredEstablishments.length} etablissement
+                {filteredEstablishments.length} établissement
                 {filteredEstablishments.length > 1 ? "s" : ""}
               </CardDescription>
             </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Rechercher..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-[250px]"
-              />
-            </div>
+            <Input
+              placeholder="Rechercher..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-[250px]"
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -189,22 +188,26 @@ export default function EstablishmentsPage() {
             </div>
           ) : filteredEstablishments.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              Aucun etablissement trouve
+              Aucun établissement trouvé
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Etablissement</TableHead>
+                  <TableHead>Établissement</TableHead>
                   <TableHead>Adresse</TableHead>
                   <TableHead>Tickets</TableHead>
                   <TableHead>CA</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredEstablishments.map((establishment) => (
-                  <TableRow key={establishment.id}>
+                  <TableRow
+                    key={establishment.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/content/establishments/${establishment.id}`)}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {establishment.logo && (
@@ -247,21 +250,16 @@ export default function EstablishmentsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
-                        <Link href={`/content/establishments/${establishment.id}`}>
-                          <Button variant="outline" size="sm">
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Modifier
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewBeers(establishment)}
-                        >
-                          Voir les bieres
-                        </Button>
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewBeers(establishment);
+                        }}
+                      >
+                        Voir les bières
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -278,10 +276,10 @@ export default function EstablishmentsPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              Bieres disponibles - {selectedEstablishment?.title}
+              Bières disponibles - {selectedEstablishment?.title}
             </DialogTitle>
             <DialogDescription>
-              Liste des bieres configurees pour cet etablissement
+              Liste des bières configurées pour cet établissement
             </DialogDescription>
           </DialogHeader>
           {loadingBeers ? (
@@ -290,14 +288,14 @@ export default function EstablishmentsPage() {
             </div>
           ) : selectedBeers.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              Aucune biere configuree pour cet etablissement
+              Aucune bière configurée pour cet établissement
             </div>
           ) : (
             <div className="max-h-[400px] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Biere</TableHead>
+                    <TableHead>Bière</TableHead>
                     <TableHead>Brasserie</TableHead>
                     <TableHead>IBU</TableHead>
                   </TableRow>

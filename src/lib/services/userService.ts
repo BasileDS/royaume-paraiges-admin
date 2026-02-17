@@ -260,6 +260,153 @@ export async function getUserReceipts(
   return { data: (receipts || []) as UserReceipt[], count: count || 0 };
 }
 
+export interface UserActivityStats {
+  ordersCount: number;
+  totalSpentEuros: number;
+  xpEarned: number;
+  cashbackEarned: number;
+  cashbackEarnedOrganic: number;
+  cashbackEarnedRewards: number;
+  cashbackSpent: number;
+}
+
+export async function getUserActivityStats(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<UserActivityStats> {
+  const supabase = createClient();
+
+  type ReceiptRow = { amount: number };
+  type GainRow = { xp: number | null; cashback_money: number | null; source_type: string | null };
+  type SpendingRow = { amount: number };
+
+  const [receiptsRes, gainsRes, spendingsRes] = await Promise.all([
+    supabase
+      .from("receipts")
+      .select("amount")
+      .eq("customer_id", userId)
+      .gte("created_at", startDate)
+      .lt("created_at", endDate),
+    supabase
+      .from("gains")
+      .select("xp, cashback_money, source_type")
+      .eq("customer_id", userId)
+      .gte("created_at", startDate)
+      .lt("created_at", endDate),
+    supabase
+      .from("spendings")
+      .select("amount")
+      .eq("customer_id", userId)
+      .gte("created_at", startDate)
+      .lt("created_at", endDate),
+  ]);
+
+  if (receiptsRes.error) throw receiptsRes.error;
+  if (gainsRes.error) throw gainsRes.error;
+  if (spendingsRes.error) throw spendingsRes.error;
+
+  const receipts = (receiptsRes.data || []) as ReceiptRow[];
+  const gains = (gainsRes.data || []) as GainRow[];
+  const spendings = (spendingsRes.data || []) as SpendingRow[];
+
+  let xpEarned = 0;
+  let cashbackOrganic = 0;
+  let cashbackRewards = 0;
+  for (const g of gains) {
+    xpEarned += g.xp || 0;
+    const cb = g.cashback_money || 0;
+    if (g.source_type === "receipt") {
+      cashbackOrganic += cb;
+    } else {
+      cashbackRewards += cb;
+    }
+  }
+
+  return {
+    ordersCount: receipts.length,
+    totalSpentEuros: receipts.reduce((sum, r) => sum + (r.amount || 0), 0),
+    xpEarned,
+    cashbackEarned: cashbackOrganic + cashbackRewards,
+    cashbackEarnedOrganic: cashbackOrganic,
+    cashbackEarnedRewards: cashbackRewards,
+    cashbackSpent: spendings.reduce((sum, s) => sum + (s.amount || 0), 0),
+  };
+}
+
+export interface UserDailyCashback {
+  date: string;
+  earnedOrganic: number;
+  earnedRewards: number;
+  spent: number;
+}
+
+export async function getUserDailyCashback(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<UserDailyCashback[]> {
+  const supabase = createClient();
+
+  type GainRow = { created_at: string; cashback_money: number | null; source_type: string | null };
+  type SpendingRow = { created_at: string; amount: number };
+
+  const [gainsRes, spendingsRes] = await Promise.all([
+    supabase
+      .from("gains")
+      .select("created_at, cashback_money, source_type")
+      .eq("customer_id", userId)
+      .gte("created_at", startDate)
+      .lt("created_at", endDate)
+      .not("cashback_money", "is", null)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("spendings")
+      .select("created_at, amount")
+      .eq("customer_id", userId)
+      .gte("created_at", startDate)
+      .lt("created_at", endDate)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (gainsRes.error) throw gainsRes.error;
+  if (spendingsRes.error) throw spendingsRes.error;
+
+  const organicByDay: Record<string, number> = {};
+  const rewardsByDay: Record<string, number> = {};
+  for (const row of (gainsRes.data || []) as GainRow[]) {
+    const date = row.created_at.split("T")[0];
+    const cb = row.cashback_money || 0;
+    if (row.source_type === "receipt") {
+      organicByDay[date] = (organicByDay[date] || 0) + cb;
+    } else {
+      rewardsByDay[date] = (rewardsByDay[date] || 0) + cb;
+    }
+  }
+
+  const spentByDay: Record<string, number> = {};
+  for (const row of (spendingsRes.data || []) as SpendingRow[]) {
+    const date = row.created_at.split("T")[0];
+    spentByDay[date] = (spentByDay[date] || 0) + (row.amount || 0);
+  }
+
+  const result: UserDailyCashback[] = [];
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+  while (current < end) {
+    const dateStr = current.toISOString().split("T")[0];
+    const earnedOrganic = organicByDay[dateStr] || 0;
+    const earnedRewards = rewardsByDay[dateStr] || 0;
+    const spent = spentByDay[dateStr] || 0;
+    if (earnedOrganic > 0 || earnedRewards > 0 || spent > 0) {
+      result.push({ date: dateStr, earnedOrganic, earnedRewards, spent });
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
+}
+
 export async function getUserFullStats(userId: string): Promise<{
   totalXp: number;
   cashbackBalance: number;

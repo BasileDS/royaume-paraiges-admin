@@ -26,8 +26,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Search, Users, UserPlus, Shield, Briefcase, Building2, Pencil } from "lucide-react";
-import Link from "next/link";
+import { Loader2, Search, Users, UserPlus, Shield, Briefcase, Building2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { getUsers, getUserStats, type UserFilters } from "@/lib/services/userService";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -49,6 +49,7 @@ export default function UsersPage() {
     newUsersThisMonth: number;
   } | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const limit = 20;
 
@@ -117,7 +118,7 @@ export default function UsersPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Employes</CardTitle>
+              <CardTitle className="text-sm font-medium">Employés</CardTitle>
               <Briefcase className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -126,7 +127,7 @@ export default function UsersPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Etablissements</CardTitle>
+              <CardTitle className="text-sm font-medium">Établissements</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -161,16 +162,16 @@ export default function UsersPage() {
           <CardTitle>Filtres</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 sm:justify-between">
+            <div className="flex min-w-0 flex-1 gap-2 sm:flex-none">
               <Input
-                placeholder="Rechercher par nom ou email..."
+                placeholder="Rechercher..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="w-[300px]"
+                className="min-w-0 flex-1 sm:w-[300px] sm:flex-none"
               />
-              <Button variant="outline" onClick={handleSearch}>
+              <Button variant="outline" size="icon" className="shrink-0" onClick={handleSearch}>
                 <Search className="h-4 w-4" />
               </Button>
             </div>
@@ -185,14 +186,14 @@ export default function UsersPage() {
                 });
               }}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[130px] shrink-0 sm:w-[180px]">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les roles</SelectItem>
+                <SelectItem value="all">Tous les rôles</SelectItem>
                 <SelectItem value="client">Client</SelectItem>
-                <SelectItem value="employee">Employe</SelectItem>
-                <SelectItem value="establishment">Etablissement</SelectItem>
+                <SelectItem value="employee">Employé</SelectItem>
+                <SelectItem value="establishment">Établissement</SelectItem>
                 <SelectItem value="admin">Administrateur</SelectItem>
               </SelectContent>
             </Select>
@@ -225,44 +226,41 @@ export default function UsersPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Inscrit le</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow
+                      key={user.id}
+                      className="cursor-pointer"
+                      onClick={() => router.push(`/users/${user.id}`)}
+                    >
                       <TableCell>
                         <div className="font-medium">
                           {user.first_name || user.last_name
                             ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
                             : "Sans nom"}
                         </div>
-                        <div className="text-xs text-muted-foreground font-mono">
-                          {user.id.slice(0, 8)}...
-                        </div>
+                        {user.username && (
+                          <div className="text-xs text-muted-foreground">
+                            @{user.username}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>{user.email || "-"}</TableCell>
                       <TableCell>
                         {user.role === "admin" ? (
                           <Badge variant="default">Admin</Badge>
                         ) : user.role === "employee" ? (
-                          <Badge variant="outline">Employe</Badge>
+                          <Badge variant="outline">Employé</Badge>
                         ) : user.role === "establishment" ? (
-                          <Badge variant="secondary">Etablissement</Badge>
+                          <Badge variant="secondary">Établissement</Badge>
                         ) : (
                           <Badge variant="secondary">Client</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDate(user.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        <Link href={`/users/${user.id}`}>
-                          <Button variant="outline" size="sm">
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Modifier
-                          </Button>
-                        </Link>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -281,7 +279,7 @@ export default function UsersPage() {
                       disabled={page === 0}
                       onClick={() => setPage(page - 1)}
                     >
-                      Precedent
+                      Précédent
                     </Button>
                     <Button
                       variant="outline"
