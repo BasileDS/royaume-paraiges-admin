@@ -1407,6 +1407,38 @@ export type Database = {
           },
         ]
       }
+      receipt_consumption_items: {
+        Row: {
+          id: number
+          created_at: string
+          receipt_id: number
+          consumption_type: Database["public"]["Enums"]["consumption_type"]
+          quantity: number
+        }
+        Insert: {
+          id?: never
+          created_at?: string
+          receipt_id: number
+          consumption_type: Database["public"]["Enums"]["consumption_type"]
+          quantity: number
+        }
+        Update: {
+          id?: never
+          created_at?: string
+          receipt_id?: number
+          consumption_type?: Database["public"]["Enums"]["consumption_type"]
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_consumption_items_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receipt_lines: {
         Row: {
           amount: number
@@ -1847,6 +1879,7 @@ export type Database = {
           p_employee_id?: string
           p_establishment_id: number
           p_payment_methods: Json
+          p_consumption_items?: Json
         }
         Returns: Json
       }
@@ -1992,6 +2025,13 @@ export type Database = {
       }
     }
     Enums: {
+      consumption_type:
+        | "cocktail"
+        | "biere"
+        | "alcool"
+        | "soft"
+        | "boisson_chaude"
+        | "restauration"
       payment_method: "card" | "cash" | "cashback" | "coupon"
       quest_type:
         | "xp_earned"
@@ -2126,6 +2166,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      consumption_type: [
+        "cocktail",
+        "biere",
+        "alcool",
+        "soft",
+        "boisson_chaude",
+        "restauration",
+      ],
       payment_method: ["card", "cash", "cashback", "coupon"],
       quest_type: [
         "xp_earned",
@@ -2168,6 +2216,10 @@ export type ReceiptInsert = Database["public"]["Tables"]["receipts"]["Insert"];
 // Receipt Lines
 export type ReceiptLine = Database["public"]["Tables"]["receipt_lines"]["Row"];
 export type ReceiptLineInsert = Database["public"]["Tables"]["receipt_lines"]["Insert"];
+
+// Receipt Consumption Items
+export type ReceiptConsumptionItem = Database["public"]["Tables"]["receipt_consumption_items"]["Row"];
+export type ReceiptConsumptionItemInsert = Database["public"]["Tables"]["receipt_consumption_items"]["Insert"];
 
 // Reward Tiers
 export type RewardTier = Database["public"]["Tables"]["reward_tiers"]["Row"];
@@ -2221,6 +2273,7 @@ export type Brewery = Database["public"]["Tables"]["breweries"]["Row"];
 export type UserRole = Database["public"]["Enums"]["user_role"];
 export type PaymentMethod = Database["public"]["Enums"]["payment_method"];
 export type QuestType = Database["public"]["Enums"]["quest_type"];
+export type ConsumptionType = Database["public"]["Enums"]["consumption_type"];
 
 // Custom types
 export type PeriodType = "weekly" | "monthly" | "yearly";

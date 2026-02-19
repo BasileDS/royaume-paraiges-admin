@@ -102,6 +102,7 @@ royaume-paraiges-admin/
 | Gains | `docs/docs/supabase/tables/gains.md` | Table des gains (XP, cashback) |
 | Receipts | `docs/docs/supabase/tables/receipts.md` | Table des tickets |
 | Receipt Lines | `docs/docs/supabase/tables/receipt_lines.md` | Lignes de paiement |
+| Receipt Consumption Items | `docs/docs/supabase/tables/receipt_consumption_items.md` | Types de consommation (optionnel) |
 | Spendings | `docs/docs/supabase/tables/spendings.md` | Depenses cashback |
 | Reward Tiers | `docs/docs/supabase/tables/reward_tiers.md` | Paliers de recompenses |
 | Period Reward Configs | `docs/docs/supabase/tables/period_reward_configs.md` | Config des periodes |
@@ -418,6 +419,24 @@ Réutilise `getAnalyticsRevenue()`, `getAnalyticsDebts()` et `getEmployeesByEsta
 
 > Documentation complete : `docs/docs/supabase/tables/gains.md`
 
+### Table `receipt_consumption_items`
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| id | BIGINT | PK |
+| created_at | TIMESTAMPTZ | Date de creation |
+| receipt_id | BIGINT | FK vers receipts (ON DELETE CASCADE) |
+| consumption_type | consumption_type | Type de consommation (ENUM) |
+| quantity | INTEGER | Quantite (> 0) |
+
+### ENUM `consumption_type`
+
+`cocktail`, `biere`, `alcool`, `soft`, `boisson_chaude`, `restauration`
+
+> Tracking optionnel des types de consommation. Insere via `create_receipt(p_consumption_items)`.
+
+> Documentation complete : `docs/docs/supabase/tables/receipt_consumption_items.md`
+
 ## Systeme Bonus Cashback (Fevrier 2026)
 
 Refonte majeure du systeme de coupons : les coupons a montant fixe sont desormais credites directement en cashback.
@@ -579,4 +598,4 @@ export type CouponWithRelations = Coupon & {
 
 ---
 
-**Derniere mise a jour** : 2026-02-18
+**Derniere mise a jour** : 2026-02-19
