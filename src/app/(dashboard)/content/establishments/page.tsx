@@ -110,6 +110,7 @@ export default function EstablishmentsPage() {
 
   const filteredEstablishments = establishments.filter(
     (est) =>
+      searchTerm.length < 3 ||
       est.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       est.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );

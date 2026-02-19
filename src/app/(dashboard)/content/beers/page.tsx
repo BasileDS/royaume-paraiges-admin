@@ -114,7 +114,7 @@ export default function BeersPage() {
   };
 
   const filteredBeers = beers.filter((beer) => {
-    const matchesSearch = beer.title?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = searchTerm.length < 3 || beer.title?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBrewery =
       breweryFilter === "all" || getBreweryId(beer)?.toString() === breweryFilter;
     return matchesSearch && matchesBrewery;

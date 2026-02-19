@@ -169,7 +169,7 @@ await createManualCoupon({
 - `src/app/(dashboard)/users/[id]/page.tsx` - Detail utilisateur (5 onglets)
 - `src/lib/services/userService.ts` - Service metier
 
-**Onglets detail utilisateur** : Profil | **Activité** | Coupons | Tickets | Modifier
+**Onglets detail utilisateur** : Profil | **Activité** | **Gains** | Coupons | Tickets | Modifier
 
 **Onglet Activité** : Affiche 5 KPI filtrables par période via `PeriodSelector` :
 - Commandes (nombre de receipts)
@@ -178,7 +178,10 @@ await createManualCoupon({
 - Cashback Gagné (somme gains.cashback_money, sous-titre organique/récompenses)
 - Cashback Dépensé (somme spendings.amount)
 
+**Onglet Gains** : Liste détaillée paginée de chaque entrée `gains` pour l'utilisateur. Filtre par `source_type` (Ticket, Bonus manuel, Classement, Quête, Trigger, Migration). Colonnes : ID, Source (badge coloré), XP, Cashback, Établissement, Période, Date.
+
 **Fonction** : `getUserActivityStats(userId, startDate, endDate)` dans `userService.ts` — 3 requêtes parallèles (receipts, gains, spendings)
+**Fonction** : `getUserGains(userId, limit, offset, sourceFilter?)` dans `userService.ts` — requête paginée `gains` avec join établissement
 
 ### 3. Analytics Dashboard
 

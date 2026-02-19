@@ -44,6 +44,7 @@ import {
   Tag,
   Clock,
   Percent,
+  UtensilsCrossed,
 } from "lucide-react";
 import {
   formatCurrency,
@@ -66,6 +67,15 @@ import {
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 250] as const;
+
+const CONSUMPTION_TYPE_LABELS: Record<string, string> = {
+  cocktail: "Cocktail",
+  biere: "Bi\u00e8re",
+  alcool: "Alcool",
+  soft: "Soft",
+  boisson_chaude: "Boisson chaude",
+  restauration: "Restauration",
+};
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
   receipt: "Ticket",
@@ -237,6 +247,25 @@ function ReceiptDetail({ data }: { data: ReceiptDrilldownRow }) {
           <span>{formatCurrency(data.total)}</span>
         </div>
       </div>
+      {data.consumption_items.length > 0 && (
+        <>
+          <Separator />
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Consommations
+          </p>
+          <div className="rounded-lg border p-3 space-y-2">
+            {data.consumption_items.map((item) => (
+              <div key={item.id} className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <UtensilsCrossed className="h-3.5 w-3.5" />
+                  {CONSUMPTION_TYPE_LABELS[item.consumption_type] || item.consumption_type}
+                </span>
+                <span>{item.quantity}x</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -758,6 +787,7 @@ function ReceiptsTable({
           <TableHead className="text-right">Espèces</TableHead>
           <TableHead className="text-right">PdB</TableHead>
           <TableHead className="text-right">Total</TableHead>
+          <TableHead>Conso.</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -799,6 +829,19 @@ function ReceiptsTable({
             </TableCell>
             <TableCell className="text-right font-medium">
               <Cur value={r.total} />
+            </TableCell>
+            <TableCell>
+              {r.consumption_items.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {r.consumption_items.map((item) => (
+                    <Badge key={item.id} variant="outline" className="text-xs whitespace-nowrap">
+                      {item.quantity}x {CONSUMPTION_TYPE_LABELS[item.consumption_type] || item.consumption_type}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              )}
             </TableCell>
           </TableRow>
         ))}

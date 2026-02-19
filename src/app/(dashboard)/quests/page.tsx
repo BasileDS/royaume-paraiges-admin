@@ -12,8 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -31,9 +29,10 @@ import {
   Zap,
   MapPin,
   Receipt,
-  Calendar,
-  Filter,
-  X,
+  Archive,
+  CalendarClock,
+  ChevronDown,
+  ChevronRight,
   ShoppingCart,
 } from "lucide-react";
 import { getQuests, toggleQuestActive } from "@/lib/services/questService";
@@ -59,21 +58,22 @@ function getCurrentPeriodIdentifier(periodType: PeriodType): string {
   }
 }
 
-function getPlaceholder(periodType: PeriodType): string {
-  switch (periodType) {
-    case "weekly":
-      return "2026-W05";
-    case "monthly":
-      return "2026-01";
-    case "yearly":
-      return "2026";
-  }
+function isQuestForPeriod(quest: QuestWithRelations, periodId: string): boolean {
+  const periods = quest.quest_periods || [];
+  if (periods.length === 0) return true;
+  return periods.some((p) => p.period_identifier === periodId);
 }
 
-const periodLabels: Record<PeriodType, string> = {
-  weekly: "Hebdomadaire",
-  monthly: "Mensuel",
-  yearly: "Annuel",
+function getLatestPeriod(quest: QuestWithRelations): string {
+  const periods = quest.quest_periods || [];
+  if (periods.length === 0) return "";
+  return [...periods].map((p) => p.period_identifier).sort().reverse()[0];
+}
+
+const periodTypeLabels: Record<PeriodType, string> = {
+  weekly: "Semaine",
+  monthly: "Mois",
+  yearly: "Année",
 };
 
 const questTypeLabels: Record<QuestType, string> = {
@@ -94,8 +94,8 @@ export default function QuestsPage() {
   const [quests, setQuests] = useState<QuestWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("weekly");
-  const [periodFilter, setPeriodFilter] = useState("");
-  const [showPeriodFilter, setShowPeriodFilter] = useState(false);
+  const [showUpcoming, setShowUpcoming] = useState(false);
+  const [showArchives, setShowArchives] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -136,29 +136,175 @@ export default function QuestsPage() {
     }
   };
 
-  // Filtrer par type de période
-  let filteredQuests = quests.filter((q) => q.period_type === selectedPeriod);
-
-  // Filtrer par période spécifique si un filtre est actif
-  if (periodFilter) {
-    filteredQuests = filteredQuests.filter((quest) => {
-      const periods = quest.quest_periods || [];
-      // Si pas de période assignée, la quête est active sur toutes les périodes
-      if (periods.length === 0) return true;
-      // Sinon, vérifier si cette période est dans la liste
-      return periods.some((p) => p.period_identifier === periodFilter);
-    });
-  }
-
   const handlePeriodTabChange = (value: PeriodType) => {
     setSelectedPeriod(value);
-    setPeriodFilter("");
-    setShowPeriodFilter(false);
+    setShowUpcoming(false);
+    setShowArchives(false);
   };
 
-  const handleApplyCurrentPeriodFilter = () => {
-    setPeriodFilter(getCurrentPeriodIdentifier(selectedPeriod));
+  const currentPeriodId = getCurrentPeriodIdentifier(selectedPeriod);
+  const questsForType = quests.filter((q) => q.period_type === selectedPeriod);
+  const currentQuests = questsForType.filter((q) => isQuestForPeriod(q, currentPeriodId));
+  const nonCurrentQuests = questsForType.filter((q) => !isQuestForPeriod(q, currentPeriodId));
+
+  // Split non-current quests into upcoming (has future periods) vs archived (only past periods)
+  const upcomingQuests = nonCurrentQuests.filter((q) => {
+    const latestPeriod = getLatestPeriod(q);
+    return latestPeriod > currentPeriodId;
+  });
+  const archivedQuests = nonCurrentQuests.filter((q) => {
+    const latestPeriod = getLatestPeriod(q);
+    return latestPeriod <= currentPeriodId;
+  });
+
+  // Group upcoming quests by their earliest future period, sorted ascending (nearest first)
+  const upcomingByPeriod = new Map<string, QuestWithRelations[]>();
+  upcomingQuests.forEach((quest) => {
+    const periods = (quest.quest_periods || []).map((p) => p.period_identifier).filter((p) => p > currentPeriodId);
+    const earliestFuture = periods.sort()[0] || getLatestPeriod(quest);
+    if (!upcomingByPeriod.has(earliestFuture)) {
+      upcomingByPeriod.set(earliestFuture, []);
+    }
+    upcomingByPeriod.get(earliestFuture)!.push(quest);
+  });
+  const sortedUpcomingPeriods = [...upcomingByPeriod.keys()].sort();
+
+  // Group archived quests by their latest period identifier, sorted descending (most recent first)
+  const archivesByPeriod = new Map<string, QuestWithRelations[]>();
+  archivedQuests.forEach((quest) => {
+    const latestPeriod = getLatestPeriod(quest);
+    if (!archivesByPeriod.has(latestPeriod)) {
+      archivesByPeriod.set(latestPeriod, []);
+    }
+    archivesByPeriod.get(latestPeriod)!.push(quest);
+  });
+  const sortedArchivePeriods = [...archivesByPeriod.keys()].sort().reverse();
+
+  const renderQuestRow = (quest: QuestWithRelations) => {
+    const Icon = questTypeIcons[quest.quest_type];
+    return (
+      <TableRow
+        key={quest.id}
+        className="cursor-pointer"
+        onClick={() => router.push(`/quests/${quest.id}`)}
+      >
+        <TableCell>
+          <div className="flex items-center gap-2">
+            <Icon className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">{quest.name}</p>
+              {quest.description && (
+                <p className="text-sm text-muted-foreground line-clamp-1">
+                  {quest.description}
+                </p>
+              )}
+            </div>
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge variant="outline">
+            {questTypeLabels[quest.quest_type]}
+          </Badge>
+        </TableCell>
+        <TableCell>
+          <span className="font-medium">
+            {quest.quest_type === "amount_spent"
+              ? formatCurrency(quest.target_value)
+              : quest.target_value}
+          </span>
+          <span className="text-muted-foreground ml-1">
+            {quest.quest_type === "xp_earned" && "XP"}
+            {quest.quest_type === "establishments_visited" && "établissements"}
+            {quest.quest_type === "orders_count" && "commandes"}
+          </span>
+        </TableCell>
+        <TableCell>
+          {quest.quest_periods && quest.quest_periods.length > 0 ? (
+            <div className="flex flex-wrap gap-1 max-w-[150px]">
+              {quest.quest_periods.slice(0, 3).map((p) => (
+                <Badge key={p.id} variant="outline" className="text-xs">
+                  {p.period_identifier}
+                </Badge>
+              ))}
+              {quest.quest_periods.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{quest.quest_periods.length - 3}
+                </Badge>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground italic">
+              Toutes
+            </span>
+          )}
+        </TableCell>
+        <TableCell>
+          <div className="space-y-1">
+            {quest.coupon_templates && (
+              <Badge variant="secondary" className="mr-1">
+                {quest.coupon_templates.amount
+                  ? formatCurrency(quest.coupon_templates.amount)
+                  : quest.coupon_templates.percentage
+                  ? formatPercentage(quest.coupon_templates.percentage)
+                  : quest.coupon_templates.name}
+              </Badge>
+            )}
+            {quest.badge_types && (
+              <Badge variant="secondary" className="mr-1">
+                {quest.badge_types.name}
+              </Badge>
+            )}
+            {quest.bonus_xp > 0 && (
+              <Badge variant="outline" className="mr-1">
+                +{quest.bonus_xp} XP
+              </Badge>
+            )}
+            {quest.bonus_cashback > 0 && (
+              <Badge variant="outline">
+                +{formatCurrency(quest.bonus_cashback)}
+              </Badge>
+            )}
+            {!quest.coupon_templates &&
+              !quest.badge_types &&
+              quest.bonus_xp === 0 &&
+              quest.bonus_cashback === 0 && (
+                <span className="text-muted-foreground">
+                  Aucune
+                </span>
+              )}
+          </div>
+        </TableCell>
+        <TableCell onClick={(e) => e.stopPropagation()}>
+          <Switch
+            checked={quest.is_active}
+            onCheckedChange={(checked) =>
+              handleToggleActive(quest.id, checked)
+            }
+          />
+        </TableCell>
+      </TableRow>
+    );
   };
+
+  const renderQuestTable = (questList: QuestWithRelations[]) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Quête</TableHead>
+          <TableHead>Type</TableHead>
+          <TableHead>Objectif</TableHead>
+          <TableHead>Périodes</TableHead>
+          <TableHead>Récompenses</TableHead>
+          <TableHead>Active</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {questList
+          .sort((a, b) => a.display_order - b.display_order)
+          .map(renderQuestRow)}
+      </TableBody>
+    </Table>
+  );
 
   if (loading) {
     return (
@@ -197,198 +343,111 @@ export default function QuestsPage() {
             value={selectedPeriod}
             onValueChange={(v) => handlePeriodTabChange(v as PeriodType)}
           >
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <TabsList>
-                <TabsTrigger value="weekly" className="text-xs sm:text-sm">Hebdo</TabsTrigger>
-                <TabsTrigger value="monthly" className="text-xs sm:text-sm">Mensuel</TabsTrigger>
-                <TabsTrigger value="yearly" className="text-xs sm:text-sm">Annuel</TabsTrigger>
-              </TabsList>
-
-              <div className="flex items-center gap-2">
-                {periodFilter && (
-                  <Badge variant="secondary" className="hidden gap-1 sm:flex">
-                    <Calendar className="h-3 w-3" />
-                    {periodFilter}
-                    <button
-                      onClick={() => setPeriodFilter("")}
-                      className="ml-1 rounded-full hover:bg-muted"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPeriodFilter(!showPeriodFilter)}
-                >
-                  <Filter className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Filtrer par période</span>
-                </Button>
-              </div>
-            </div>
-
-            {showPeriodFilter && (
-              <div className="mb-4 p-4 border rounded-lg space-y-3">
-                <Label>Filtrer les quêtes actives pour une période spécifique</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder={getPlaceholder(selectedPeriod)}
-                    value={periodFilter}
-                    onChange={(e) => setPeriodFilter(e.target.value)}
-                    className="max-w-xs"
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleApplyCurrentPeriodFilter}
-                  >
-                    Période actuelle
-                  </Button>
-                  {periodFilter && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setPeriodFilter("")}
-                    >
-                      Effacer
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Affiche uniquement les quêtes actives pour cette période (ou celles sans restriction de période)
-                </p>
-              </div>
-            )}
+            <TabsList className="mb-4">
+              <TabsTrigger value="weekly" className="text-xs sm:text-sm">Hebdo</TabsTrigger>
+              <TabsTrigger value="monthly" className="text-xs sm:text-sm">Mensuel</TabsTrigger>
+              <TabsTrigger value="yearly" className="text-xs sm:text-sm">Annuel</TabsTrigger>
+            </TabsList>
 
             <TabsContent value={selectedPeriod}>
-              {filteredQuests.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground">
-                  Aucune quête configurée pour cette période
+              {/* Current period section */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {periodTypeLabels[selectedPeriod]} en cours
+                  </h3>
+                  <Badge>{currentPeriodId}</Badge>
                 </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Quête</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Objectif</TableHead>
-                      <TableHead>Périodes</TableHead>
-                      <TableHead>Récompenses</TableHead>
-                      <TableHead>Active</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredQuests
-                      .sort((a, b) => a.display_order - b.display_order)
-                      .map((quest) => {
-                        const Icon = questTypeIcons[quest.quest_type];
 
+                {currentQuests.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground border rounded-lg">
+                    Aucune quête configurée pour la période en cours
+                  </div>
+                ) : (
+                  renderQuestTable(currentQuests)
+                )}
+              </div>
+
+              {/* Upcoming section */}
+              {upcomingQuests.length > 0 && (
+                <div className="border-t pt-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowUpcoming(!showUpcoming)}
+                  >
+                    {showUpcoming ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                    <CalendarClock className="h-4 w-4" />
+                    Quêtes à venir
+                    <Badge variant="secondary" className="ml-1">
+                      {upcomingQuests.length}
+                    </Badge>
+                  </Button>
+
+                  {showUpcoming && (
+                    <div className="mt-4 space-y-6">
+                      {sortedUpcomingPeriods.map((period) => {
+                        const periodQuests = upcomingByPeriod.get(period)!;
                         return (
-                          <TableRow
-                            key={quest.id}
-                            className="cursor-pointer"
-                            onClick={() => router.push(`/quests/${quest.id}`)}
-                          >
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="font-medium">{quest.name}</p>
-                                  {quest.description && (
-                                    <p className="text-sm text-muted-foreground line-clamp-1">
-                                      {quest.description}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {questTypeLabels[quest.quest_type]}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <span className="font-medium">
-                                {quest.quest_type === "amount_spent"
-                                  ? formatCurrency(quest.target_value)
-                                  : quest.target_value}
+                          <div key={period}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline">{period}</Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {periodQuests.length} quête{periodQuests.length > 1 ? "s" : ""}
                               </span>
-                              <span className="text-muted-foreground ml-1">
-                                {quest.quest_type === "xp_earned" && "XP"}
-                                {quest.quest_type === "establishments_visited" && "établissements"}
-                                {quest.quest_type === "orders_count" && "commandes"}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {quest.quest_periods && quest.quest_periods.length > 0 ? (
-                                <div className="flex flex-wrap gap-1 max-w-[150px]">
-                                  {quest.quest_periods.slice(0, 3).map((p) => (
-                                    <Badge key={p.id} variant="outline" className="text-xs">
-                                      {p.period_identifier}
-                                    </Badge>
-                                  ))}
-                                  {quest.quest_periods.length > 3 && (
-                                    <Badge variant="outline" className="text-xs">
-                                      +{quest.quest_periods.length - 3}
-                                    </Badge>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground italic">
-                                  Toutes
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                {quest.coupon_templates && (
-                                  <Badge variant="secondary" className="mr-1">
-                                    {quest.coupon_templates.amount
-                                      ? formatCurrency(quest.coupon_templates.amount)
-                                      : quest.coupon_templates.percentage
-                                      ? formatPercentage(quest.coupon_templates.percentage)
-                                      : quest.coupon_templates.name}
-                                  </Badge>
-                                )}
-                                {quest.badge_types && (
-                                  <Badge variant="secondary" className="mr-1">
-                                    {quest.badge_types.name}
-                                  </Badge>
-                                )}
-                                {quest.bonus_xp > 0 && (
-                                  <Badge variant="outline" className="mr-1">
-                                    +{quest.bonus_xp} XP
-                                  </Badge>
-                                )}
-                                {quest.bonus_cashback > 0 && (
-                                  <Badge variant="outline">
-                                    +{formatCurrency(quest.bonus_cashback)}
-                                  </Badge>
-                                )}
-                                {!quest.coupon_templates &&
-                                  !quest.badge_types &&
-                                  quest.bonus_xp === 0 &&
-                                  quest.bonus_cashback === 0 && (
-                                    <span className="text-muted-foreground">
-                                      Aucune
-                                    </span>
-                                  )}
-                              </div>
-                            </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <Switch
-                                checked={quest.is_active}
-                                onCheckedChange={(checked) =>
-                                  handleToggleActive(quest.id, checked)
-                                }
-                              />
-                            </TableCell>
-                          </TableRow>
+                            </div>
+                            {renderQuestTable(periodQuests)}
+                          </div>
                         );
                       })}
-                  </TableBody>
-                </Table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Archives section */}
+              {archivedQuests.length > 0 && (
+                <div className="border-t pt-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowArchives(!showArchives)}
+                  >
+                    {showArchives ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                    <Archive className="h-4 w-4" />
+                    Archives
+                    <Badge variant="secondary" className="ml-1">
+                      {archivedQuests.length}
+                    </Badge>
+                  </Button>
+
+                  {showArchives && (
+                    <div className="mt-4 space-y-6">
+                      {sortedArchivePeriods.map((period) => {
+                        const periodQuests = archivesByPeriod.get(period)!;
+                        return (
+                          <div key={period}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline">{period}</Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {periodQuests.length} quête{periodQuests.length > 1 ? "s" : ""}
+                              </span>
+                            </div>
+                            {renderQuestTable(periodQuests)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
             </TabsContent>
           </Tabs>

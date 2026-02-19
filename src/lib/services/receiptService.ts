@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { Receipt, ReceiptLine } from "@/types/database";
+import { Receipt, ReceiptLine, ReceiptConsumptionItem } from "@/types/database";
 
 export interface ReceiptFilters {
   customerId?: string;
@@ -17,6 +17,7 @@ export interface ReceiptWithDetails extends Receipt {
   };
   lines?: ReceiptLine[];
   receipt_lines?: ReceiptLine[];
+  receipt_consumption_items?: ReceiptConsumptionItem[];
 }
 
 export async function getReceipts(
@@ -32,7 +33,8 @@ export async function getReceipts(
       `
       *,
       customer:profiles!customer_id(id, email, first_name, last_name),
-      receipt_lines(id, amount, payment_method)
+      receipt_lines(id, amount, payment_method),
+      receipt_consumption_items(id, consumption_type, quantity)
     `,
       { count: "exact" }
     )
@@ -76,7 +78,8 @@ export async function getReceipt(
     .select(
       `
       *,
-      customer:profiles!customer_id(id, email, first_name, last_name)
+      customer:profiles!customer_id(id, email, first_name, last_name),
+      receipt_consumption_items(id, consumption_type, quantity)
     `
     )
     .eq("id", receiptId)

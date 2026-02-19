@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { Profile, ProfileUpdate, UserRole, Coupon, Receipt, ReceiptLine } from "@/types/database";
+import { Profile, ProfileUpdate, UserRole, Coupon, Receipt, ReceiptLine, ReceiptConsumptionItem } from "@/types/database";
 
 export interface UserFilters {
   role?: UserRole;
@@ -19,6 +19,7 @@ export interface UserCoupon extends Coupon {
 
 export interface UserReceipt extends Receipt {
   receipt_lines?: ReceiptLine[];
+  receipt_consumption_items?: ReceiptConsumptionItem[];
   establishment?: { id: number; title: string } | null;
 }
 
@@ -244,6 +245,7 @@ export async function getUserReceipts(
       `
       *,
       receipt_lines(id, amount, payment_method),
+      receipt_consumption_items(id, consumption_type, quantity),
       establishment:establishments!establishment_id(id, title)
     `,
       { count: "exact" }
@@ -405,6 +407,56 @@ export async function getUserDailyCashback(
   }
 
   return result;
+}
+
+export interface UserGain {
+  id: number;
+  created_at: string;
+  xp: number | null;
+  cashback_money: number | null;
+  source_type: string | null;
+  period_identifier: string | null;
+  receipt_id: number | null;
+  establishment_id: number | null;
+  coupon_id: number | null;
+  establishment?: { id: number; title: string } | null;
+}
+
+export async function getUserGains(
+  userId: string,
+  limit: number,
+  offset: number,
+  sourceFilter?: string
+): Promise<{ data: UserGain[]; count: number }> {
+  const supabase = createClient();
+
+  let query = supabase
+    .from("gains")
+    .select(
+      `
+      id, created_at, xp, cashback_money, source_type, period_identifier,
+      receipt_id, establishment_id, coupon_id,
+      establishment:establishments!establishment_id(id, title)
+    `,
+      { count: "exact" }
+    )
+    .eq("customer_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (sourceFilter && sourceFilter !== "all") {
+    query = query.eq("source_type", sourceFilter);
+  }
+
+  query = query.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("Error fetching user gains:", error);
+    throw error;
+  }
+
+  return { data: (data || []) as UserGain[], count: count || 0 };
 }
 
 export async function getUserFullStats(userId: string): Promise<{

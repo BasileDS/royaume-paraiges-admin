@@ -646,6 +646,12 @@ export interface PaginatedResult<T> {
   count: number;
 }
 
+export interface ReceiptConsumptionItemRow {
+  id: number;
+  consumption_type: string;
+  quantity: number;
+}
+
 export interface ReceiptDrilldownRow {
   id: number;
   created_at: string;
@@ -658,6 +664,7 @@ export interface ReceiptDrilldownRow {
   cash_total: number;
   cashback_spent: number;
   total: number;
+  consumption_items: ReceiptConsumptionItemRow[];
 }
 
 export interface SpendingDrilldownRow {
@@ -708,7 +715,7 @@ export async function getDrilldownReceipts(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase.from("receipts") as any)
     .select(
-      "id, created_at, amount, customer_id, establishment_id, employee_id, profiles!receipts_customer_id_fkey(first_name, last_name), establishments(title), employee:profiles!receipts_employee_id_fkey(first_name, last_name), receipt_lines(amount, payment_method)",
+      "id, created_at, amount, customer_id, establishment_id, employee_id, profiles!receipts_customer_id_fkey(first_name, last_name), establishments(title), employee:profiles!receipts_employee_id_fkey(first_name, last_name), receipt_lines(amount, payment_method), receipt_consumption_items(id, consumption_type, quantity)",
       { count: "exact" }
     )
     .gte("created_at", filters.startDate)
@@ -735,6 +742,7 @@ export async function getDrilldownReceipts(
     establishments: { title: string } | null;
     employee: { first_name: string | null; last_name: string | null } | null;
     receipt_lines: { amount: number; payment_method: string }[];
+    receipt_consumption_items: { id: number; consumption_type: string; quantity: number }[];
   };
 
   const rows: ReceiptDrilldownRow[] = ((data || []) as RawReceipt[]).map((r) => {
@@ -764,6 +772,7 @@ export async function getDrilldownReceipts(
       cash_total: cashTotal,
       cashback_spent: cashbackSpent,
       total: r.amount || 0,
+      consumption_items: r.receipt_consumption_items || [],
     };
   });
 

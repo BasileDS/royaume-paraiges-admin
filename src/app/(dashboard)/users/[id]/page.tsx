@@ -62,13 +62,15 @@ import {
   getUserFullStats,
   getUserActivityStats,
   getUserDailyCashback,
+  getUserGains,
   type UserCoupon,
   type UserReceipt,
   type UserActivityStats,
   type UserDailyCashback,
+  type UserGain,
 } from "@/lib/services/userService";
 import { PeriodSelector, getPresetDates, type PeriodDates } from "@/components/period-selector";
-import { ShoppingCart, Wallet, Zap, PiggyBank, ArrowDownCircle, BarChart3 } from "lucide-react";
+import { ShoppingCart, Wallet, Zap, PiggyBank, ArrowDownCircle, BarChart3, Gift } from "lucide-react";
 import {
   BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -90,6 +92,24 @@ const paymentMethodIcons: Record<string, React.ReactNode> = {
   cash: <Banknote className="h-3 w-3" />,
   cashback: <TrendingUp className="h-3 w-3" />,
   coupon: <Ticket className="h-3 w-3" />,
+};
+
+const consumptionTypeLabels: Record<string, string> = {
+  cocktail: "Cocktail",
+  biere: "Bière",
+  alcool: "Alcool",
+  soft: "Soft",
+  boisson_chaude: "Boisson chaude",
+  restauration: "Restauration",
+};
+
+const sourceTypeLabels: Record<string, string> = {
+  receipt: "Ticket",
+  bonus_cashback_manual: "Bonus manuel",
+  bonus_cashback_leaderboard: "Classement",
+  bonus_cashback_quest: "Quête",
+  bonus_cashback_trigger: "Trigger",
+  bonus_cashback_migration: "Migration",
 };
 
 export default function UserDetailPage() {
@@ -149,6 +169,13 @@ export default function UserDetailPage() {
   const [receiptsTotal, setReceiptsTotal] = useState(0);
   const [receiptsPage, setReceiptsPage] = useState(0);
   const [loadingReceipts, setLoadingReceipts] = useState(false);
+
+  // Gains
+  const [gains, setGains] = useState<UserGain[]>([]);
+  const [gainsTotal, setGainsTotal] = useState(0);
+  const [gainsPage, setGainsPage] = useState(0);
+  const [loadingGains, setLoadingGains] = useState(false);
+  const [gainsSourceFilter, setGainsSourceFilter] = useState("all");
 
   // Activity stats
   const [activityStats, setActivityStats] = useState<UserActivityStats | null>(null);
@@ -246,6 +273,13 @@ export default function UserDetailPage() {
     }
   }, [activeTab, receiptsPage]);
 
+  // Load gains when tab is selected or page/filter changes
+  useEffect(() => {
+    if (activeTab === "gains") {
+      fetchGains();
+    }
+  }, [activeTab, gainsPage, gainsSourceFilter]);
+
   // Load activity stats when tab is selected or period changes
   useEffect(() => {
     if (activeTab === "activity") {
@@ -270,6 +304,28 @@ export default function UserDetailPage() {
       });
     } finally {
       setLoadingActivity(false);
+    }
+  };
+
+  const fetchGains = async () => {
+    setLoadingGains(true);
+    try {
+      const result = await getUserGains(
+        userId,
+        limit,
+        gainsPage * limit,
+        gainsSourceFilter !== "all" ? gainsSourceFilter : undefined
+      );
+      setGains(result.data);
+      setGainsTotal(result.count);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de charger les gains",
+      });
+    } finally {
+      setLoadingGains(false);
     }
   };
 
@@ -383,6 +439,7 @@ export default function UserDetailPage() {
 
   const couponsPages = Math.ceil(couponsTotal / limit);
   const receiptsPages = Math.ceil(receiptsTotal / limit);
+  const gainsPages = Math.ceil(gainsTotal / limit);
 
   const displayName =
     user.firstName || user.lastName
@@ -462,6 +519,10 @@ export default function UserDetailPage() {
           <TabsTrigger value="activity" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Activité
+          </TabsTrigger>
+          <TabsTrigger value="gains" className="flex items-center gap-2">
+            <Gift className="h-4 w-4" />
+            Gains
           </TabsTrigger>
           <TabsTrigger value="coupons" className="flex items-center gap-2">
             <Ticket className="h-4 w-4" />
@@ -679,6 +740,145 @@ export default function UserDetailPage() {
           ) : null}
         </TabsContent>
 
+        {/* Gains Tab */}
+        <TabsContent value="gains">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Gains de l'utilisateur</CardTitle>
+                  <CardDescription>
+                    {gainsTotal} gain{gainsTotal > 1 ? "s" : ""} au total
+                  </CardDescription>
+                </div>
+                <Select
+                  value={gainsSourceFilter}
+                  onValueChange={(value) => {
+                    setGainsSourceFilter(value);
+                    setGainsPage(0);
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filtrer par source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes les sources</SelectItem>
+                    <SelectItem value="receipt">Ticket</SelectItem>
+                    <SelectItem value="bonus_cashback_manual">Bonus manuel</SelectItem>
+                    <SelectItem value="bonus_cashback_leaderboard">Classement</SelectItem>
+                    <SelectItem value="bonus_cashback_quest">Quête</SelectItem>
+                    <SelectItem value="bonus_cashback_trigger">Trigger</SelectItem>
+                    <SelectItem value="bonus_cashback_migration">Migration</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingGains ? (
+                <div className="flex h-32 items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : gains.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  Aucun gain pour cet utilisateur
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Source</TableHead>
+                        <TableHead>XP</TableHead>
+                        <TableHead>Cashback</TableHead>
+                        <TableHead>Établissement</TableHead>
+                        <TableHead>Période</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gains.map((gain) => (
+                        <TableRow key={gain.id}>
+                          <TableCell className="font-mono text-sm">#G{gain.id}</TableCell>
+                          <TableCell>
+                            {gain.source_type ? (
+                              <Badge
+                                variant={gain.source_type === "receipt" ? "default" : "secondary"}
+                                className={
+                                  gain.source_type !== "receipt"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : undefined
+                                }
+                              >
+                                {sourceTypeLabels[gain.source_type] || gain.source_type}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">&mdash;</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {gain.xp != null && gain.xp > 0 ? (
+                              <span className="font-medium">{gain.xp.toLocaleString()} XP</span>
+                            ) : (
+                              <span className="text-muted-foreground">&mdash;</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {gain.cashback_money != null && gain.cashback_money > 0 ? (
+                              <span className="font-medium">{formatCurrency(gain.cashback_money)}</span>
+                            ) : (
+                              <span className="text-muted-foreground">&mdash;</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {gain.establishment?.title || (
+                              <span className="text-muted-foreground">&mdash;</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {gain.period_identifier || (
+                              <span className="text-muted-foreground">&mdash;</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatDateTime(gain.created_at)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {gainsPages > 1 && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Page {gainsPage + 1} sur {gainsPages}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={gainsPage === 0}
+                          onClick={() => setGainsPage(gainsPage - 1)}
+                        >
+                          Précédent
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={gainsPage >= gainsPages - 1}
+                          onClick={() => setGainsPage(gainsPage + 1)}
+                        >
+                          Suivant
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Coupons Tab */}
         <TabsContent value="coupons">
           <Card>
@@ -811,6 +1011,7 @@ export default function UserDetailPage() {
                         <TableHead>Établissement</TableHead>
                         <TableHead>Montant</TableHead>
                         <TableHead>Paiement</TableHead>
+                        <TableHead>Consommations</TableHead>
                         <TableHead>Date</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -839,6 +1040,19 @@ export default function UserDetailPage() {
                                     </Badge>
                                   )
                                 )
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {receipt.receipt_consumption_items && receipt.receipt_consumption_items.length > 0 ? (
+                                receipt.receipt_consumption_items.map((item) => (
+                                  <Badge key={item.id} variant="outline">
+                                    {item.quantity}x {consumptionTypeLabels[item.consumption_type] || item.consumption_type}
+                                  </Badge>
+                                ))
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}

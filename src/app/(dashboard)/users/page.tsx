@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Search, Users, UserPlus, Shield, Briefcase, Building2 } from "lucide-react";
+import { Loader2, Users, UserPlus, Shield, Briefcase, Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getUsers, getUserStats, type UserFilters } from "@/lib/services/userService";
 import { formatDate } from "@/lib/utils";
@@ -78,10 +78,18 @@ export default function UsersPage() {
     fetchUsers();
   }, [filters, page]);
 
-  const handleSearch = () => {
-    setPage(0);
-    setFilters({ ...filters, search: searchInput || undefined });
-  };
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchInput.length >= 3) {
+        setPage(0);
+        setFilters(prev => ({ ...prev, search: searchInput }));
+      } else if (searchInput.length === 0) {
+        setPage(0);
+        setFilters(prev => ({ ...prev, search: undefined }));
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -168,12 +176,8 @@ export default function UsersPage() {
                 placeholder="Rechercher..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 className="min-w-0 flex-1 sm:w-[300px] sm:flex-none"
               />
-              <Button variant="outline" size="icon" className="shrink-0" onClick={handleSearch}>
-                <Search className="h-4 w-4" />
-              </Button>
             </div>
 
             <Select

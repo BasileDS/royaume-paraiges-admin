@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Search, User } from "lucide-react";
+import { ArrowLeft, Loader2, User } from "lucide-react";
 import { createManualCoupon, searchCustomers } from "@/lib/services/couponService";
 import { getActiveTemplates } from "@/lib/services/templateService";
 import { useToast } from "@/components/ui/use-toast";
@@ -64,23 +64,26 @@ export default function CreateCouponPage() {
     fetchData();
   }, []);
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-
-    setSearching(true);
-    try {
-      const results = await searchCustomers(searchQuery);
-      setSearchResults(results || []);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Erreur lors de la recherche",
-      });
-    } finally {
-      setSearching(false);
-    }
-  };
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchQuery.length >= 3) {
+        setSearching(true);
+        searchCustomers(searchQuery)
+          .then((results) => setSearchResults(results || []))
+          .catch(() => {
+            toast({
+              variant: "destructive",
+              title: "Erreur",
+              description: "Erreur lors de la recherche",
+            });
+          })
+          .finally(() => setSearching(false));
+      } else if (searchQuery.length === 0) {
+        setSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
 
   const selectCustomer = (customer: Profile) => {
     const name =
@@ -209,30 +212,15 @@ export default function CreateCouponPage() {
                 </div>
               ) : (
                 <>
-                  <div className="flex gap-2">
+                  <div className="relative">
                     <Input
                       placeholder="Rechercher par nom ou email..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleSearch();
-                        }
-                      }}
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleSearch}
-                      disabled={searching}
-                    >
-                      {searching ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Search className="h-4 w-4" />
-                      )}
-                    </Button>
+                    {searching && (
+                      <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                    )}
                   </div>
 
                   {searchResults.length > 0 && (

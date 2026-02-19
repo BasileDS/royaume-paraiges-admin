@@ -52,6 +52,15 @@ const paymentMethodIcons: Record<string, React.ReactNode> = {
   coupon: <Ticket className="h-4 w-4" />,
 };
 
+const consumptionTypeLabels: Record<string, string> = {
+  cocktail: "Cocktail",
+  biere: "Bière",
+  alcool: "Alcool",
+  soft: "Soft",
+  boisson_chaude: "Boisson chaude",
+  restauration: "Restauration",
+};
+
 export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState<ReceiptWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,6 +269,7 @@ export default function ReceiptsPage() {
                     <TableHead>Établissement</TableHead>
                     <TableHead>Montant</TableHead>
                     <TableHead>Paiement</TableHead>
+                    <TableHead>Consommations</TableHead>
                     <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -309,6 +319,19 @@ export default function ReceiptsPage() {
                                 </Badge>
                               )
                             )
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {receipt.receipt_consumption_items && receipt.receipt_consumption_items.length > 0 ? (
+                            receipt.receipt_consumption_items.map((item) => (
+                              <Badge key={item.id} variant="outline">
+                                {item.quantity}x {consumptionTypeLabels[item.consumption_type] || item.consumption_type}
+                              </Badge>
+                            ))
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
