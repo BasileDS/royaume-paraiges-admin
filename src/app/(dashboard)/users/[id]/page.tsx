@@ -119,18 +119,21 @@ const questStatusLabels: Record<string, string> = {
   in_progress: "En cours",
   completed: "Complétée",
   rewarded: "Récompensée",
+  expired: "Expirée",
 };
 
 const questStatusVariants: Record<string, string> = {
   in_progress: "bg-blue-100 text-blue-800",
   completed: "bg-amber-100 text-amber-800",
   rewarded: "bg-emerald-100 text-emerald-800",
+  expired: "bg-red-100 text-red-800",
 };
 
 const questProgressBarColors: Record<string, string> = {
   in_progress: "bg-primary",
   completed: "bg-amber-500",
   rewarded: "bg-emerald-500",
+  expired: "bg-red-500",
 };
 
 export default function UserDetailPage() {
@@ -845,6 +848,7 @@ export default function UserDetailPage() {
                       <SelectItem value="in_progress">En cours</SelectItem>
                       <SelectItem value="completed">Complétée</SelectItem>
                       <SelectItem value="rewarded">Récompensée</SelectItem>
+                      <SelectItem value="expired">Expirée</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
