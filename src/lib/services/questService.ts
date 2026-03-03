@@ -627,6 +627,53 @@ export async function importQuestsFromCsv(
   return { created, errors };
 }
 
+// Quest Progress Stats (for archived quests)
+export interface QuestProgressStats {
+  quest_id: number;
+  in_progress: number;
+  completed: number;
+  rewarded: number;
+  expired: number;
+  total: number;
+}
+
+export async function getQuestProgressStatsByQuests(
+  questIds: number[]
+): Promise<Map<number, QuestProgressStats>> {
+  if (questIds.length === 0) return new Map();
+
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from("quest_progress") as any)
+    .select("quest_id, status")
+    .in("quest_id", questIds);
+
+  if (error) throw error;
+
+  const statsMap = new Map<number, QuestProgressStats>();
+
+  for (const questId of questIds) {
+    statsMap.set(questId, {
+      quest_id: questId,
+      in_progress: 0,
+      completed: 0,
+      rewarded: 0,
+      expired: 0,
+      total: 0,
+    });
+  }
+
+  for (const row of (data || []) as { quest_id: number; status: string }[]) {
+    const stats = statsMap.get(row.quest_id);
+    if (stats && row.status in stats) {
+      (stats as unknown as Record<string, number>)[row.status]++;
+      stats.total++;
+    }
+  }
+
+  return statsMap;
+}
+
 // Récupérer les quêtes actives pour une période spécifique
 export async function getQuestsForPeriod(
   periodType: PeriodType,

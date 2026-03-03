@@ -152,18 +152,21 @@ export default function QuestsPage() {
 
   // Fetch archive stats when archives are expanded
   useEffect(() => {
-    if (showArchives && archivedQuests.length > 0) {
-      const questIds = archivedQuests.map((q) => q.id);
-      // Only fetch if we don't have stats for these quests yet
-      const missingStats = questIds.some((id) => !archiveStats.has(id));
-      if (missingStats) {
-        setLoadingArchiveStats(true);
-        getQuestProgressStatsByQuests(questIds)
-          .then(setArchiveStats)
-          .finally(() => setLoadingArchiveStats(false));
-      }
-    }
-  }, [showArchives, archivedQuests.length]);
+    if (!showArchives) return;
+    const currentPeriod = getCurrentPeriodIdentifier(selectedPeriod);
+    const forType = quests.filter((q) => q.period_type === selectedPeriod);
+    const nonCurrent = forType.filter((q) => !isQuestForPeriod(q, currentPeriod));
+    const archived = nonCurrent.filter((q) => {
+      const latestPeriod = getLatestPeriod(q);
+      return latestPeriod <= currentPeriod;
+    });
+    if (archived.length === 0) return;
+    const questIds = archived.map((q) => q.id);
+    setLoadingArchiveStats(true);
+    getQuestProgressStatsByQuests(questIds)
+      .then(setArchiveStats)
+      .finally(() => setLoadingArchiveStats(false));
+  }, [showArchives, selectedPeriod, quests]);
 
   const handleToggleActive = async (id: number, isActive: boolean) => {
     try {
@@ -455,6 +458,129 @@ export default function QuestsPage() {
     </Table>
   );
 
+  const renderArchivedQuestRow = (quest: QuestWithRelations) => {
+    const Icon = questTypeIcons[quest.quest_type];
+    const stats = archiveStats.get(quest.id);
+    const successCount = stats ? stats.completed + stats.rewarded : 0;
+    const expiredCount = stats?.expired ?? 0;
+    const total = stats?.total ?? 0;
+    return (
+      <TableRow
+        key={quest.id}
+        className="cursor-pointer"
+        onClick={() => router.push(`/quests/${quest.id}`)}
+      >
+        <TableCell>
+          <div className="flex items-center gap-2">
+            <Icon className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="font-medium">{quest.name}</p>
+              {quest.description && (
+                <p className="text-sm text-muted-foreground line-clamp-1">
+                  {quest.description}
+                </p>
+              )}
+            </div>
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge variant="outline">
+            {questTypeLabels[quest.quest_type]}
+          </Badge>
+        </TableCell>
+        <TableCell>
+          <span className="font-medium">
+            {quest.quest_type === "amount_spent"
+              ? formatCurrency(quest.target_value)
+              : quest.target_value}
+          </span>
+          <span className="text-muted-foreground ml-1">
+            {quest.quest_type === "xp_earned" && "XP"}
+            {quest.quest_type === "establishments_visited" && "établissements"}
+            {quest.quest_type === "orders_count" && "commandes"}
+            {quest.quest_type === "quest_completed" && "sous-périodes"}
+          </span>
+        </TableCell>
+        <TableCell>
+          <div className="space-y-1">
+            {quest.coupon_templates && (
+              <Badge variant="secondary" className="mr-1">
+                {quest.coupon_templates.amount
+                  ? formatCurrency(quest.coupon_templates.amount)
+                  : quest.coupon_templates.percentage
+                  ? formatPercentage(quest.coupon_templates.percentage)
+                  : quest.coupon_templates.name}
+              </Badge>
+            )}
+            {quest.badge_types && (
+              <Badge variant="secondary" className="mr-1">
+                {quest.badge_types.name}
+              </Badge>
+            )}
+            {quest.bonus_xp > 0 && (
+              <Badge variant="outline" className="mr-1">
+                +{quest.bonus_xp} XP
+              </Badge>
+            )}
+            {quest.bonus_cashback > 0 && (
+              <Badge variant="outline">
+                +{formatCurrency(quest.bonus_cashback)}
+              </Badge>
+            )}
+            {!quest.coupon_templates &&
+              !quest.badge_types &&
+              quest.bonus_xp === 0 &&
+              quest.bonus_cashback === 0 && (
+                <span className="text-muted-foreground">
+                  Aucune
+                </span>
+              )}
+          </div>
+        </TableCell>
+        <TableCell>
+          {loadingArchiveStats ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : total === 0 ? (
+            <span className="text-muted-foreground">—</span>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 text-xs">
+                  {successCount} réussie{successCount > 1 ? "s" : ""}
+                </Badge>
+                <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
+                  {expiredCount} expirée{expiredCount > 1 ? "s" : ""}
+                </Badge>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {total} participant{total > 1 ? "s" : ""}
+              </span>
+            </div>
+          )}
+        </TableCell>
+      </TableRow>
+    );
+  };
+
+  const renderArchivedQuestTable = (questList: QuestWithRelations[]) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Quête</TableHead>
+          <TableHead>Type</TableHead>
+          <TableHead>Objectif</TableHead>
+          <TableHead>Récompenses</TableHead>
+          <TableHead>Participation</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {questList
+          .sort((a, b) => a.display_order - b.display_order)
+          .map(renderArchivedQuestRow)}
+      </TableBody>
+    </Table>
+  );
+
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -615,7 +741,7 @@ export default function QuestsPage() {
                                 {periodQuests.length} quête{periodQuests.length > 1 ? "s" : ""}
                               </span>
                             </div>
-                            {renderQuestTable(periodQuests)}
+                            {renderArchivedQuestTable(periodQuests)}
                           </div>
                         );
                       })}
