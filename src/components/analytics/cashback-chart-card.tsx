@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,8 +8,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  AreaChart,
+  ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -23,6 +24,7 @@ const SERIES = [
   { key: "creditedOrganic", label: "Organique", color: "#d97706" },
   { key: "creditedRewards", label: "Récompenses", color: "#3b82f6" },
   { key: "spent", label: "Dépensé", color: "#ef4444" },
+  { key: "netBalance", label: "Solde net", color: "#8b5cf6" },
 ] as const;
 
 interface CashbackChartCardProps {
@@ -30,7 +32,16 @@ interface CashbackChartCardProps {
 }
 
 export function CashbackChartCard({ data }: CashbackChartCardProps) {
-  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
+  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set(["netBalance"]));
+
+  const chartData = useMemo(
+    () =>
+      data.map((d) => ({
+        ...d,
+        netBalance: d.creditedOrganic + d.creditedRewards - d.spent,
+      })),
+    [data]
+  );
 
   const toggleSeries = (key: string) => {
     setHiddenSeries((prev) => {
@@ -82,7 +93,7 @@ export function CashbackChartCard({ data }: CashbackChartCardProps) {
               })}
             </div>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={data}>
+              <ComposedChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
@@ -134,7 +145,18 @@ export function CashbackChartCard({ data }: CashbackChartCardProps) {
                     fillOpacity={0.2}
                   />
                 )}
-              </AreaChart>
+                {!hiddenSeries.has("netBalance") && (
+                  <Line
+                    type="monotone"
+                    dataKey="netBalance"
+                    name="Solde net"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    strokeDasharray="6 3"
+                    dot={false}
+                  />
+                )}
+              </ComposedChart>
             </ResponsiveContainer>
           </>
         )}
