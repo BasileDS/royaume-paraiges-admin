@@ -52,6 +52,7 @@ import {
   Phone,
   Calendar,
   Award,
+  Target,
 } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import {
@@ -63,11 +64,13 @@ import {
   getUserActivityStats,
   getUserDailyCashback,
   getUserGains,
+  getUserQuestProgress,
   type UserCoupon,
   type UserReceipt,
   type UserActivityStats,
   type UserDailyCashback,
   type UserGain,
+  type UserQuestProgress,
 } from "@/lib/services/userService";
 import { PeriodSelector, getPresetDates, type PeriodDates } from "@/components/period-selector";
 import { ShoppingCart, Wallet, Zap, PiggyBank, ArrowDownCircle, BarChart3, Gift } from "lucide-react";
@@ -110,6 +113,24 @@ const sourceTypeLabels: Record<string, string> = {
   bonus_cashback_quest: "Quête",
   bonus_cashback_trigger: "Trigger",
   bonus_cashback_migration: "Migration",
+};
+
+const questStatusLabels: Record<string, string> = {
+  in_progress: "En cours",
+  completed: "Complétée",
+  rewarded: "Récompensée",
+};
+
+const questStatusVariants: Record<string, string> = {
+  in_progress: "bg-blue-100 text-blue-800",
+  completed: "bg-amber-100 text-amber-800",
+  rewarded: "bg-emerald-100 text-emerald-800",
+};
+
+const questProgressBarColors: Record<string, string> = {
+  in_progress: "bg-primary",
+  completed: "bg-amber-500",
+  rewarded: "bg-emerald-500",
 };
 
 export default function UserDetailPage() {
@@ -176,6 +197,14 @@ export default function UserDetailPage() {
   const [gainsPage, setGainsPage] = useState(0);
   const [loadingGains, setLoadingGains] = useState(false);
   const [gainsSourceFilter, setGainsSourceFilter] = useState("all");
+
+  // Quest progress
+  const [questProgress, setQuestProgress] = useState<UserQuestProgress[]>([]);
+  const [questProgressTotal, setQuestProgressTotal] = useState(0);
+  const [questProgressPage, setQuestProgressPage] = useState(0);
+  const [loadingQuestProgress, setLoadingQuestProgress] = useState(false);
+  const [questPeriodTypeFilter, setQuestPeriodTypeFilter] = useState("all");
+  const [questStatusFilter, setQuestStatusFilter] = useState("all");
 
   // Activity stats
   const [activityStats, setActivityStats] = useState<UserActivityStats | null>(null);
@@ -280,6 +309,13 @@ export default function UserDetailPage() {
     }
   }, [activeTab, gainsPage, gainsSourceFilter]);
 
+  // Load quest progress when activity tab is selected or page/filters change
+  useEffect(() => {
+    if (activeTab === "activity") {
+      fetchQuestProgress();
+    }
+  }, [activeTab, questProgressPage, questPeriodTypeFilter, questStatusFilter]);
+
   // Load activity stats when tab is selected or period changes
   useEffect(() => {
     if (activeTab === "activity") {
@@ -326,6 +362,29 @@ export default function UserDetailPage() {
       });
     } finally {
       setLoadingGains(false);
+    }
+  };
+
+  const fetchQuestProgress = async () => {
+    setLoadingQuestProgress(true);
+    try {
+      const result = await getUserQuestProgress(
+        userId,
+        limit,
+        questProgressPage * limit,
+        questPeriodTypeFilter !== "all" ? questPeriodTypeFilter : undefined,
+        questStatusFilter !== "all" ? questStatusFilter : undefined
+      );
+      setQuestProgress(result.data);
+      setQuestProgressTotal(result.count);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de charger la progression des quêtes",
+      });
+    } finally {
+      setLoadingQuestProgress(false);
     }
   };
 
@@ -440,6 +499,7 @@ export default function UserDetailPage() {
   const couponsPages = Math.ceil(couponsTotal / limit);
   const receiptsPages = Math.ceil(receiptsTotal / limit);
   const gainsPages = Math.ceil(gainsTotal / limit);
+  const questProgressPages = Math.ceil(questProgressTotal / limit);
 
   const displayName =
     user.firstName || user.lastName
@@ -738,6 +798,182 @@ export default function UserDetailPage() {
               )}
             </>
           ) : null}
+
+          {/* Quest Progress */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Quêtes
+                  </CardTitle>
+                  <CardDescription>
+                    {questProgressTotal} quête{questProgressTotal > 1 ? "s" : ""} au total
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Select
+                    value={questPeriodTypeFilter}
+                    onValueChange={(value) => {
+                      setQuestPeriodTypeFilter(value);
+                      setQuestProgressPage(0);
+                    }}
+                  >
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="Période" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes</SelectItem>
+                      <SelectItem value="weekly">Hebdomadaire</SelectItem>
+                      <SelectItem value="monthly">Mensuelle</SelectItem>
+                      <SelectItem value="yearly">Annuelle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={questStatusFilter}
+                    onValueChange={(value) => {
+                      setQuestStatusFilter(value);
+                      setQuestProgressPage(0);
+                    }}
+                  >
+                    <SelectTrigger className="w-[170px]">
+                      <SelectValue placeholder="Statut" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les statuts</SelectItem>
+                      <SelectItem value="in_progress">En cours</SelectItem>
+                      <SelectItem value="completed">Complétée</SelectItem>
+                      <SelectItem value="rewarded">Récompensée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingQuestProgress ? (
+                <div className="flex h-32 items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : questProgress.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  Aucune quête pour cet utilisateur
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Quête</TableHead>
+                        <TableHead>Période</TableHead>
+                        <TableHead>Progression</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Complétée le</TableHead>
+                        <TableHead>Mise à jour</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {questProgress.map((qp) => {
+                        const pct = qp.target_value > 0
+                          ? Math.min(Math.round((qp.current_value / qp.target_value) * 100), 100)
+                          : 0;
+                        const questType = qp.quest?.quest_type;
+                        const isAmountSpent = questType === "amount_spent";
+                        const currentDisplay = isAmountSpent
+                          ? formatCurrency(qp.current_value)
+                          : qp.current_value.toLocaleString();
+                        const targetDisplay = isAmountSpent
+                          ? formatCurrency(qp.target_value)
+                          : qp.target_value.toLocaleString();
+                        const unitLabel = !isAmountSpent
+                          ? questType === "xp_earned" ? " XP"
+                            : questType === "establishments_visited" ? " établ."
+                            : questType === "orders_count" ? " cmd" : ""
+                          : "";
+
+                        return (
+                          <TableRow key={qp.id}>
+                            <TableCell>
+                              {qp.quest ? (
+                                <Link
+                                  href={`/quests/${qp.quest.id}`}
+                                  className="font-medium hover:underline"
+                                >
+                                  {qp.quest.name}
+                                </Link>
+                              ) : (
+                                <span className="text-muted-foreground">Quête #{qp.quest_id}</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{qp.period_identifier}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-3 min-w-[200px]">
+                                <div className="flex-1">
+                                  <div className="h-2 w-full rounded-full bg-muted">
+                                    <div
+                                      className={`h-2 rounded-full transition-all ${questProgressBarColors[qp.status] || "bg-primary"}`}
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+                                </div>
+                                <span className="text-sm whitespace-nowrap">
+                                  {currentDisplay}/{targetDisplay}{unitLabel} ({pct}%)
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={questStatusVariants[qp.status] || ""}
+                              >
+                                {questStatusLabels[qp.status] || qp.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {qp.completed_at ? formatDateTime(qp.completed_at) : (
+                                <span>&mdash;</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {formatDateTime(qp.updated_at)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+
+                  {questProgressPages > 1 && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Page {questProgressPage + 1} sur {questProgressPages}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={questProgressPage === 0}
+                          onClick={() => setQuestProgressPage(questProgressPage - 1)}
+                        >
+                          Précédent
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={questProgressPage >= questProgressPages - 1}
+                          onClick={() => setQuestProgressPage(questProgressPage + 1)}
+                        >
+                          Suivant
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Gains Tab */}

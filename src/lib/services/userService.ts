@@ -459,6 +459,63 @@ export async function getUserGains(
   return { data: (data || []) as UserGain[], count: count || 0 };
 }
 
+export interface UserQuestProgress {
+  id: number;
+  quest_id: number;
+  customer_id: string;
+  period_identifier: string;
+  current_value: number;
+  target_value: number;
+  status: string;
+  completed_at: string | null;
+  updated_at: string;
+  created_at: string;
+  quest: { id: number; name: string; quest_type: string } | null;
+}
+
+export async function getUserQuestProgress(
+  userId: string,
+  limit: number,
+  offset: number,
+  periodTypeFilter?: string,
+  statusFilter?: string
+): Promise<{ data: UserQuestProgress[]; count: number }> {
+  const supabase = createClient();
+
+  let query = supabase
+    .from("quest_progress")
+    .select(
+      `
+      id, quest_id, customer_id, period_identifier,
+      current_value, target_value, status,
+      completed_at, updated_at, created_at,
+      quest:quests!quest_id(id, name, quest_type)
+    `,
+      { count: "exact" }
+    )
+    .eq("customer_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (periodTypeFilter && periodTypeFilter !== "all") {
+    query = query.eq("period_type", periodTypeFilter);
+  }
+
+  if (statusFilter && statusFilter !== "all") {
+    query = query.eq("status", statusFilter);
+  }
+
+  query = query.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("Error fetching user quest progress:", error);
+    throw error;
+  }
+
+  return { data: (data || []) as UserQuestProgress[], count: count || 0 };
+}
+
 export async function getUserFullStats(userId: string): Promise<{
   totalXp: number;
   cashbackBalance: number;

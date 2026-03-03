@@ -166,10 +166,10 @@ await createManualCoupon({
 
 **Fichiers cles** :
 - `src/app/(dashboard)/users/page.tsx` - Liste des utilisateurs
-- `src/app/(dashboard)/users/[id]/page.tsx` - Detail utilisateur (5 onglets)
+- `src/app/(dashboard)/users/[id]/page.tsx` - Detail utilisateur (6 onglets)
 - `src/lib/services/userService.ts` - Service metier
 
-**Onglets detail utilisateur** : Profil | **Activité** | **Gains** | Coupons | Tickets | Modifier
+**Onglets detail utilisateur** : Profil | **Activité** (inclut Quêtes) | **Gains** | Coupons | Tickets | Modifier
 
 **Onglet Activité** : Affiche 5 KPI filtrables par période via `PeriodSelector` :
 - Commandes (nombre de receipts)
@@ -180,8 +180,11 @@ await createManualCoupon({
 
 **Onglet Gains** : Liste détaillée paginée de chaque entrée `gains` pour l'utilisateur. Filtre par `source_type` (Ticket, Bonus manuel, Classement, Quête, Trigger, Migration). Colonnes : ID, Source (badge coloré), XP, Cashback, Établissement, Période, Date.
 
+**Section Quêtes (dans Activité)** : Progression des quêtes de l'utilisateur depuis `quest_progress` avec join `quests`. Filtres par type de période (hebdo/mensuel/annuel) et statut (en cours/complétée/récompensée). Barre de progression colorée par statut. Conversion centimes→euros pour `amount_spent`. Colonnes : Quête (lien), Période, Progression (barre + texte), Statut (badge coloré), Complétée le, Mise à jour.
+
 **Fonction** : `getUserActivityStats(userId, startDate, endDate)` dans `userService.ts` — 3 requêtes parallèles (receipts, gains, spendings)
 **Fonction** : `getUserGains(userId, limit, offset, sourceFilter?)` dans `userService.ts` — requête paginée `gains` avec join établissement
+**Fonction** : `getUserQuestProgress(userId, limit, offset, periodTypeFilter?, statusFilter?)` dans `userService.ts` — requête paginée `quest_progress` avec join quête
 
 ### 3. Analytics Dashboard
 

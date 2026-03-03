@@ -55,11 +55,10 @@ export function StockDetailCard({ stock }: StockDetailCardProps) {
                 +{formatCurrency(stock.movements.earnedOrganic)}
               </TableCell>
               <TableCell className="text-right text-red-700">
-                -
                 {formatCurrency(
-                  stock.opening.organic +
+                  Math.max(0, stock.opening.organic +
                     stock.movements.earnedOrganic -
-                    stock.closing.organic
+                    stock.closing.organic)
                 )}
               </TableCell>
               <TableCell className="text-right font-medium">
@@ -80,11 +79,10 @@ export function StockDetailCard({ stock }: StockDetailCardProps) {
                 +{formatCurrency(stock.movements.earnedRewards)}
               </TableCell>
               <TableCell className="text-right text-red-700">
-                -
                 {formatCurrency(
-                  stock.opening.rewards +
+                  Math.max(0, stock.opening.rewards +
                     stock.movements.earnedRewards -
-                    stock.closing.rewards
+                    stock.closing.rewards)
                 )}
               </TableCell>
               <TableCell className="text-right font-medium">
@@ -104,7 +102,7 @@ export function StockDetailCard({ stock }: StockDetailCardProps) {
                 )}
               </TableCell>
               <TableCell className="text-right text-red-700">
-                -{formatCurrency(stock.movements.spent)}
+                {formatCurrency(stock.movements.spent)}
               </TableCell>
               <TableCell className="text-right">
                 {formatCurrency(stock.closing.total)}

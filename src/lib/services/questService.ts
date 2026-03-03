@@ -8,6 +8,7 @@ import type {
   QuestPeriod,
   QuestPeriodInsert,
   PeriodType,
+  QuestType,
 } from "@/types/database";
 
 // CRUD Quests
@@ -288,6 +289,326 @@ export async function removeQuestPeriod(questId: number, periodIdentifier: strin
     .eq("period_identifier", periodIdentifier);
 
   if (error) throw error;
+}
+
+// CSV Export/Import
+
+const CSV_HEADERS = [
+  "name",
+  "description",
+  "slug",
+  "quest_type",
+  "target_value",
+  "period_type",
+  "coupon_template_id",
+  "bonus_xp",
+  "bonus_cashback",
+  "display_order",
+  "is_active",
+  "periods",
+] as const;
+
+export type QuestCsvRow = {
+  name: string;
+  description: string;
+  slug: string;
+  quest_type: string;
+  target_value: string;
+  period_type: string;
+  coupon_template_id: string;
+  bonus_xp: string;
+  bonus_cashback: string;
+  display_order: string;
+  is_active: string;
+  periods: string;
+};
+
+function escapeCSV(value: string): string {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
+export function generateQuestsCsvTemplate(): string {
+  const lines: string[] = [];
+  lines.push(CSV_HEADERS.join(","));
+
+  // Example rows
+  lines.push(
+    [
+      "Habitué de la semaine",
+      "Passez 3 commandes cette semaine",
+      "habitue_semaine",
+      "orders_count",
+      "3",
+      "weekly",
+      "",
+      "50",
+      "0",
+      "1",
+      "true",
+      "",
+    ].map(escapeCSV).join(",")
+  );
+  lines.push(
+    [
+      "Dépensier du mois",
+      "Dépensez 50€ ce mois-ci",
+      "depensier_mois",
+      "amount_spent",
+      "50",
+      "monthly",
+      "",
+      "100",
+      "2.50",
+      "2",
+      "true",
+      "",
+    ].map(escapeCSV).join(",")
+  );
+  lines.push(
+    [
+      "Explorateur annuel",
+      "Visitez 5 établissements cette année",
+      "explorateur_annuel",
+      "establishments_visited",
+      "5",
+      "yearly",
+      "",
+      "200",
+      "5",
+      "3",
+      "true",
+      "",
+    ].map(escapeCSV).join(",")
+  );
+
+  return lines.join("\n");
+}
+
+export function exportQuestsToCsv(quests: QuestWithRelations[]): string {
+  const lines: string[] = [];
+  lines.push(CSV_HEADERS.join(","));
+
+  for (const quest of quests) {
+    const periods = (quest.quest_periods || [])
+      .map((p) => p.period_identifier)
+      .sort()
+      .join(";");
+
+    const targetValue =
+      quest.quest_type === "amount_spent"
+        ? (quest.target_value / 100).toString()
+        : quest.target_value.toString();
+
+    const bonusCashback = (quest.bonus_cashback / 100).toString();
+
+    lines.push(
+      [
+        quest.name,
+        quest.description || "",
+        quest.slug,
+        quest.quest_type,
+        targetValue,
+        quest.period_type,
+        quest.coupon_template_id?.toString() || "",
+        quest.bonus_xp.toString(),
+        bonusCashback,
+        quest.display_order.toString(),
+        quest.is_active ? "true" : "false",
+        periods,
+      ].map(escapeCSV).join(",")
+    );
+  }
+
+  return lines.join("\n");
+}
+
+export function parseQuestsCsv(csvContent: string): { rows: QuestCsvRow[]; errors: string[] } {
+  const errors: string[] = [];
+  const rows: QuestCsvRow[] = [];
+
+  const lines = csvContent.split(/\r?\n/).filter((line) => line.trim() !== "");
+  if (lines.length < 2) {
+    errors.push("Le fichier CSV doit contenir au moins un en-tête et une ligne de données.");
+    return { rows, errors };
+  }
+
+  // Parse header
+  const headers = parseCsvLine(lines[0]);
+  const headerMap = new Map<string, number>();
+  headers.forEach((h, i) => headerMap.set(h.trim().toLowerCase(), i));
+
+  // Validate required headers
+  const requiredHeaders = ["name", "quest_type", "target_value", "period_type"];
+  for (const rh of requiredHeaders) {
+    if (!headerMap.has(rh)) {
+      errors.push(`Colonne requise manquante : "${rh}"`);
+    }
+  }
+  if (errors.length > 0) return { rows, errors };
+
+  const validQuestTypes = ["xp_earned", "amount_spent", "establishments_visited", "orders_count"];
+  const validPeriodTypes = ["weekly", "monthly", "yearly"];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCsvLine(lines[i]);
+    const get = (col: string) => {
+      const idx = headerMap.get(col);
+      return idx !== undefined && idx < values.length ? values[idx].trim() : "";
+    };
+
+    const name = get("name");
+    if (!name) {
+      errors.push(`Ligne ${i + 1} : le nom est requis.`);
+      continue;
+    }
+
+    const questType = get("quest_type");
+    if (!validQuestTypes.includes(questType)) {
+      errors.push(`Ligne ${i + 1} : quest_type invalide "${questType}". Valeurs : ${validQuestTypes.join(", ")}`);
+      continue;
+    }
+
+    const targetValue = get("target_value");
+    if (!targetValue || isNaN(Number(targetValue))) {
+      errors.push(`Ligne ${i + 1} : target_value invalide "${targetValue}".`);
+      continue;
+    }
+
+    const periodType = get("period_type");
+    if (!validPeriodTypes.includes(periodType)) {
+      errors.push(`Ligne ${i + 1} : period_type invalide "${periodType}". Valeurs : ${validPeriodTypes.join(", ")}`);
+      continue;
+    }
+
+    const bonusXp = get("bonus_xp");
+    if (bonusXp && isNaN(Number(bonusXp))) {
+      errors.push(`Ligne ${i + 1} : bonus_xp invalide "${bonusXp}".`);
+      continue;
+    }
+
+    const bonusCashback = get("bonus_cashback");
+    if (bonusCashback && isNaN(Number(bonusCashback))) {
+      errors.push(`Ligne ${i + 1} : bonus_cashback invalide "${bonusCashback}".`);
+      continue;
+    }
+
+    rows.push({
+      name,
+      description: get("description"),
+      slug: get("slug") || generateSlug(name),
+      quest_type: questType,
+      target_value: targetValue,
+      period_type: periodType,
+      coupon_template_id: get("coupon_template_id"),
+      bonus_xp: bonusXp || "0",
+      bonus_cashback: bonusCashback || "0",
+      display_order: get("display_order") || "0",
+      is_active: get("is_active") !== "false" ? "true" : "false",
+      periods: get("periods"),
+    });
+  }
+
+  return { rows, errors };
+}
+
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ",") {
+        result.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+export async function importQuestsFromCsv(
+  rows: QuestCsvRow[]
+): Promise<{ created: number; errors: string[] }> {
+  const errors: string[] = [];
+  let created = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      // Convert target_value: euros → centimes for amount_spent
+      const targetValue =
+        row.quest_type === "amount_spent"
+          ? Math.round(parseFloat(row.target_value) * 100)
+          : parseInt(row.target_value);
+
+      const questData: QuestInsert = {
+        name: row.name,
+        description: row.description || null,
+        slug: row.slug,
+        quest_type: row.quest_type as QuestType,
+        target_value: targetValue,
+        period_type: row.period_type,
+        coupon_template_id: row.coupon_template_id
+          ? parseInt(row.coupon_template_id)
+          : null,
+        bonus_xp: parseInt(row.bonus_xp) || 0,
+        bonus_cashback: Math.round(parseFloat(row.bonus_cashback) * 100) || 0,
+        display_order: parseInt(row.display_order) || 0,
+        is_active: row.is_active === "true",
+      };
+
+      const createdQuest = await createQuest(questData);
+
+      // Set periods if specified (semicolon-separated)
+      if (row.periods) {
+        const periodIdentifiers = row.periods
+          .split(";")
+          .map((p) => p.trim())
+          .filter(Boolean);
+        if (periodIdentifiers.length > 0) {
+          await setQuestPeriods(createdQuest.id, periodIdentifiers);
+        }
+      }
+
+      created++;
+    } catch (error) {
+      errors.push(
+        `"${row.name}" : ${error instanceof Error ? error.message : "Erreur inconnue"}`
+      );
+    }
+  }
+
+  return { created, errors };
 }
 
 // Récupérer les quêtes actives pour une période spécifique

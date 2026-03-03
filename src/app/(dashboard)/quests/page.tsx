@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -23,6 +23,14 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Plus,
   Loader2,
   Target,
@@ -34,8 +42,21 @@ import {
   ChevronDown,
   ChevronRight,
   ShoppingCart,
+  Download,
+  Upload,
+  AlertCircle,
+  CheckCircle2,
+  FileDown,
 } from "lucide-react";
-import { getQuests, toggleQuestActive } from "@/lib/services/questService";
+import {
+  getQuests,
+  toggleQuestActive,
+  generateQuestsCsvTemplate,
+  exportQuestsToCsv,
+  parseQuestsCsv,
+  importQuestsFromCsv,
+  type QuestCsvRow,
+} from "@/lib/services/questService";
 import { formatCurrency, formatPercentage } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import type { QuestWithRelations, PeriodType, QuestType } from "@/types/database";
@@ -96,8 +117,13 @@ export default function QuestsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("weekly");
   const [showUpcoming, setShowUpcoming] = useState(false);
   const [showArchives, setShowArchives] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState<QuestCsvRow[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchQuests = async () => {
     try {
@@ -140,6 +166,79 @@ export default function QuestsPage() {
     setSelectedPeriod(value);
     setShowUpcoming(false);
     setShowArchives(false);
+  };
+
+  const downloadCsv = (content: string, filename: string) => {
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportTemplate = () => {
+    const csv = generateQuestsCsvTemplate();
+    downloadCsv(csv, "quetes_template.csv");
+    toast({ title: "Template CSV téléchargé" });
+  };
+
+  const handleExportQuests = () => {
+    const csv = exportQuestsToCsv(quests);
+    downloadCsv(csv, `quetes_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    toast({ title: `${quests.length} quêtes exportées` });
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const { rows, errors } = parseQuestsCsv(content);
+      setImportPreview(rows);
+      setImportErrors(errors);
+      setImportDialogOpen(true);
+    };
+    reader.readAsText(file);
+
+    // Reset input so the same file can be re-selected
+    e.target.value = "";
+  };
+
+  const handleImportConfirm = async () => {
+    setImporting(true);
+    try {
+      const result = await importQuestsFromCsv(importPreview);
+      setImportDialogOpen(false);
+      setImportPreview([]);
+      setImportErrors([]);
+
+      if (result.errors.length > 0) {
+        toast({
+          variant: "destructive",
+          title: `${result.created} quête(s) créée(s), ${result.errors.length} erreur(s)`,
+          description: result.errors[0],
+        });
+      } else {
+        toast({ title: `${result.created} quête(s) importée(s) avec succès` });
+      }
+
+      // Reload quests
+      setLoading(true);
+      fetchQuests();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur d'import",
+        description: "Une erreur est survenue lors de l'import",
+      });
+    } finally {
+      setImporting(false);
+    }
   };
 
   const currentPeriodId = getCurrentPeriodIdentifier(selectedPeriod);
@@ -323,12 +422,37 @@ export default function QuestsPage() {
             Configurez les défis périodiques pour les utilisateurs
           </p>
         </div>
-        <Link href="/quests/create">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Nouvelle quête
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportTemplate}>
+            <FileDown className="mr-2 h-4 w-4" />
+            Template CSV
           </Button>
-        </Link>
+          <Button variant="outline" size="sm" onClick={handleExportQuests}>
+            <Download className="mr-2 h-4 w-4" />
+            Exporter
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Importer CSV
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <Link href="/quests/create">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Nouvelle quête
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card>
@@ -453,6 +577,124 @@ export default function QuestsPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Importer des quêtes</DialogTitle>
+            <DialogDescription>
+              Vérifiez les quêtes avant de confirmer l&apos;import
+            </DialogDescription>
+          </DialogHeader>
+
+          {importErrors.length > 0 && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 space-y-1">
+              <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                {importErrors.length} erreur(s) de validation
+              </div>
+              <ul className="text-sm text-destructive space-y-0.5">
+                {importErrors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {importPreview.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                {importPreview.length} quête(s) prêtes à être importées
+              </div>
+
+              <div className="rounded-lg border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nom</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Objectif</TableHead>
+                      <TableHead>Période</TableHead>
+                      <TableHead>Bonus XP</TableHead>
+                      <TableHead>Bonus CB</TableHead>
+                      <TableHead>Périodes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {importPreview.map((row, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium">{row.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {questTypeLabels[row.quest_type as QuestType] || row.quest_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {row.quest_type === "amount_spent"
+                            ? `${row.target_value} €`
+                            : row.target_value}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {periodTypeLabels[row.period_type as PeriodType] || row.period_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{row.bonus_xp !== "0" ? `+${row.bonus_xp}` : "-"}</TableCell>
+                        <TableCell>
+                          {row.bonus_cashback !== "0" ? `+${row.bonus_cashback} €` : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {row.periods ? (
+                            <div className="flex flex-wrap gap-1">
+                              {row.periods.split(";").slice(0, 2).map((p) => (
+                                <Badge key={p} variant="outline" className="text-xs">
+                                  {p.trim()}
+                                </Badge>
+                              ))}
+                              {row.periods.split(";").length > 2 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{row.periods.split(";").length - 2}
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">Toutes</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          {importPreview.length === 0 && importErrors.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Aucune donnée valide trouvée dans le fichier CSV.
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setImportDialogOpen(false)}
+              disabled={importing}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleImportConfirm}
+              disabled={importing || importPreview.length === 0}
+            >
+              {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Importer {importPreview.length} quête(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
