@@ -23,6 +23,7 @@ import {
   TrendingUp,
   TrendingDown,
   Trophy,
+  Percent,
   Ticket,
   Info,
   ChevronsUpDown,
@@ -407,7 +408,7 @@ export default function AnalyticsPage() {
               </div>
             )}
 
-            <div className="grid gap-4 lg:grid-cols-[1fr_3fr]">
+            <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
               <div className="flex flex-col gap-4 [&>*]:flex-1">
                 <StatCard
                   title="Stock PdB début de période"
@@ -442,12 +443,30 @@ export default function AnalyticsPage() {
                     />
                   );
                 })()}
+                {(() => {
+                  const eurosSpent = revenue?.totalEuros ?? 0;
+                  const cashbackEarned = debts?.pdbTotal ?? 0;
+                  const ratio = eurosSpent > 0 ? (cashbackEarned / eurosSpent) * 100 : null;
+                  return (
+                    <StatCard
+                      title="Ratio € dépensés / PdB remportés"
+                      icon={<Percent className="h-4 w-4 text-muted-foreground" />}
+                      value={ratio !== null ? `${ratio.toFixed(1)}%` : "—"}
+                      subtitle={
+                        ratio !== null
+                          ? `${formatCurrency(cashbackEarned)} de PdB pour ${formatCurrency(eurosSpent)} dépensés`
+                          : "Aucune dépense sur la période"
+                      }
+                    />
+                  );
+                })()}
               </div>
 
-              <CashbackChartCard data={dailyCashback} />
+              <div className="flex flex-col gap-4">
+                <CashbackChartCard data={dailyCashback} />
+                {stock && <StockDetailCard stock={stock} />}
+              </div>
             </div>
-
-            {stock && <StockDetailCard stock={stock} />}
           </section>
         </div>
       )}
