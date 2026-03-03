@@ -55,7 +55,9 @@ import {
   exportQuestsToCsv,
   parseQuestsCsv,
   importQuestsFromCsv,
+  getQuestProgressStatsByQuests,
   type QuestCsvRow,
+  type QuestProgressStats,
 } from "@/lib/services/questService";
 import { formatCurrency, formatPercentage } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -123,6 +125,8 @@ export default function QuestsPage() {
   const [importPreview, setImportPreview] = useState<QuestCsvRow[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
+  const [archiveStats, setArchiveStats] = useState<Map<number, QuestProgressStats>>(new Map());
+  const [loadingArchiveStats, setLoadingArchiveStats] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -145,6 +149,21 @@ export default function QuestsPage() {
   useEffect(() => {
     fetchQuests();
   }, []);
+
+  // Fetch archive stats when archives are expanded
+  useEffect(() => {
+    if (showArchives && archivedQuests.length > 0) {
+      const questIds = archivedQuests.map((q) => q.id);
+      // Only fetch if we don't have stats for these quests yet
+      const missingStats = questIds.some((id) => !archiveStats.has(id));
+      if (missingStats) {
+        setLoadingArchiveStats(true);
+        getQuestProgressStatsByQuests(questIds)
+          .then(setArchiveStats)
+          .finally(() => setLoadingArchiveStats(false));
+      }
+    }
+  }, [showArchives, archivedQuests.length]);
 
   const handleToggleActive = async (id: number, isActive: boolean) => {
     try {
@@ -376,6 +395,33 @@ export default function QuestsPage() {
               )}
           </div>
         </TableCell>
+        <TableCell>
+          {(() => {
+            const totalCashback =
+              quest.bonus_cashback +
+              (quest.coupon_templates?.amount || 0);
+            if (totalCashback === 0) {
+              return <span className="text-muted-foreground">—</span>;
+            }
+            let spentCentimes: number | null = null;
+            if (quest.quest_type === "amount_spent") {
+              // target_value already in centimes
+              spentCentimes = quest.target_value;
+            } else if (quest.quest_type === "xp_earned") {
+              // 1€ = 1.66 XP → euros = XP / 1.66, then * 100 for centimes
+              spentCentimes = Math.round((quest.target_value / 1.66) * 100);
+            }
+            if (spentCentimes == null || spentCentimes <= 0) {
+              return <span className="text-muted-foreground">—</span>;
+            }
+            const ratio = (totalCashback / spentCentimes) * 100;
+            return (
+              <span className="font-medium tabular-nums">
+                {ratio.toFixed(1)}%
+              </span>
+            );
+          })()}
+        </TableCell>
         <TableCell onClick={(e) => e.stopPropagation()}>
           <Switch
             checked={quest.is_active}
@@ -397,6 +443,7 @@ export default function QuestsPage() {
           <TableHead>Objectif</TableHead>
           <TableHead>Périodes</TableHead>
           <TableHead>Récompenses</TableHead>
+          <TableHead>Ratio CB</TableHead>
           <TableHead>Active</TableHead>
         </TableRow>
       </TableHeader>
