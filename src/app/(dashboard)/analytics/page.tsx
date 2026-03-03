@@ -57,7 +57,7 @@ import { StockDetailCard } from "@/components/analytics/stock-detail-card";
 export default function AnalyticsPage() {
   // Filters
   const [periodDates, setPeriodDates] = useState<PeriodDates>(() => {
-    const { start, end } = getPresetDates("last_7_days");
+    const { start, end } = getPresetDates("all_time");
     return { startDate: start.toISOString(), endDate: end.toISOString() };
   });
   const [establishmentId, setEstablishmentId] = useState<number | undefined>();
@@ -180,7 +180,7 @@ export default function AnalyticsPage() {
           {/* Period selector - always visible */}
           <div className="order-2 ml-auto sm:order-last sm:ml-0">
             <PeriodSelector
-              defaultPreset="last_7_days"
+              defaultPreset="all_time"
               onPeriodChange={setPeriodDates}
             />
           </div>

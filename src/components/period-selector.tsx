@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CalendarIcon, Check } from "lucide-react";
@@ -23,6 +23,7 @@ import {
 // --- Period types & helpers ---
 
 export type PeriodPreset =
+  | "all_time"
   | "current_week"
   | "last_week"
   | "last_7_days"
@@ -37,6 +38,7 @@ export interface PeriodDates {
 }
 
 const PRESET_LABELS: Record<Exclude<PeriodPreset, "custom">, string> = {
+  all_time: "Depuis le début",
   current_week: "Semaine en cours",
   last_week: "Semaine dernière",
   last_7_days: "7 derniers jours",
@@ -59,6 +61,12 @@ export function getPresetDates(key: Exclude<PeriodPreset, "custom">): { start: D
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   switch (key) {
+    case "all_time": {
+      const start = new Date(2026, 0, 1); // 1er janvier 2026
+      const end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      return { start, end };
+    }
     case "current_week": {
       const monday = getMonday(today);
       const nextMonday = new Date(monday);
@@ -112,7 +120,7 @@ interface PeriodSelectorProps {
 
 export function PeriodSelector({
   onPeriodChange,
-  defaultPreset = "last_7_days",
+  defaultPreset = "all_time",
 }: PeriodSelectorProps) {
   const [preset, setPreset] = useState<PeriodPreset>(defaultPreset);
 
@@ -133,6 +141,17 @@ export function PeriodSelector({
     },
     [onPeriodChange]
   );
+
+  // Emit initial dates on mount
+  const hasMounted = useRef(false);
+  useEffect(() => {
+    if (hasMounted.current) return;
+    hasMounted.current = true;
+    if (defaultPreset !== "custom") {
+      const { start, end } = getPresetDates(defaultPreset);
+      emitChange(start, end);
+    }
+  }, []);
 
   const handlePresetChange = useCallback(
     (value: string) => {

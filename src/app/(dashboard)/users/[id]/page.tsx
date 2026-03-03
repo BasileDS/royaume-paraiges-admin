@@ -211,7 +211,7 @@ export default function UserDetailPage() {
   const [dailyCashback, setDailyCashback] = useState<UserDailyCashback[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [activityPeriod, setActivityPeriod] = useState<PeriodDates>(() => {
-    const { start, end } = getPresetDates("last_7_days");
+    const { start, end } = getPresetDates("all_time");
     return { startDate: start.toISOString(), endDate: end.toISOString() };
   });
 
@@ -702,7 +702,7 @@ export default function UserDetailPage() {
           <div className="flex items-center justify-between gap-2">
             <h2 className="hidden text-lg font-semibold sm:block">Activité</h2>
             <PeriodSelector
-              defaultPreset="last_7_days"
+              defaultPreset="all_time"
               onPeriodChange={setActivityPeriod}
             />
           </div>
@@ -909,8 +909,8 @@ export default function UserDetailPage() {
                               <Badge variant="outline">{qp.period_identifier}</Badge>
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-3 min-w-[200px]">
-                                <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <div className="w-24 shrink-0">
                                   <div className="h-2 w-full rounded-full bg-muted">
                                     <div
                                       className={`h-2 rounded-full transition-all ${questProgressBarColors[qp.status] || "bg-primary"}`}

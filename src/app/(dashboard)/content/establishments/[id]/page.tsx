@@ -94,7 +94,7 @@ export default function EditEstablishmentPage() {
 
   // Stats tab state
   const [statsPeriod, setStatsPeriod] = useState<PeriodDates>(() => {
-    const { start, end } = getPresetDates("last_7_days");
+    const { start, end } = getPresetDates("all_time");
     return { startDate: start.toISOString(), endDate: end.toISOString() };
   });
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
@@ -604,7 +604,7 @@ export default function EditEstablishmentPage() {
                 </Select>
               )}
               <PeriodSelector
-                defaultPreset="last_7_days"
+                defaultPreset="all_time"
                 onPeriodChange={setStatsPeriod}
               />
             </div>
