@@ -319,6 +319,20 @@ Systeme de defis periodiques pour les utilisateurs.
 | `amount_spent` | Depenser de l'argent | Euros (€) dans le frontend, centimes en BDD |
 | `establishments_visited` | Visiter des etablissements | Nombre |
 | `orders_count` | Passer des commandes | Nombre |
+| `quest_completed` | Completer des quetes dans N sous-periodes | Nombre de sous-periodes (monthly→weekly, yearly→monthly). Incompatible avec `weekly`. |
+
+**Statuts de progression (`quest_progress.status`)** :
+
+| Statut | Description |
+|--------|-------------|
+| `in_progress` | Quete en cours, periode pas encore terminee |
+| `completed` | Objectif atteint, recompense pas encore distribuee |
+| `rewarded` | Recompense distribuee |
+| `expired` | Periode terminee sans completion (mis a jour automatiquement par `expire_quest_progress()` via pg_cron quotidien) |
+
+**Meta-quetes (`quest_completed`)** :
+
+> Les quetes de type `quest_completed` sont des "meta-quetes" qui trackent la completion d'autres quetes sur des sous-periodes. Exemple : une quete mensuelle "Complete au moins 1 quete hebdo pendant 4 semaines" avec `target_value = 4`. La progression est calculee en comptant les `DISTINCT period_identifier` dans `quest_completion_logs`. La propagation se fait via `update_meta_quest_progress()` appelee par le trigger `distribute_quest_rewards`. La chaine est naturellement limitee : weekly → monthly → yearly → fin.
 
 **Conversion Euros/Centimes** :
 

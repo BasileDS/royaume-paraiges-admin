@@ -250,9 +250,15 @@ export default function CreateQuestPage() {
                 <Label>Type de quête *</Label>
                 <Select
                   value={form.questType}
-                  onValueChange={(value: QuestType) =>
-                    setForm({ ...form, questType: value })
-                  }
+                  onValueChange={(value: QuestType) => {
+                    const updates: Partial<typeof form> = { questType: value };
+                    // quest_completed ne peut pas être weekly (pas de sous-période)
+                    if (value === "quest_completed" && form.periodType === "weekly") {
+                      updates.periodType = "monthly";
+                      updates.periods = [];
+                    }
+                    setForm({ ...form, ...updates });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -262,6 +268,7 @@ export default function CreateQuestPage() {
                     <SelectItem value="amount_spent">Dépenser de l&apos;argent</SelectItem>
                     <SelectItem value="establishments_visited">Visiter des établissements</SelectItem>
                     <SelectItem value="orders_count">Passer des commandes</SelectItem>
+                    <SelectItem value="quest_completed">Compléter des quêtes</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -281,6 +288,8 @@ export default function CreateQuestPage() {
                       ? "50"
                       : form.questType === "establishments_visited"
                       ? "3"
+                      : form.questType === "quest_completed"
+                      ? "4"
                       : "5"
                   }
                   value={form.targetValue}
@@ -293,6 +302,7 @@ export default function CreateQuestPage() {
                   {form.questType === "amount_spent" && "Montant en euros (ex: 50 = 50€)"}
                   {form.questType === "establishments_visited" && "Nombre d'établissements à visiter"}
                   {form.questType === "orders_count" && "Nombre de commandes à passer"}
+                  {form.questType === "quest_completed" && "Nombre de sous-périodes avec au moins 1 quête complétée"}
                 </p>
               </div>
 
@@ -306,7 +316,7 @@ export default function CreateQuestPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="weekly">Hebdomadaire</SelectItem>
+                    <SelectItem value="weekly" disabled={form.questType === "quest_completed"}>Hebdomadaire</SelectItem>
                     <SelectItem value="monthly">Mensuel</SelectItem>
                     <SelectItem value="yearly">Annuel</SelectItem>
                   </SelectContent>

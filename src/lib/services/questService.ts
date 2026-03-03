@@ -392,6 +392,22 @@ export function generateQuestsCsvTemplate(): string {
       "",
     ].map(escapeCSV).join(",")
   );
+  lines.push(
+    [
+      "Quêteur assidu",
+      "Complétez au moins 1 quête hebdo pendant 4 semaines",
+      "queteur_assidu",
+      "quest_completed",
+      "4",
+      "monthly",
+      "",
+      "100",
+      "1",
+      "4",
+      "true",
+      "",
+    ].map(escapeCSV).join(",")
+  );
 
   return lines.join("\n");
 }
@@ -458,7 +474,7 @@ export function parseQuestsCsv(csvContent: string): { rows: QuestCsvRow[]; error
   }
   if (errors.length > 0) return { rows, errors };
 
-  const validQuestTypes = ["xp_earned", "amount_spent", "establishments_visited", "orders_count"];
+  const validQuestTypes = ["xp_earned", "amount_spent", "establishments_visited", "orders_count", "quest_completed"];
   const validPeriodTypes = ["weekly", "monthly", "yearly"];
 
   for (let i = 1; i < lines.length; i++) {

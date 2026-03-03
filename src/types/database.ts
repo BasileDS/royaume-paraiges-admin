@@ -2038,6 +2038,7 @@ export type Database = {
         | "amount_spent"
         | "establishments_visited"
         | "orders_count"
+        | "quest_completed"
       user_role: "client" | "employee" | "establishment" | "admin"
     }
     CompositeTypes: {
@@ -2180,6 +2181,7 @@ export const Constants = {
         "amount_spent",
         "establishments_visited",
         "orders_count",
+        "quest_completed",
       ],
       user_role: ["client", "employee", "establishment", "admin"],
     },

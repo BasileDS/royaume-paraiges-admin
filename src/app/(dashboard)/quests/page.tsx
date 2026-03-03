@@ -102,6 +102,7 @@ const questTypeLabels: Record<QuestType, string> = {
   amount_spent: "Dépenser de l'argent",
   establishments_visited: "Visiter des établissements",
   orders_count: "Passer des commandes",
+  quest_completed: "Compléter des quêtes",
 };
 
 const questTypeIcons: Record<QuestType, typeof Target> = {
@@ -109,6 +110,7 @@ const questTypeIcons: Record<QuestType, typeof Target> = {
   amount_spent: Receipt,
   establishments_visited: MapPin,
   orders_count: ShoppingCart,
+  quest_completed: CheckCircle2,
 };
 
 export default function QuestsPage() {
@@ -315,6 +317,7 @@ export default function QuestsPage() {
             {quest.quest_type === "xp_earned" && "XP"}
             {quest.quest_type === "establishments_visited" && "établissements"}
             {quest.quest_type === "orders_count" && "commandes"}
+            {quest.quest_type === "quest_completed" && "sous-périodes"}
           </span>
         </TableCell>
         <TableCell>
