@@ -6,8 +6,21 @@ import type {
   PeriodRewardConfig,
   PeriodRewardConfigInsert,
   PeriodType,
+  BadgeType,
   Json,
 } from "@/types/database";
+
+// Badge Types
+export async function getBadgeTypes(): Promise<BadgeType[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("badge_types")
+    .select("id, slug, name, description, rarity, category, icon")
+    .order("category")
+    .order("name");
+  if (error) throw error;
+  return data as BadgeType[];
+}
 
 // Reward Tiers
 export async function getRewardTiers(periodType?: PeriodType): Promise<RewardTier[]> {

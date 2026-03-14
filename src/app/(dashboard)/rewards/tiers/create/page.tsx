@@ -22,11 +22,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { createRewardTier } from "@/lib/services/rewardService";
+import { createRewardTier, getBadgeTypes } from "@/lib/services/rewardService";
 import { getActiveTemplates } from "@/lib/services/templateService";
 import { useToast } from "@/components/ui/use-toast";
 import { formatCurrency } from "@/lib/utils";
-import type { CouponTemplate, RewardTierInsert, PeriodType } from "@/types/database";
+import type { BadgeType, CouponTemplate, RewardTierInsert, PeriodType } from "@/types/database";
 
 export default function CreateTierPage() {
   const router = useRouter();
@@ -34,6 +34,7 @@ export default function CreateTierPage() {
 
   const [loading, setLoading] = useState(false);
   const [templates, setTemplates] = useState<CouponTemplate[]>([]);
+  const [badgeTypes, setBadgeTypes] = useState<BadgeType[]>([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -41,20 +42,25 @@ export default function CreateTierPage() {
     rankFrom: "",
     rankTo: "",
     couponTemplateId: "none",
+    badgeTypeId: "none",
     displayOrder: "0",
     isActive: true,
   });
 
   useEffect(() => {
-    const fetchTemplates = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getActiveTemplates();
-        setTemplates(data || []);
+        const [templatesData, badgeTypesData] = await Promise.all([
+          getActiveTemplates(),
+          getBadgeTypes(),
+        ]);
+        setTemplates(templatesData || []);
+        setBadgeTypes(badgeTypesData || []);
       } catch (error) {
         console.error(error);
       }
     };
-    fetchTemplates();
+    fetchData();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,6 +75,9 @@ export default function CreateTierPage() {
         rank_to: parseInt(form.rankTo),
         coupon_template_id: form.couponTemplateId && form.couponTemplateId !== "none"
           ? parseInt(form.couponTemplateId)
+          : null,
+        badge_type_id: form.badgeTypeId && form.badgeTypeId !== "none"
+          ? parseInt(form.badgeTypeId)
           : null,
         display_order: parseInt(form.displayOrder),
         is_active: form.isActive,
@@ -209,6 +218,38 @@ export default function CreateTierPage() {
                         : ""}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Badge</Label>
+              <Select
+                value={form.badgeTypeId}
+                onValueChange={(value) =>
+                  setForm({ ...form, badgeTypeId: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un badge" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun badge</SelectItem>
+                  {badgeTypes
+                    .filter((bt) => {
+                      const categoryMap: Record<PeriodType, string> = {
+                        weekly: "weekly",
+                        monthly: "monthly",
+                        yearly: "yearly",
+                      };
+                      return !bt.category || bt.category === categoryMap[form.periodType];
+                    })
+                    .map((bt) => (
+                      <SelectItem key={bt.id} value={bt.id.toString()}>
+                        {bt.name}
+                        {bt.rarity ? ` (${bt.rarity})` : ""}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

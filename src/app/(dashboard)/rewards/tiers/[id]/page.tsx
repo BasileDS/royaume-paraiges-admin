@@ -26,6 +26,7 @@ import {
   getRewardTier,
   updateRewardTier,
   deleteRewardTier,
+  getBadgeTypes,
 } from "@/lib/services/rewardService";
 import { getActiveTemplates } from "@/lib/services/templateService";
 import { useToast } from "@/components/ui/use-toast";
@@ -41,7 +42,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { CouponTemplate, PeriodType } from "@/types/database";
+import type { BadgeType, CouponTemplate, PeriodType } from "@/types/database";
 
 export default function EditTierPage() {
   const router = useRouter();
@@ -52,6 +53,7 @@ export default function EditTierPage() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [templates, setTemplates] = useState<CouponTemplate[]>([]);
+  const [badgeTypes, setBadgeTypes] = useState<BadgeType[]>([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -59,6 +61,7 @@ export default function EditTierPage() {
     rankFrom: "",
     rankTo: "",
     couponTemplateId: "none",
+    badgeTypeId: "none",
     displayOrder: "0",
     isActive: true,
   });
@@ -66,12 +69,14 @@ export default function EditTierPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [tier, templatesData] = await Promise.all([
+        const [tier, templatesData, badgeTypesData] = await Promise.all([
           getRewardTier(id),
           getActiveTemplates(),
+          getBadgeTypes(),
         ]);
 
         setTemplates(templatesData || []);
+        setBadgeTypes(badgeTypesData || []);
 
         if (tier) {
           setForm({
@@ -80,6 +85,7 @@ export default function EditTierPage() {
             rankFrom: tier.rank_from.toString(),
             rankTo: tier.rank_to.toString(),
             couponTemplateId: tier.coupon_template_id?.toString() || "none",
+            badgeTypeId: tier.badge_type_id?.toString() || "none",
             displayOrder: (tier.display_order ?? 0).toString(),
             isActive: tier.is_active ?? true,
           });
@@ -111,6 +117,9 @@ export default function EditTierPage() {
         rank_to: parseInt(form.rankTo),
         coupon_template_id: form.couponTemplateId && form.couponTemplateId !== "none"
           ? parseInt(form.couponTemplateId)
+          : null,
+        badge_type_id: form.badgeTypeId && form.badgeTypeId !== "none"
+          ? parseInt(form.badgeTypeId)
           : null,
         display_order: parseInt(form.displayOrder),
         is_active: form.isActive,
@@ -295,6 +304,38 @@ export default function EditTierPage() {
                         : ""}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Badge</Label>
+              <Select
+                value={form.badgeTypeId}
+                onValueChange={(value) =>
+                  setForm({ ...form, badgeTypeId: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un badge" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun badge</SelectItem>
+                  {badgeTypes
+                    .filter((bt) => {
+                      const categoryMap: Record<PeriodType, string> = {
+                        weekly: "weekly",
+                        monthly: "monthly",
+                        yearly: "yearly",
+                      };
+                      return !bt.category || bt.category === categoryMap[form.periodType];
+                    })
+                    .map((bt) => (
+                      <SelectItem key={bt.id} value={bt.id.toString()}>
+                        {bt.name}
+                        {bt.rarity ? ` (${bt.rarity})` : ""}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
