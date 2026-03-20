@@ -1,5 +1,22 @@
 import { createClient } from "@/lib/supabase/client";
 
+/**
+ * Cache des IDs d'utilisateurs test (is_test = true).
+ * Utilisé pour les exclure des statistiques côté client.
+ */
+let _testUserIdsCache: string[] | null = null;
+
+async function getTestUserIds(): Promise<string[]> {
+  if (_testUserIdsCache !== null) return _testUserIdsCache;
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("is_test", true);
+  _testUserIdsCache = (data || []).map((p: { id: string }) => p.id);
+  return _testUserIdsCache;
+}
+
 export interface CouponStats {
   totalCoupons: number;
   activeCoupons: number;
@@ -90,12 +107,13 @@ export async function getTopUsers(limit = 10) {
   // Get unique customer IDs
   const customerIds = Array.from(new Set(typedCouponsData.map((c) => c.customer_id)));
 
-  // Fetch profiles separately
-  type ProfileData = { id: string; first_name: string | null; last_name: string | null; email: string | null };
+  // Fetch profiles separately (exclude test users)
+  type ProfileData = { id: string; first_name: string | null; last_name: string | null; email: string | null; is_test: boolean };
   const { data: profilesData } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, email")
-    .in("id", customerIds);
+    .select("id, first_name, last_name, email, is_test")
+    .in("id", customerIds)
+    .eq("is_test", false);
 
   const profilesMap = new Map(((profilesData || []) as ProfileData[]).map((p) => [p.id, p] as const));
 
@@ -138,22 +156,32 @@ export async function getDashboardStats() {
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Get counts for different metrics
+  const testIds = await getTestUserIds();
+  const excludeTest = (query: any) => {
+    if (testIds.length > 0) return query.not("customer_id", "in", `(${testIds.join(",")})`);
+    return query;
+  };
+
+  // Get counts for different metrics (exclude test users from coupon counts)
   const [
     { count: totalActive },
     { count: usedThisWeek },
     { count: distributedThisMonth },
     { count: pendingPeriods },
   ] = await Promise.all([
-    supabase
-      .from("coupons")
-      .select("*", { count: "exact", head: true })
-      .eq("used", false)
-      .or(`expires_at.is.null,expires_at.gte.${now.toISOString()}`),
-    supabase
-      .from("coupons")
-      .select("*", { count: "exact", head: true })
-      .eq("used", true),
+    excludeTest(
+      supabase
+        .from("coupons")
+        .select("*", { count: "exact", head: true })
+        .eq("used", false)
+        .or(`expires_at.is.null,expires_at.gte.${now.toISOString()}`)
+    ),
+    excludeTest(
+      supabase
+        .from("coupons")
+        .select("*", { count: "exact", head: true })
+        .eq("used", true)
+    ),
     supabase
       .from("coupon_distribution_logs")
       .select("*", { count: "exact", head: true })
@@ -180,12 +208,16 @@ export async function getSalesCount(
   endDate: string
 ): Promise<number> {
   const supabase = createClient();
-  const { count, error } = await supabase
+  const testIds = await getTestUserIds();
+  let query = supabase
     .from("receipts")
     .select("*", { count: "exact", head: true })
     .gte("created_at", startDate)
     .lt("created_at", endDate);
 
+  if (testIds.length > 0) query = query.not("customer_id", "in", `(${testIds.join(",")})`) as typeof query;
+
+  const { count, error } = await query;
   if (error) throw error;
   return count || 0;
 }
@@ -198,13 +230,17 @@ export async function getSalesTotal(
   endDate: string
 ): Promise<number> {
   const supabase = createClient();
+  const testIds = await getTestUserIds();
   type ReceiptAmount = { amount: number };
-  const { data, error } = await supabase
+  let query = supabase
     .from("receipts")
     .select("amount")
     .gte("created_at", startDate)
     .lt("created_at", endDate);
 
+  if (testIds.length > 0) query = query.not("customer_id", "in", `(${testIds.join(",")})`) as typeof query;
+
+  const { data, error } = await query;
   if (error) throw error;
   return ((data || []) as ReceiptAmount[]).reduce((sum, r) => sum + (r.amount || 0), 0);
 }
@@ -221,23 +257,32 @@ export async function getDailyCashbackStats(
   const supabase = createClient();
 
   type GainRow = { created_at: string; cashback_money: number | null; source_type: string | null };
-  type LineRow = { created_at: string; amount: number };
+  type SpendingRow = { created_at: string; amount: number };
 
-  const [gainsRes, spentRes] = await Promise.all([
-    supabase
-      .from("gains")
-      .select("created_at, cashback_money, source_type")
-      .gte("created_at", startDate)
-      .lt("created_at", endDate)
-      .not("cashback_money", "is", null)
-      .order("created_at", { ascending: true }),
-    (supabase.from("receipt_lines") as any)
-      .select("created_at, amount")
-      .eq("payment_method", "cashback")
-      .gte("created_at", startDate)
-      .lt("created_at", endDate)
-      .order("created_at", { ascending: true }),
-  ]);
+  const testIds = await getTestUserIds();
+
+  let gainsQuery = supabase
+    .from("gains")
+    .select("created_at, cashback_money, source_type")
+    .gte("created_at", startDate)
+    .lt("created_at", endDate)
+    .not("cashback_money", "is", null)
+    .order("created_at", { ascending: true });
+
+  if (testIds.length > 0) gainsQuery = gainsQuery.not("customer_id", "in", `(${testIds.join(",")})`) as typeof gainsQuery;
+
+  // For spendings (cashback spent), query spendings table instead of receipt_lines
+  // to easily filter by customer_id
+  let spentQuery = supabase
+    .from("spendings")
+    .select("created_at, amount")
+    .gte("created_at", startDate)
+    .lt("created_at", endDate)
+    .order("created_at", { ascending: true });
+
+  if (testIds.length > 0) spentQuery = spentQuery.not("customer_id", "in", `(${testIds.join(",")})`) as typeof spentQuery;
+
+  const [gainsRes, spentRes] = await Promise.all([gainsQuery, spentQuery]);
 
   if (gainsRes.error) throw gainsRes.error;
   if (spentRes.error) throw spentRes.error;
@@ -255,7 +300,7 @@ export async function getDailyCashbackStats(
   }
 
   const spentByDay: Record<string, number> = {};
-  for (const row of (spentRes.data || []) as LineRow[]) {
+  for (const row of (spentRes.data || []) as SpendingRow[]) {
     const date = row.created_at.split("T")[0];
     spentByDay[date] = (spentByDay[date] || 0) + (row.amount || 0);
   }
@@ -288,31 +333,40 @@ export async function getDailyRevenueStats(
   endDate: string
 ): Promise<DailyRevenue[]> {
   const supabase = createClient();
+  const testIds = await getTestUserIds();
 
-  type LineRow = { created_at: string; amount: number; payment_method: string };
+  type ReceiptWithLines = {
+    created_at: string;
+    receipt_lines: { amount: number; payment_method: string }[];
+  };
 
-  const { data, error } = await (supabase.from("receipt_lines") as any)
-    .select("created_at, amount, payment_method")
-    .in("payment_method", ["card", "cash", "cashback"])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase.from("receipts") as any)
+    .select("created_at, receipt_lines(amount, payment_method)")
     .gte("created_at", startDate)
     .lt("created_at", endDate)
     .order("created_at", { ascending: true });
 
+  if (testIds.length > 0) query = query.not("customer_id", "in", `(${testIds.join(",")})`);
+
+  const { data, error } = await query;
   if (error) throw error;
 
   const cardByDay: Record<string, number> = {};
   const cashByDay: Record<string, number> = {};
   const pdbByDay: Record<string, number> = {};
 
-  for (const row of (data || []) as LineRow[]) {
-    const date = row.created_at.split("T")[0];
-    const amount = row.amount || 0;
-    if (row.payment_method === "card") {
-      cardByDay[date] = (cardByDay[date] || 0) + amount;
-    } else if (row.payment_method === "cash") {
-      cashByDay[date] = (cashByDay[date] || 0) + amount;
-    } else if (row.payment_method === "cashback") {
-      pdbByDay[date] = (pdbByDay[date] || 0) + amount;
+  for (const receipt of (data || []) as ReceiptWithLines[]) {
+    const date = receipt.created_at.split("T")[0];
+    for (const line of receipt.receipt_lines || []) {
+      const amount = line.amount || 0;
+      if (line.payment_method === "card") {
+        cardByDay[date] = (cardByDay[date] || 0) + amount;
+      } else if (line.payment_method === "cash") {
+        cashByDay[date] = (cashByDay[date] || 0) + amount;
+      } else if (line.payment_method === "cashback") {
+        pdbByDay[date] = (pdbByDay[date] || 0) + amount;
+      }
     }
   }
 
@@ -340,12 +394,16 @@ export async function getDailyRevenueStats(
  */
 export async function getUnspentCashbackTotal(): Promise<number> {
   const supabase = createClient();
+  const testIds = await getTestUserIds();
   type StatsRow = { cashback_available: number | string | null };
-  const { data, error } = await (supabase.from("user_stats") as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase.from("user_stats") as any)
     .select("cashback_available");
 
+  if (testIds.length > 0) query = query.not("customer_id", "in", `(${testIds.join(",")})`);
+
+  const { data, error } = await query;
   if (error) throw error;
-  // user_stats columns are bigint (from SUM), PostgREST returns bigints as strings
   return ((data || []) as StatsRow[]).reduce(
     (sum, row) => sum + (Number(row.cashback_available) || 0),
     0
@@ -712,6 +770,7 @@ export async function getDrilldownReceipts(
 ): Promise<PaginatedResult<ReceiptDrilldownRow>> {
   const supabase = createClient();
 
+  const testIds = await getTestUserIds();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase.from("receipts") as any)
     .select(
@@ -722,6 +781,7 @@ export async function getDrilldownReceipts(
     .lt("created_at", filters.endDate)
     .order("created_at", { ascending: false });
 
+  if (testIds.length > 0) query = query.not("customer_id", "in", `(${testIds.join(",")})`);
   if (filters.establishmentId) {
     query = query.eq("establishment_id", filters.establishmentId);
   }
@@ -789,6 +849,7 @@ export async function getDrilldownSpendings(
 ): Promise<PaginatedResult<SpendingDrilldownRow>> {
   const supabase = createClient();
 
+  const testIds = await getTestUserIds();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase.from("spendings") as any)
     .select(
@@ -799,6 +860,7 @@ export async function getDrilldownSpendings(
     .lt("created_at", filters.endDate)
     .order("created_at", { ascending: false });
 
+  if (testIds.length > 0) query = query.not("customer_id", "in", `(${testIds.join(",")})`);
   if (filters.establishmentId) {
     query = query.eq("establishment_id", filters.establishmentId);
   }
@@ -846,6 +908,7 @@ export async function getDrilldownGains(
 ): Promise<PaginatedResult<GainDrilldownRow>> {
   const supabase = createClient();
 
+  const testIds = await getTestUserIds();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase.from("gains") as any)
     .select(
@@ -855,6 +918,8 @@ export async function getDrilldownGains(
     .gte("created_at", filters.startDate)
     .lt("created_at", filters.endDate)
     .order("created_at", { ascending: false });
+
+  if (testIds.length > 0) query = query.not("customer_id", "in", `(${testIds.join(",")})`);
 
   if (sourceTypeFilter === "organic") {
     query = query.eq("source_type", "receipt");
@@ -917,6 +982,7 @@ export async function getDrilldownActiveCoupons(
 ): Promise<PaginatedResult<CouponDrilldownRow>> {
   const supabase = createClient();
 
+  const testIds = await getTestUserIds();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase.from("coupons") as any)
     .select(
@@ -928,6 +994,8 @@ export async function getDrilldownActiveCoupons(
     .gte("created_at", filters.startDate)
     .lt("created_at", filters.endDate)
     .order("created_at", { ascending: false });
+
+  if (testIds.length > 0) query = query.not("customer_id", "in", `(${testIds.join(",")})`);
 
   const { data, count, error } = await query.range(offset, offset + limit - 1);
   if (error) throw error;

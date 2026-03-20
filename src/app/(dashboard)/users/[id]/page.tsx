@@ -53,6 +53,7 @@ import {
   Calendar,
   Award,
   Target,
+  Shield,
 } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import {
@@ -79,6 +80,18 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { getEstablishments, type Establishment } from "@/lib/services/contentService";
+import { anonymizeUser } from "@/lib/services/gdprService";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { formatCurrency, formatPercentage, formatDate, formatDateTime } from "@/lib/utils";
 import type { UserRole } from "@/types/database";
@@ -144,6 +157,7 @@ export default function UserDetailPage() {
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [anonymizing, setAnonymizing] = useState(false);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [activeTab, setActiveTab] = useState("activity");
 
@@ -162,6 +176,7 @@ export default function UserDetailPage() {
     cashbackCoefficient: number;
     attachedEstablishmentId: number | null;
     createdAt: string;
+    deletedAt: string | null;
   } | null>(null);
 
   // Stats
@@ -255,6 +270,7 @@ export default function UserDetailPage() {
             cashbackCoefficient: userData.cashback_coefficient || 1,
             attachedEstablishmentId: userData.attached_establishment_id,
             createdAt: userData.created_at,
+            deletedAt: userData.deleted_at || null,
           });
           setStats({
             totalReceipts: userData.totalReceipts || 0,
@@ -522,6 +538,12 @@ export default function UserDetailPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">{displayName}</h1>
             {getRoleBadge(user.role)}
+            {user.deletedAt && (
+              <Badge variant="destructive" className="flex items-center gap-1">
+                <Shield className="h-3 w-3" />
+                Compte supprime le {formatDate(user.deletedAt)}
+              </Badge>
+            )}
           </div>
           <p className="text-muted-foreground">{user.email}</p>
         </div>
@@ -1444,6 +1466,81 @@ export default function UserDetailPage() {
               </CardContent>
             </Card>
           </form>
+
+          <Card className="mt-6 border-destructive/50">
+            <CardHeader>
+              <CardTitle className="text-destructive">Zone dangereuse</CardTitle>
+              <CardDescription>
+                Actions irreversibles sur ce compte
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={anonymizing || !!user.deletedAt}>
+                    {anonymizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {user.deletedAt ? "Compte deja supprime" : "Supprimer le compte (RGPD)"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmer la suppression RGPD</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Cette action est irreversible. Le profil sera anonymise : toutes les donnees
+                      personnelles (nom, email, telephone, avatar) seront supprimees. Les donnees
+                      transactionnelles (tickets, gains) seront conservees a des fins comptables.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={async () => {
+                        try {
+                          setAnonymizing(true);
+                          await anonymizeUser(userId);
+                          toast({
+                            title: "Compte supprime",
+                            description: "Le profil a ete anonymise avec succes",
+                          });
+                          // Reload user data
+                          const refreshed = await getUserWithStats(userId);
+                          if (refreshed) {
+                            setUser({
+                              id: refreshed.id,
+                              firstName: refreshed.first_name || "",
+                              lastName: refreshed.last_name || "",
+                              email: refreshed.email || "",
+                              phone: refreshed.phone,
+                              birthdate: refreshed.birthdate,
+                              username: refreshed.username,
+                              avatarUrl: refreshed.avatar_url,
+                              role: refreshed.role,
+                              xpCoefficient: refreshed.xp_coefficient || 1,
+                              cashbackCoefficient: refreshed.cashback_coefficient || 1,
+                              attachedEstablishmentId: refreshed.attached_establishment_id,
+                              createdAt: refreshed.created_at,
+                              deletedAt: refreshed.deleted_at || null,
+                            });
+                          }
+                        } catch {
+                          toast({
+                            title: "Erreur",
+                            description: "Impossible de supprimer le compte",
+                            variant: "destructive",
+                          });
+                        } finally {
+                          setAnonymizing(false);
+                        }
+                      }}
+                    >
+                      Confirmer la suppression
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

@@ -4,6 +4,7 @@ import { Profile, ProfileUpdate, UserRole, Coupon, Receipt, ReceiptLine, Receipt
 export interface UserFilters {
   role?: UserRole;
   search?: string;
+  includeDeleted?: boolean;
 }
 
 export interface UserWithStats extends Profile {
@@ -34,6 +35,10 @@ export async function getUsers(
     .from("profiles")
     .select("*", { count: "exact" })
     .order("created_at", { ascending: false });
+
+  if (!filters?.includeDeleted) {
+    query = query.is("deleted_at", null);
+  }
 
   if (filters?.role) {
     query = query.eq("role", filters.role);
@@ -131,26 +136,36 @@ export async function getUserStats(): Promise<{
 
   const [allUsersResult, clientsResult, employeesResult, establishmentsResult, adminsResult, newUsersResult] =
     await Promise.all([
-      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_test", false).is("deleted_at", null),
       supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
-        .eq("role", "client"),
+        .eq("role", "client")
+        .eq("is_test", false)
+        .is("deleted_at", null),
       supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
-        .eq("role", "employee"),
+        .eq("role", "employee")
+        .eq("is_test", false)
+        .is("deleted_at", null),
       supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
-        .eq("role", "establishment"),
+        .eq("role", "establishment")
+        .eq("is_test", false)
+        .is("deleted_at", null),
       supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
-        .eq("role", "admin"),
+        .eq("role", "admin")
+        .eq("is_test", false)
+        .is("deleted_at", null),
       supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
+        .eq("is_test", false)
+        .is("deleted_at", null)
         .gte("created_at", startOfMonth.toISOString()),
     ]);
 
