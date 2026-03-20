@@ -13,10 +13,12 @@ import {
   Receipt,
   Beer,
   Building2,
+  BookOpen,
   LogOut,
   Target,
   ChevronsLeft,
   ChevronsRight,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -63,12 +65,19 @@ const navigationGroups = [
     items: [
       { name: "Etablissements", href: "/content/establishments", icon: Building2 },
       { name: "Bieres", href: "/content/beers", icon: Beer },
+      { name: "Storytelling", href: "/content/storytelling", icon: BookOpen },
     ],
   },
   {
     title: null,
     items: [
       { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Conformite",
+    items: [
+      { name: "RGPD", href: "/gdpr", icon: Shield },
     ],
   },
 ];

@@ -296,6 +296,7 @@ export async function removeQuestPeriod(questId: number, periodIdentifier: strin
 const CSV_HEADERS = [
   "name",
   "description",
+  "lore",
   "slug",
   "quest_type",
   "target_value",
@@ -311,6 +312,7 @@ const CSV_HEADERS = [
 export type QuestCsvRow = {
   name: string;
   description: string;
+  lore: string;
   slug: string;
   quest_type: string;
   target_value: string;
@@ -348,6 +350,7 @@ export function generateQuestsCsvTemplate(): string {
     [
       "Habitué de la semaine",
       "Passez 3 commandes cette semaine",
+      "",
       "habitue_semaine",
       "orders_count",
       "3",
@@ -364,6 +367,7 @@ export function generateQuestsCsvTemplate(): string {
     [
       "Dépensier du mois",
       "Dépensez 50€ ce mois-ci",
+      "",
       "depensier_mois",
       "amount_spent",
       "50",
@@ -380,6 +384,7 @@ export function generateQuestsCsvTemplate(): string {
     [
       "Explorateur annuel",
       "Visitez 5 établissements cette année",
+      "",
       "explorateur_annuel",
       "establishments_visited",
       "5",
@@ -396,6 +401,7 @@ export function generateQuestsCsvTemplate(): string {
     [
       "Quêteur assidu",
       "Complétez au moins 1 quête hebdo pendant 4 semaines",
+      "",
       "queteur_assidu",
       "quest_completed",
       "4",
@@ -433,6 +439,7 @@ export function exportQuestsToCsv(quests: QuestWithRelations[]): string {
       [
         quest.name,
         quest.description || "",
+        quest.lore || "",
         quest.slug,
         quest.quest_type,
         targetValue,
@@ -523,6 +530,7 @@ export function parseQuestsCsv(csvContent: string): { rows: QuestCsvRow[]; error
     rows.push({
       name,
       description: get("description"),
+      lore: get("lore"),
       slug: get("slug") || generateSlug(name),
       quest_type: questType,
       target_value: targetValue,
@@ -590,6 +598,7 @@ export async function importQuestsFromCsv(
       const questData: QuestInsert = {
         name: row.name,
         description: row.description || null,
+        lore: row.lore || null,
         slug: row.slug,
         quest_type: row.quest_type as QuestType,
         target_value: targetValue,

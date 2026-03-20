@@ -491,3 +491,42 @@ export async function updateEstablishment(
 
   return updated as Establishment;
 }
+
+// Level Thresholds (Storytelling)
+export interface LevelThreshold {
+  id: number;
+  level: number;
+  name: string;
+  xp_required: number;
+  description: string | null;
+  lore: string | null;
+  sort_order: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export async function getLevelThresholds(): Promise<LevelThreshold[]> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from("level_thresholds")
+    .select("*")
+    .order("level");
+
+  if (error) throw error;
+  return (data || []) as LevelThreshold[];
+}
+
+export async function updateLevelThreshold(
+  id: number,
+  data: { lore?: string | null }
+): Promise<void> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from("level_thresholds")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw error;
+}

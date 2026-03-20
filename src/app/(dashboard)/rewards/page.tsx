@@ -30,11 +30,22 @@ import {
   Trophy,
   Medal,
   Award,
+  BookOpen,
+  Pencil,
 } from "lucide-react";
-import { getRewardTiers, updateRewardTier } from "@/lib/services/rewardService";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { getRewardTiers, updateRewardTier, getBadgeTypes, updateBadgeType } from "@/lib/services/rewardService";
 import { formatCurrency, formatPercentage } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import type { RewardTier, PeriodType } from "@/types/database";
+import type { RewardTier, PeriodType, BadgeType } from "@/types/database";
 
 type RewardTierWithRelations = RewardTier & {
   coupon_templates: { name: string; amount: number | null; percentage: number | null } | null;
@@ -57,6 +68,10 @@ export default function RewardsPage() {
   const [tiers, setTiers] = useState<RewardTierWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("weekly");
+  const [badges, setBadges] = useState<BadgeType[]>([]);
+  const [editingBadge, setEditingBadge] = useState<BadgeType | null>(null);
+  const [badgeLore, setBadgeLore] = useState("");
+  const [savingLore, setSavingLore] = useState(false);
   const { toast } = useToast();
 
   const fetchTiers = async () => {
@@ -77,6 +92,35 @@ export default function RewardsPage() {
   useEffect(() => {
     fetchTiers();
   }, []);
+
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        const data = await getBadgeTypes();
+        setBadges(data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchBadges();
+  }, []);
+
+  const handleSaveBadgeLore = async () => {
+    if (!editingBadge) return;
+    setSavingLore(true);
+    try {
+      await updateBadgeType(editingBadge.id, { lore: badgeLore || null });
+      setBadges((prev) =>
+        prev.map((b) => (b.id === editingBadge.id ? { ...b, lore: badgeLore || null } : b))
+      );
+      toast({ title: "Lore du badge mis à jour" });
+      setEditingBadge(null);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de modifier le lore" });
+    } finally {
+      setSavingLore(false);
+    }
+  };
 
   const handleToggleActive = async (id: number, isActive: boolean) => {
     try {
@@ -248,6 +292,81 @@ export default function RewardsPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
+            Lore des badges
+          </CardTitle>
+          <CardDescription>
+            Ajoutez un texte narratif aux badges affichés côté client
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Badge</TableHead>
+                <TableHead>Catégorie</TableHead>
+                <TableHead>Rareté</TableHead>
+                <TableHead>Lore</TableHead>
+                <TableHead className="w-[100px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {badges.map((badge) => (
+                <TableRow key={badge.id}>
+                  <TableCell className="font-medium">{badge.name}</TableCell>
+                  <TableCell>{badge.category || "-"}</TableCell>
+                  <TableCell>{badge.rarity || "-"}</TableCell>
+                  <TableCell className="max-w-[300px] truncate text-muted-foreground">
+                    {badge.lore || <span className="italic">Aucun lore</span>}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingBadge(badge);
+                        setBadgeLore(badge.lore || "");
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!editingBadge} onOpenChange={(open) => !open && setEditingBadge(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le lore de &quot;{editingBadge?.name}&quot;</DialogTitle>
+            <DialogDescription>
+              Texte narratif affiché dans la modale du badge côté client
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={badgeLore}
+            onChange={(e) => setBadgeLore(e.target.value)}
+            placeholder="Ex: Seuls les champions de la semaine peuvent arborer cet insigne..."
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingBadge(null)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSaveBadgeLore} disabled={savingLore}>
+              {savingLore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

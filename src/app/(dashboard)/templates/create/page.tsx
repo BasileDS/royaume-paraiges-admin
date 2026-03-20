@@ -39,6 +39,7 @@ function CreateTemplateForm() {
   const [form, setForm] = useState({
     name: "",
     description: "",
+    lore: "",
     valueType: "amount" as "amount" | "percentage",
     amount: "",
     percentage: "",
@@ -55,6 +56,7 @@ function CreateTemplateForm() {
             setForm({
               name: `${template.name} (copie)`,
               description: template.description || "",
+              lore: template.lore || "",
               valueType: template.amount ? "amount" : "percentage",
               amount: template.amount ? (template.amount / 100).toString() : "",
               percentage: template.percentage?.toString() || "",
@@ -81,6 +83,7 @@ function CreateTemplateForm() {
       const template: CouponTemplateInsert = {
         name: form.name,
         description: form.description || null,
+        lore: form.lore || null,
         amount: form.valueType === "amount" ? Math.round(parseFloat(form.amount) * 100) : null,
         percentage:
           form.valueType === "percentage" ? parseInt(form.percentage) : null,
@@ -142,6 +145,20 @@ function CreateTemplateForm() {
               }
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lore">Texte narratif (lore)</Label>
+            <Textarea
+              id="lore"
+              placeholder="Ex: Ce précieux parchemin témoigne de votre rang parmi les plus fidèles du Royaume..."
+              value={form.lore}
+              onChange={(e) => setForm({ ...form, lore: e.target.value })}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+              Texte immersif affiché dans la modale du coupon côté client
+            </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

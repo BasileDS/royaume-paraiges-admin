@@ -15,11 +15,20 @@ export async function getBadgeTypes(): Promise<BadgeType[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("badge_types")
-    .select("id, slug, name, description, rarity, category, icon")
+    .select("id, slug, name, description, lore, rarity, category, icon")
     .order("category")
     .order("name");
   if (error) throw error;
   return data as BadgeType[];
+}
+
+export async function updateBadgeType(id: number, data: { lore?: string | null }): Promise<void> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("badge_types") as any)
+    .update(data)
+    .eq("id", id);
+  if (error) throw error;
 }
 
 // Reward Tiers

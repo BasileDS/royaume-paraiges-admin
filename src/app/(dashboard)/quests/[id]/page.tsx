@@ -69,6 +69,7 @@ export default function EditQuestPage() {
   const [form, setForm] = useState({
     name: "",
     description: "",
+    lore: "",
     slug: "",
     questType: "orders_count" as QuestType,
     targetValue: "",
@@ -101,6 +102,7 @@ export default function EditQuestPage() {
           setForm({
             name: quest.name,
             description: quest.description || "",
+            lore: quest.lore || "",
             slug: quest.slug,
             questType: quest.quest_type,
             targetValue: targetValueDisplay,
@@ -184,6 +186,7 @@ export default function EditQuestPage() {
       const quest: QuestUpdate = {
         name: form.name,
         description: form.description || null,
+        lore: form.lore || null,
         slug: form.slug,
         quest_type: form.questType,
         target_value: targetValue,
@@ -328,6 +331,20 @@ export default function EditQuestPage() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={2}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lore">Texte narratif (lore)</Label>
+              <Textarea
+                id="lore"
+                placeholder="Ex: Les anciens racontent que seuls les plus assidus peuvent relever ce défi..."
+                value={form.lore}
+                onChange={(e) => setForm({ ...form, lore: e.target.value })}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Texte immersif affiché dans la modale de la quête côté client
+              </p>
             </div>
 
             {/* Type et objectif */}

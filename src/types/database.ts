@@ -48,6 +48,7 @@ export type Database = {
           description: string | null
           icon: string | null
           id: number
+          lore: string | null
           name: string
           rarity: string | null
           slug: string
@@ -58,6 +59,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: number
+          lore?: string | null
           name: string
           rarity?: string | null
           slug: string
@@ -68,6 +70,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: number
+          lore?: string | null
           name?: string
           rarity?: string | null
           slug?: string
@@ -294,6 +297,13 @@ export type Database = {
             foreignKeyName: "comments_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -421,6 +431,13 @@ export type Database = {
             foreignKeyName: "coupon_distribution_logs_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_distribution_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -429,6 +446,13 @@ export type Database = {
             columns: ["distributed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_distribution_logs_distributed_by_fkey"
+            columns: ["distributed_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -463,6 +487,7 @@ export type Database = {
           establishment_id: number | null
           id: number
           is_active: boolean | null
+          lore: string | null
           name: string
           percentage: number | null
           updated_at: string | null
@@ -476,6 +501,7 @@ export type Database = {
           establishment_id?: number | null
           id?: never
           is_active?: boolean | null
+          lore?: string | null
           name: string
           percentage?: number | null
           updated_at?: string | null
@@ -489,6 +515,7 @@ export type Database = {
           establishment_id?: number | null
           id?: never
           is_active?: boolean | null
+          lore?: string | null
           name?: string
           percentage?: number | null
           updated_at?: string | null
@@ -500,6 +527,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -561,6 +595,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupons_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -669,6 +710,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "gains_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "gains_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -679,15 +727,15 @@ export type Database = {
             foreignKeyName: "gains_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "user_stats"
-            referencedColumns: ["customer_id"]
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "gains_coupon_id_fkey"
-            columns: ["coupon_id"]
+            foreignKeyName: "gains_customer_id_fkey"
+            columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "coupons"
-            referencedColumns: ["id"]
+            referencedRelation: "user_stats"
+            referencedColumns: ["customer_id"]
           },
           {
             foreignKeyName: "gains_establishment_id_fkey"
@@ -702,6 +750,64 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "receipts"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      gdpr_requests: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          processed_at: string | null
+          processed_by: string | null
+          request_type: string
+          requested_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type: string
+          requested_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type?: string
+          requested_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gdpr_requests_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gdpr_requests_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gdpr_requests_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "user_stats"
+            referencedColumns: ["customer_id"]
           },
         ]
       }
@@ -774,10 +880,59 @@ export type Database = {
             foreignKeyName: "leaderboard_reward_distributions_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leaderboard_reward_distributions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
         ]
+      }
+      legal_pages: {
+        Row: {
+          content_en: string
+          content_fr: string
+          created_at: string | null
+          id: string
+          last_update: string | null
+          slug: string
+          subtitle_en: string
+          subtitle_fr: string
+          title_en: string
+          title_fr: string
+          updated_at: string | null
+        }
+        Insert: {
+          content_en?: string
+          content_fr?: string
+          created_at?: string | null
+          id?: string
+          last_update?: string | null
+          slug: string
+          subtitle_en?: string
+          subtitle_fr?: string
+          title_en?: string
+          title_fr?: string
+          updated_at?: string | null
+        }
+        Update: {
+          content_en?: string
+          content_fr?: string
+          created_at?: string | null
+          id?: string
+          last_update?: string | null
+          slug?: string
+          subtitle_en?: string
+          subtitle_fr?: string
+          title_en?: string
+          title_fr?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       level_thresholds: {
         Row: {
@@ -785,6 +940,7 @@ export type Database = {
           description: string | null
           id: number
           level: number
+          lore: string | null
           name: string
           sort_order: number | null
           updated_at: string | null
@@ -795,6 +951,7 @@ export type Database = {
           description?: string | null
           id: number
           level: number
+          lore?: string | null
           name: string
           sort_order?: number | null
           updated_at?: string | null
@@ -805,6 +962,7 @@ export type Database = {
           description?: string | null
           id?: number
           level?: number
+          lore?: string | null
           name?: string
           sort_order?: number | null
           updated_at?: string | null
@@ -850,6 +1008,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -955,6 +1120,13 @@ export type Database = {
             foreignKeyName: "notes_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -1054,6 +1226,13 @@ export type Database = {
             foreignKeyName: "period_reward_configs_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "period_reward_configs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -1062,6 +1241,13 @@ export type Database = {
             columns: ["distributed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "period_reward_configs_distributed_by_fkey"
+            columns: ["distributed_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1080,9 +1266,11 @@ export type Database = {
           birthdate: string | null
           cashback_coefficient: number
           created_at: string
+          deleted_at: string | null
           email: string | null
           first_name: string | null
           id: string
+          is_test: boolean
           last_name: string | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
@@ -1096,9 +1284,11 @@ export type Database = {
           birthdate?: string | null
           cashback_coefficient?: number
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           first_name?: string | null
           id?: string
+          is_test?: boolean
           last_name?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -1112,9 +1302,11 @@ export type Database = {
           birthdate?: string | null
           cashback_coefficient?: number
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           first_name?: string | null
           id?: string
+          is_test?: boolean
           last_name?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -1200,6 +1392,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quest_completion_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1309,6 +1508,13 @@ export type Database = {
             foreignKeyName: "quest_progress_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quest_progress_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -1333,6 +1539,7 @@ export type Database = {
           display_order: number
           id: number
           is_active: boolean
+          lore: string | null
           name: string
           period_type: string
           quest_type: Database["public"]["Enums"]["quest_type"]
@@ -1351,6 +1558,7 @@ export type Database = {
           display_order?: number
           id?: number
           is_active?: boolean
+          lore?: string | null
           name: string
           period_type: string
           quest_type: Database["public"]["Enums"]["quest_type"]
@@ -1369,6 +1577,7 @@ export type Database = {
           display_order?: number
           id?: number
           is_active?: boolean
+          lore?: string | null
           name?: string
           period_type?: string
           quest_type?: Database["public"]["Enums"]["quest_type"]
@@ -1402,6 +1611,13 @@ export type Database = {
             foreignKeyName: "quests_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -1409,25 +1625,25 @@ export type Database = {
       }
       receipt_consumption_items: {
         Row: {
-          id: number
-          created_at: string
-          receipt_id: number
           consumption_type: Database["public"]["Enums"]["consumption_type"]
+          created_at: string
+          id: number
           quantity: number
+          receipt_id: number
         }
         Insert: {
-          id?: never
-          created_at?: string
-          receipt_id: number
           consumption_type: Database["public"]["Enums"]["consumption_type"]
+          created_at?: string
+          id?: number
           quantity: number
+          receipt_id: number
         }
         Update: {
-          id?: never
-          created_at?: string
-          receipt_id?: number
           consumption_type?: Database["public"]["Enums"]["consumption_type"]
+          created_at?: string
+          id?: number
           quantity?: number
+          receipt_id?: number
         }
         Relationships: [
           {
@@ -1507,6 +1723,34 @@ export type Database = {
           {
             foreignKeyName: "receipts_customer_id_fkey"
             columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "user_stats"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "receipts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_employee_id_fkey"
+            columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
@@ -1617,6 +1861,13 @@ export type Database = {
             foreignKeyName: "spendings_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spendings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -1686,6 +1937,13 @@ export type Database = {
             foreignKeyName: "user_badges_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_badges_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -1715,10 +1973,38 @@ export type Database = {
             foreignKeyName: "receipts_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
         ]
+      }
+      public_profiles: {
+        Row: {
+          attached_establishment_id: number | null
+          avatar_url: string | null
+          id: string | null
+          username: string | null
+        }
+        Insert: {
+          attached_establishment_id?: number | null
+          avatar_url?: string | null
+          id?: string | null
+          username?: string | null
+        }
+        Update: {
+          attached_establishment_id?: number | null
+          avatar_url?: string | null
+          id?: string | null
+          username?: string | null
+        }
+        Relationships: []
       }
       reward_distribution_stats: {
         Row: {
@@ -1767,6 +2053,13 @@ export type Database = {
             foreignKeyName: "receipts_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -1794,6 +2087,13 @@ export type Database = {
             foreignKeyName: "receipts_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
@@ -1812,23 +2112,14 @@ export type Database = {
         Returns: Json
       }
       calculate_gains: { Args: { p_amount_for_gains: number }; Returns: Json }
-      calculate_quest_progress:
-        | {
-            Args: {
-              p_customer_id: string
-              p_period_identifier?: string
-              p_quest_id: number
-            }
-            Returns: number
-          }
-        | {
-            Args: {
-              p_customer_id: string
-              p_period_identifier?: string
-              p_quest_id: number
-            }
-            Returns: number
-          }
+      calculate_quest_progress: {
+        Args: {
+          p_customer_id: string
+          p_period_identifier?: string
+          p_quest_id: number
+        }
+        Returns: number
+      }
       check_cashback_balance: {
         Args: { p_cashback_requested: number; p_customer_id: string }
         Returns: Json
@@ -1837,15 +2128,6 @@ export type Database = {
       check_period_closed: {
         Args: { p_period_identifier: string; p_period_type: string }
         Returns: boolean
-      }
-      credit_bonus_cashback: {
-        Args: {
-          p_customer_id: string
-          p_amount: number
-          p_coupon_id: number
-          p_source_type?: string
-        }
-        Returns: number
       }
       create_frequency_coupon: {
         Args: { p_customer_id: string }
@@ -1874,42 +2156,36 @@ export type Database = {
       }
       create_receipt: {
         Args: {
+          p_consumption_items?: Json
           p_coupon_ids?: number[]
           p_customer_id: string
           p_employee_id?: string
           p_establishment_id: number
           p_payment_methods: Json
-          p_consumption_items?: Json
-        }
-        Returns: Json
-      }
-      get_analytics_debts: {
-        Args: {
-          p_start_date: string
-          p_end_date: string
-          p_establishment_id?: number
-          p_employee_id?: string
-        }
-        Returns: Json
-      }
-      get_analytics_revenue: {
-        Args: {
-          p_start_date: string
-          p_end_date: string
-          p_establishment_id?: number
-          p_employee_id?: string
-        }
-        Returns: Json
-      }
-      get_analytics_stock: {
-        Args: {
-          p_start_date: string
-          p_end_date: string
-          p_establishment_id?: number
         }
         Returns: Json
       }
       create_weekly_coupon: { Args: { p_customer_id: string }; Returns: Json }
+      credit_bonus_cashback:
+        | {
+            Args: {
+              p_amount: number
+              p_coupon_id?: number
+              p_customer_id: string
+              p_period_identifier?: string
+              p_source_type?: string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_coupon_id: number
+              p_customer_id: string
+              p_source_type?: string
+            }
+            Returns: number
+          }
       distribute_all_quest_rewards: {
         Args: { p_admin_id?: string }
         Returns: Json
@@ -1930,6 +2206,36 @@ export type Database = {
       }
       distribute_quest_reward: {
         Args: { p_admin_id?: string; p_quest_progress_id: number }
+        Returns: Json
+      }
+      expire_quest_progress: { Args: never; Returns: Json }
+      gdpr_anonymize_user: { Args: { target_user_id: string }; Returns: Json }
+      gdpr_enforce_retention: { Args: never; Returns: Json }
+      gdpr_export_user_data: { Args: { target_user_id: string }; Returns: Json }
+      get_analytics_debts: {
+        Args: {
+          p_employee_id?: string
+          p_end_date: string
+          p_establishment_id?: number
+          p_start_date: string
+        }
+        Returns: Json
+      }
+      get_analytics_revenue: {
+        Args: {
+          p_employee_id?: string
+          p_end_date: string
+          p_establishment_id?: number
+          p_start_date: string
+        }
+        Returns: Json
+      }
+      get_analytics_stock: {
+        Args: {
+          p_end_date: string
+          p_establishment_id?: number
+          p_start_date: string
+        }
         Returns: Json
       }
       get_coupon_stats: { Args: never; Returns: Json }
@@ -1956,9 +2262,30 @@ export type Database = {
         Args: { p_date?: string; p_period_type: string }
         Returns: string
       }
+      get_period_leaderboard: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_period_identifier: string
+          p_period_type: string
+        }
+        Returns: {
+          avatar_url: string
+          customer_id: string
+          rank: number
+          receipt_count: number
+          total_count: number
+          total_xp: number
+          username: string
+        }[]
+      }
       get_period_preview: {
         Args: { p_period_identifier?: string; p_period_type: string }
         Returns: Json
+      }
+      get_previous_period_identifier: {
+        Args: { p_period_type: string }
+        Returns: string
       }
       get_user_badges: {
         Args: { p_customer_id: string }
@@ -1988,16 +2315,22 @@ export type Database = {
         Args: { user_ids: string[] }
         Returns: {
           avatar_url: string
-          email: string
-          first_name: string
           id: string
-          last_name: string
           username: string
         }[]
       }
       get_user_quests: {
         Args: { p_customer_id: string; p_period_type?: string }
         Returns: Json
+      }
+      get_user_stats: {
+        Args: { p_customer_id: string }
+        Returns: {
+          cashback_available: number
+          cashback_earned: number
+          cashback_spent: number
+          total_xp: number
+        }[]
       }
       get_user_xp_stats: { Args: { p_customer_id: string }; Returns: Json }
       sync_auth_to_profiles: {
@@ -2006,6 +2339,10 @@ export type Database = {
           synced_count: number
           user_ids: string[]
         }[]
+      }
+      update_meta_quest_progress: {
+        Args: { p_completed_quest_period_type: string; p_customer_id: string }
+        Returns: undefined
       }
       update_profile_from_auth: {
         Args: { user_id: string }
@@ -2188,9 +2525,9 @@ export const Constants = {
   },
 } as const
 
-// =============================================================================
-// Type Helpers
-// =============================================================================
+// ============================================================================
+// Custom type aliases for convenience
+// ============================================================================
 
 // Profiles
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -2270,6 +2607,11 @@ export type EstablishmentUpdate = Database["public"]["Tables"]["establishments"]
 
 // Breweries
 export type Brewery = Database["public"]["Tables"]["breweries"]["Row"];
+
+// GDPR Requests
+export type GdprRequest = Database["public"]["Tables"]["gdpr_requests"]["Row"];
+export type GdprRequestInsert = Database["public"]["Tables"]["gdpr_requests"]["Insert"];
+export type GdprRequestUpdate = Database["public"]["Tables"]["gdpr_requests"]["Update"];
 
 // Enums
 export type UserRole = Database["public"]["Enums"]["user_role"];
