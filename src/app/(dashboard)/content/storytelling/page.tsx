@@ -29,6 +29,7 @@ import {
 import { Loader2, Pencil, BookOpen } from "lucide-react";
 import { getLevelThresholds, updateLevelThreshold } from "@/lib/services/contentService";
 import type { LevelThreshold } from "@/lib/services/contentService";
+import { levelToCoefficient, levelToRankName } from "@/lib/services/levelService";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function StorytellingPage() {
@@ -111,9 +112,11 @@ export default function StorytellingPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[80px]">Niveau</TableHead>
+                <TableHead className="w-[60px]">Niv.</TableHead>
                 <TableHead>Nom</TableHead>
-                <TableHead className="w-[100px]">XP requis</TableHead>
+                <TableHead className="w-[120px]">Rang</TableHead>
+                <TableHead className="w-[100px] text-right">XP requis</TableHead>
+                <TableHead className="w-[110px] text-right">Coef. PdB</TableHead>
                 <TableHead>Lore</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
@@ -123,7 +126,11 @@ export default function StorytellingPage() {
                 <TableRow key={level.id}>
                   <TableCell className="font-bold">{level.level}</TableCell>
                   <TableCell className="font-medium">{level.name}</TableCell>
-                  <TableCell>{level.xp_required.toLocaleString()}</TableCell>
+                  <TableCell className="text-muted-foreground">{levelToRankName(level.level)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{level.xp_required.toLocaleString("fr-FR")}</TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">
+                    × {levelToCoefficient(level.level).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                  </TableCell>
                   <TableCell className="max-w-[400px] truncate text-muted-foreground">
                     {level.lore || <span className="italic">Aucun lore</span>}
                   </TableCell>

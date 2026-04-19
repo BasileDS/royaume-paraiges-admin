@@ -244,6 +244,45 @@ export type Database = {
         }
         Relationships: []
       }
+      cashpad_webhook_queue: {
+        Row: {
+          cashpad_receipt_id: string
+          cashpad_sequential_id: number | null
+          created_at: string
+          error_message: string | null
+          event_type: number
+          id: number
+          installation_id: string
+          processed_at: string | null
+          retry_count: number
+          status: string
+        }
+        Insert: {
+          cashpad_receipt_id: string
+          cashpad_sequential_id?: number | null
+          created_at?: string
+          error_message?: string | null
+          event_type?: number
+          id?: never
+          installation_id: string
+          processed_at?: string | null
+          retry_count?: number
+          status?: string
+        }
+        Update: {
+          cashpad_receipt_id?: string
+          cashpad_sequential_id?: number | null
+          created_at?: string
+          error_message?: string | null
+          event_type?: number
+          id?: never
+          installation_id?: string
+          processed_at?: string | null
+          retry_count?: number
+          status?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           beer_id: number | null
@@ -623,6 +662,7 @@ export type Database = {
       establishments: {
         Row: {
           anniversary: string | null
+          cashpad_installation_id: string | null
           city: string | null
           country: string | null
           created_at: string | null
@@ -639,6 +679,7 @@ export type Database = {
         }
         Insert: {
           anniversary?: string | null
+          cashpad_installation_id?: string | null
           city?: string | null
           country?: string | null
           created_at?: string | null
@@ -655,6 +696,7 @@ export type Database = {
         }
         Update: {
           anniversary?: string | null
+          cashpad_installation_id?: string | null
           city?: string | null
           country?: string | null
           created_at?: string | null
@@ -1265,6 +1307,7 @@ export type Database = {
           avatar_url: string | null
           birthdate: string | null
           cashback_coefficient: number
+          cashpad_customer_id: string | null
           created_at: string
           deleted_at: string | null
           email: string | null
@@ -1283,6 +1326,7 @@ export type Database = {
           avatar_url?: string | null
           birthdate?: string | null
           cashback_coefficient?: number
+          cashpad_customer_id?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -1301,6 +1345,7 @@ export type Database = {
           avatar_url?: string | null
           birthdate?: string | null
           cashback_coefficient?: number
+          cashpad_customer_id?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -1532,6 +1577,7 @@ export type Database = {
           badge_type_id: number | null
           bonus_cashback: number
           bonus_xp: number
+          consumption_type: Database["public"]["Enums"]["consumption_type"] | null
           coupon_template_id: number | null
           created_at: string
           created_by: string | null
@@ -1551,6 +1597,7 @@ export type Database = {
           badge_type_id?: number | null
           bonus_cashback?: number
           bonus_xp?: number
+          consumption_type?: Database["public"]["Enums"]["consumption_type"] | null
           coupon_template_id?: number | null
           created_at?: string
           created_by?: string | null
@@ -1570,6 +1617,7 @@ export type Database = {
           badge_type_id?: number | null
           bonus_cashback?: number
           bonus_xp?: number
+          consumption_type?: Database["public"]["Enums"]["consumption_type"] | null
           coupon_template_id?: number | null
           created_at?: string
           created_by?: string | null
@@ -1690,6 +1738,7 @@ export type Database = {
       receipts: {
         Row: {
           amount: number
+          cashpad_receipt_id: string | null
           created_at: string
           customer_id: string
           employee_id: string | null
@@ -1698,6 +1747,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          cashpad_receipt_id?: string | null
           created_at?: string
           customer_id: string
           employee_id?: string | null
@@ -1706,6 +1756,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          cashpad_receipt_id?: string | null
           created_at?: string
           customer_id?: string
           employee_id?: string | null
@@ -1817,6 +1868,77 @@ export type Database = {
             columns: ["coupon_template_id"]
             isOneToOne: false
             referencedRelation: "coupon_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      season_closure_log: {
+        Row: {
+          affected_rows: number | null
+          duration_ms: number | null
+          executed_at: string
+          notes: string | null
+          source: string
+          step: string
+          year: number
+        }
+        Insert: {
+          affected_rows?: number | null
+          duration_ms?: number | null
+          executed_at?: string
+          notes?: string | null
+          source: string
+          step: string
+          year: number
+        }
+        Update: {
+          affected_rows?: number | null
+          duration_ms?: number | null
+          executed_at?: string
+          notes?: string | null
+          source?: string
+          step?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      season_snapshots: {
+        Row: {
+          customer_id: string
+          max_coefficient: number
+          max_level: number
+          max_xp: number
+          rank_name: string
+          rank_slug: string
+          snapshotted_at: string
+          year: number
+        }
+        Insert: {
+          customer_id: string
+          max_coefficient: number
+          max_level: number
+          max_xp: number
+          rank_name: string
+          rank_slug: string
+          snapshotted_at?: string
+          year: number
+        }
+        Update: {
+          customer_id?: string
+          max_coefficient?: number
+          max_level?: number
+          max_xp?: number
+          rank_name?: string
+          rank_slug?: string
+          snapshotted_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_snapshots_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2376,6 +2498,7 @@ export type Database = {
         | "establishments_visited"
         | "orders_count"
         | "quest_completed"
+        | "consumption_count"
       user_role: "client" | "employee" | "establishment" | "admin"
     }
     CompositeTypes: {
@@ -2519,123 +2642,71 @@ export const Constants = {
         "establishments_visited",
         "orders_count",
         "quest_completed",
+        "consumption_count",
       ],
       user_role: ["client", "employee", "establishment", "admin"],
     },
   },
 } as const
 
-// ============================================================================
-// Custom type aliases for convenience
-// ============================================================================
-
-// Profiles
-export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-export type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
-export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
-
-// Coupons
-export type Coupon = Database["public"]["Tables"]["coupons"]["Row"];
-export type CouponInsert = Database["public"]["Tables"]["coupons"]["Insert"];
-export type CouponUpdate = Database["public"]["Tables"]["coupons"]["Update"];
-
-// Coupon Templates
-export type CouponTemplate = Database["public"]["Tables"]["coupon_templates"]["Row"];
-export type CouponTemplateInsert = Database["public"]["Tables"]["coupon_templates"]["Insert"];
-export type CouponTemplateUpdate = Database["public"]["Tables"]["coupon_templates"]["Update"];
-
-// Coupon Distribution Logs
-export type CouponDistributionLog = Database["public"]["Tables"]["coupon_distribution_logs"]["Row"];
-export type CouponDistributionLogInsert = Database["public"]["Tables"]["coupon_distribution_logs"]["Insert"];
-
-// Receipts
-export type Receipt = Database["public"]["Tables"]["receipts"]["Row"];
-export type ReceiptInsert = Database["public"]["Tables"]["receipts"]["Insert"];
-
-// Receipt Lines
-export type ReceiptLine = Database["public"]["Tables"]["receipt_lines"]["Row"];
-export type ReceiptLineInsert = Database["public"]["Tables"]["receipt_lines"]["Insert"];
-
-// Receipt Consumption Items
-export type ReceiptConsumptionItem = Database["public"]["Tables"]["receipt_consumption_items"]["Row"];
-export type ReceiptConsumptionItemInsert = Database["public"]["Tables"]["receipt_consumption_items"]["Insert"];
-
-// Reward Tiers
-export type RewardTier = Database["public"]["Tables"]["reward_tiers"]["Row"];
-export type RewardTierInsert = Database["public"]["Tables"]["reward_tiers"]["Insert"];
-export type RewardTierUpdate = Database["public"]["Tables"]["reward_tiers"]["Update"];
-
-// Period Reward Configs
-export type PeriodRewardConfig = Database["public"]["Tables"]["period_reward_configs"]["Row"];
-export type PeriodRewardConfigInsert = Database["public"]["Tables"]["period_reward_configs"]["Insert"];
-export type PeriodRewardConfigUpdate = Database["public"]["Tables"]["period_reward_configs"]["Update"];
-
-// Available Periods
-export type AvailablePeriod = Database["public"]["Tables"]["available_periods"]["Row"];
-
-// Quests
-export type Quest = Database["public"]["Tables"]["quests"]["Row"];
-export type QuestInsert = Database["public"]["Tables"]["quests"]["Insert"];
-export type QuestUpdate = Database["public"]["Tables"]["quests"]["Update"];
-
-// Quest Periods
-export type QuestPeriod = Database["public"]["Tables"]["quest_periods"]["Row"];
-export type QuestPeriodInsert = Database["public"]["Tables"]["quest_periods"]["Insert"];
-
-// Quest Completion Logs
-export type QuestCompletionLog = Database["public"]["Tables"]["quest_completion_logs"]["Row"];
-export type QuestCompletionLogInsert = Database["public"]["Tables"]["quest_completion_logs"]["Insert"];
-
-// Badge Types
-export type BadgeType = Database["public"]["Tables"]["badge_types"]["Row"];
-
-// User Badges
-export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"];
-
-// Gains
-export type Gain = Database["public"]["Tables"]["gains"]["Row"];
-
-// Beers
-export type Beer = Database["public"]["Tables"]["beers"]["Row"];
-export type BeerInsert = Database["public"]["Tables"]["beers"]["Insert"];
-export type BeerUpdate = Database["public"]["Tables"]["beers"]["Update"];
-
-// Establishments
-export type Establishment = Database["public"]["Tables"]["establishments"]["Row"];
-export type EstablishmentInsert = Database["public"]["Tables"]["establishments"]["Insert"];
-export type EstablishmentUpdate = Database["public"]["Tables"]["establishments"]["Update"];
-
-// Breweries
-export type Brewery = Database["public"]["Tables"]["breweries"]["Row"];
-
-// GDPR Requests
-export type GdprRequest = Database["public"]["Tables"]["gdpr_requests"]["Row"];
-export type GdprRequestInsert = Database["public"]["Tables"]["gdpr_requests"]["Insert"];
-export type GdprRequestUpdate = Database["public"]["Tables"]["gdpr_requests"]["Update"];
+// =====================================================================
+// Helpers (alias) — types facilitant l'usage dans les services et UI.
+// Ajoutés manuellement (avril 2026) car non émis par le générateur.
+// =====================================================================
 
 // Enums
-export type UserRole = Database["public"]["Enums"]["user_role"];
-export type PaymentMethod = Database["public"]["Enums"]["payment_method"];
-export type QuestType = Database["public"]["Enums"]["quest_type"];
-export type ConsumptionType = Database["public"]["Enums"]["consumption_type"];
+export type QuestType = Database["public"]["Enums"]["quest_type"]
+export type ConsumptionType = Database["public"]["Enums"]["consumption_type"]
+export type PaymentMethod = Database["public"]["Enums"]["payment_method"]
+export type UserRole = Database["public"]["Enums"]["user_role"]
+export type PeriodType = "weekly" | "monthly" | "yearly"
 
-// Custom types
-export type PeriodType = "weekly" | "monthly" | "yearly";
-export type DistributionStatus = "pending" | "distributed" | "failed" | "cancelled";
+// Tables — Row
+export type Quest = Database["public"]["Tables"]["quests"]["Row"]
+export type QuestInsert = Database["public"]["Tables"]["quests"]["Insert"]
+export type QuestUpdate = Database["public"]["Tables"]["quests"]["Update"]
 
-// Extended types with relations
+export type QuestProgress = Database["public"]["Tables"]["quest_progress"]["Row"]
+export type QuestPeriod = Database["public"]["Tables"]["quest_periods"]["Row"]
+export type QuestPeriodInsert = Database["public"]["Tables"]["quest_periods"]["Insert"]
+export type QuestCompletionLog = Database["public"]["Tables"]["quest_completion_logs"]["Row"]
+
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"]
+
+export type Coupon = Database["public"]["Tables"]["coupons"]["Row"]
+export type CouponTemplate = Database["public"]["Tables"]["coupon_templates"]["Row"]
+export type CouponTemplateInsert = Database["public"]["Tables"]["coupon_templates"]["Insert"]
+export type CouponTemplateUpdate = Database["public"]["Tables"]["coupon_templates"]["Update"]
+export type CouponDistributionLog = Database["public"]["Tables"]["coupon_distribution_logs"]["Row"]
+
+export type Receipt = Database["public"]["Tables"]["receipts"]["Row"]
+export type ReceiptLine = Database["public"]["Tables"]["receipt_lines"]["Row"]
+export type ReceiptConsumptionItem = Database["public"]["Tables"]["receipt_consumption_items"]["Row"]
+
+export type Gain = Database["public"]["Tables"]["gains"]["Row"]
+export type BadgeType = Database["public"]["Tables"]["badge_types"]["Row"]
+
+export type RewardTier = Database["public"]["Tables"]["reward_tiers"]["Row"]
+export type RewardTierInsert = Database["public"]["Tables"]["reward_tiers"]["Insert"]
+export type RewardTierUpdate = Database["public"]["Tables"]["reward_tiers"]["Update"]
+
+export type PeriodRewardConfig = Database["public"]["Tables"]["period_reward_configs"]["Row"]
+export type PeriodRewardConfigInsert = Database["public"]["Tables"]["period_reward_configs"]["Insert"]
+
+export type AvailablePeriod = Database["public"]["Tables"]["available_periods"]["Row"]
+export type GdprRequest = Database["public"]["Tables"]["gdpr_requests"]["Row"]
+
+// Quest avec relations (pour l'admin)
 export type QuestWithRelations = Quest & {
-  coupon_templates?: CouponTemplate | null;
-  badge_types?: BadgeType | null;
-  quest_periods?: QuestPeriod[];
-};
+  coupon_templates?: Pick<CouponTemplate, "id" | "name" | "amount" | "percentage"> | null
+  badge_types?: Pick<BadgeType, "id" | "name" | "icon" | "rarity"> | null
+  quest_periods?: QuestPeriod[]
+}
 
-export type CouponWithRelations = Coupon & {
-  profiles?: Pick<Profile, "first_name" | "last_name" | "email"> | null;
-  coupon_templates?: Pick<CouponTemplate, "name"> | null;
-};
+// Content tables — Update helpers (utilisés par contentService)
+export type BeerUpdate = Database["public"]["Tables"]["beers"]["Update"]
+export type EstablishmentUpdate = Database["public"]["Tables"]["establishments"]["Update"]
 
-export type RewardTierWithRelations = RewardTier & {
-  coupon_templates?: CouponTemplate | null;
-  badge_types?: BadgeType | null;
-};
+// Distribution status (utilisé par les pages reward periods)
+export type DistributionStatus = "pending" | "distributed" | "cancelled" | "failed"

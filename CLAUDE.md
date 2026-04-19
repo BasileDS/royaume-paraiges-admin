@@ -1,5 +1,12 @@
 # CLAUDE.md - Royaume des Paraiges Admin
 
+> **Refonte mécaniques de jeu — avril 2026** (en prod)
+> Migrations 005-009 appliquées : grille 25 niveaux narratifs, coefficient PdB +0,2/niveau auto-maintenu, cycle de saison (snapshot/badges/reset) avec UI manuelle, 6 badges « mémoire de saison », paliers récompense refondus.
+> Voir section « Cloture de saison » et « Points d'attention » plus bas.
+>
+> **Refonte des quêtes — avril 2026** (en prod)
+> Migrations 010-013 : consolidation (17 doublons désactivés), nouveau type `consumption_count`, 9 nouvelles quêtes, 3 badges quête. Modèle conservé (template récurrent + instances par période). UI admin étendue avec Select `consumption_type` conditionnel.
+
 ## Apercu du Projet
 
 **royaume-paraiges-admin** est l'interface d'administration du Royaume des Paraiges, une application de fidelite gamifiee autour de la biere. Cette interface permet aux administrateurs de gerer les utilisateurs, les coupons, les recompenses et de visualiser les statistiques.
@@ -300,6 +307,55 @@ import {
 } from '@/lib/services/rewardService';
 ```
 
+**Paliers en prod (avril 2026, après refonte)** :
+
+| Période | Champion | Podium 2-3 | Top 4-10 |
+|---------|----------|------------|----------|
+| Hebdo   | 5 € + badge epic | 3 € + badge rare | 2 € + badge common |
+| Mensuel | 30 € + badge epic | 20 € + badge rare | 12 € + badge common |
+| Annuel  | **50 € + badge legendary** | badge epic seul | badge rare seul |
+
+L'ancien template `Coupon Hebdo 50€` (qui créditait en réalité 3,90 €) est désactivé. Les nouveaux templates s'appellent `Champion/Podium/Top 10 Hebdomadaire <montant>€` et `Champion Annuel 50€`.
+
+### 5b. Cloture de saison (avril 2026)
+
+Système de clôture annuelle 31/12 → 1/1 : snapshot du rang max → distribution badges « mémoire de saison » → reset coefficients à 1,0.
+
+**Fichiers cles** :
+- `src/app/(dashboard)/rewards/season/page.tsx` - UI de clôture (manuelle pour an 1)
+- `src/lib/services/seasonService.ts` - Service métier (4 RPC + 2 queries)
+- `src/lib/services/levelService.ts` - Helpers `levelToCoefficient`, `levelToRankName`
+
+**Tables** :
+- `season_snapshots` (year, customer_id, max_level, max_xp, max_coefficient, rank_name, rank_slug) — multi-saisons, PK composite garantit l'idempotence
+- `season_closure_log` (year, step, executed_at, source, affected_rows, duration_ms, notes) — journal des étapes
+
+**Fonctions RPC PostgreSQL** (toutes idempotentes) :
+
+| Fonction | Description | Garde |
+|----------|-------------|-------|
+| `preview_season_closure(p_year)` | Dry-run : distribution simulée des rangs + état avancement | aucune |
+| `snapshot_season(p_year, p_source)` | Étape 1/3 : fige les rangs dans `season_snapshots` | aucune |
+| `award_season_rank_badges(p_year, p_source)` | Étape 2/3 : distribue les 6 badges saison | snapshot fait |
+| `reset_season(p_year, p_source)` | Étape 3/3 : remet `cashback_coefficient = 100` partout | badges distribués |
+
+`p_source` ∈ `'cron' | 'cron_fallback' | 'manual' | 'dry_run_aborted'`.
+
+**Workflow attendu (an 1, décembre 2026)** :
+1. Admin va sur `/rewards/season`
+2. Sélectionne l'année 2026, vérifie le preview (distribution + total profils + PdB préservées)
+3. Clique « Snapshot » → confirmation → exécution → toast
+4. Clique « Distribuer badges » → idem (désactivé tant que snapshot pas fait)
+5. Clique « Reset » → idem (désactivé tant que badges pas distribués)
+6. Le journal en bas de page récapitule toutes les exécutions
+
+**An 2+ (à faire ultérieurement)** : ajouter pg_cron (3 crons + fallback) selon spec dans `animation/01-fonctionnel/changelog-anticipe.md`.
+
+**Important** :
+- Le reset ne touche **pas** au solde PdB (table `gains` intacte)
+- Le reset ne touche **pas** au `xp_coefficient` (réservé aux promos admin)
+- Le « niveau » se réinitialise implicitement : `get_season_xp(customer_id)` filtre `gains.created_at` par année courante, donc dès le 1/1 le total saison redémarre à 0
+
 ### 6. Gestion des Quetes
 
 Systeme de defis periodiques pour les utilisateurs.
@@ -320,6 +376,7 @@ Systeme de defis periodiques pour les utilisateurs.
 | `establishments_visited` | Visiter des etablissements | Nombre |
 | `orders_count` | Passer des commandes | Nombre |
 | `quest_completed` | Completer des quetes dans N sous-periodes | Nombre de sous-periodes (monthly→weekly, yearly→monthly). Incompatible avec `weekly`. |
+| `consumption_count` | Consommer N produits d'un type donné | Nombre. **Champ supplémentaire requis** : `quests.consumption_type` (biere, cocktail, alcool, soft, boisson_chaude, restauration). Calcul via SUM(`receipt_consumption_items.quantity`) sur la période. |
 
 **Statuts de progression (`quest_progress.status`)** :
 
@@ -413,8 +470,8 @@ Réutilise `getAnalyticsRevenue()`, `getAnalyticsDebts()` et `getEmployeesByEsta
 | avatar_url | TEXT | URL de l'avatar |
 | phone | TEXT | Telephone |
 | birthdate | DATE | Date de naissance |
-| xp_coefficient | INTEGER | Coefficient XP (defaut: 100) |
-| cashback_coefficient | INTEGER | Coefficient cashback (defaut: 100) |
+| xp_coefficient | INTEGER | Coefficient XP (defaut: 100, ×100). Réservé aux promos admin, jamais reset. |
+| cashback_coefficient | INTEGER | Coefficient cashback (×100). Maintenu auto par trigger sur `gains` : `100 + (level-1)*20` (avril 2026). Reset à 100 au 31/12. |
 | attached_establishment_id | INTEGER | FK vers establishments (pour employees/gerants) |
 
 > **Note** : `total_xp` et `cashback_balance` ne sont PAS des colonnes de `profiles`. Ils sont calcules via la vue materialisee `user_stats` (qui agrege depuis `gains`).
@@ -606,6 +663,24 @@ export type CouponWithRelations = Coupon & {
 - Utiliser `(supabase.rpc as any)` pour les appels RPC (limitation de typage)
 - Utiliser `(supabase.from("table") as any)` pour insert/update/delete
 
+### Refonte des quêtes (avril 2026) — règles à connaître
+
+- **Modèle template récurrent conservé** : une quête `period_type = weekly` est instanciée par Compagnon × semaine via `quest_progress`, contrainte UNIQUE `(quest_id, customer_id, period_identifier)` garantit « réalisable une fois par semaine ».
+- **Nouveau type `consumption_count`** : nécessite `quests.consumption_type` non-NULL (CHECK constraint). Le formulaire admin affiche un Select conditionnel.
+- **6 quêtes consumption hebdo créées mais désactivées par défaut** (`weekly_5_bieres`, `weekly_3_cocktails`, etc.). À activer une à une depuis `/quests` selon le calendrier produit.
+- **Badges catégorie `quest`** : 3 templates créés (`quest_pelerin`, `quest_grand_pelerin`, `quest_fidele_legendary`). `quest_grand_pelerin` (3 mois consécutifs) doit être attribué manuellement pour l'instant.
+- **17 quêtes désactivées en BDD** (ids 10-26 sauf 27-28) — préservées pour l'historique de `quest_progress` / `quest_completion_logs`. Ne pas DELETE.
+- **Helpers TypeScript** : `Quest`, `QuestInsert`, `QuestUpdate`, `QuestType`, `ConsumptionType`, `QuestWithRelations`, etc. exposés depuis `@/types/database` (ajoutés manuellement en bas du fichier en avril 2026).
+
+### Refonte mécaniques de jeu (avril 2026) — règles à connaître
+
+- **`level_thresholds` contient exactement 25 lignes** (Écuyer I → Chevalier de la Table Ronde). Toute requête doit s'y fier dynamiquement, jamais hardcoder le plafond.
+- **Niveau dérivé du XP de la saison courante** : `compute_level_from_xp(p_xp)` lit `level_thresholds`, `get_season_xp(p_customer_id)` filtre `gains.created_at` par année calendaire en cours.
+- **`profiles.cashback_coefficient` est auto-maintenu** : ne JAMAIS le modifier manuellement (sauf via la RPC `reset_season`). Un trigger sur `gains` recalcule à chaque INSERT/UPDATE/DELETE.
+- **`badge_types.category` accepte 6 valeurs** : `weekly | monthly | yearly | special | season_rank | quest`. Les 6 badges `season_rank_*` sont attribués au reset annuel via `award_season_rank_badges`. La catégorie `quest` est prête mais aucun badge de quête n'est encore créé.
+- **Tables `season_snapshots` et `season_closure_log`** : photographies par année pour la mémoire de saison. Idempotence garantie par PK composite. Ne pas DELETE manuellement sauf debug.
+- **Reset n'efface JAMAIS** : ni le solde PdB (`gains` intact), ni les badges (`user_badges` intact), ni les snapshots passés. Seul `cashback_coefficient` revient à 100.
+
 ### Apres modification
 
 1. Verifier que les types correspondent a la BDD
@@ -618,4 +693,13 @@ export type CouponWithRelations = Coupon & {
 
 ---
 
-**Derniere mise a jour** : 2026-02-19
+**Derniere mise a jour** : 2026-04-19 (refonte mécaniques de jeu)
+
+## Tâches en attente
+
+Voir `animation/01-fonctionnel/changelog-anticipe.md` pour la liste complète. Côté admin, à venir :
+
+- **Refonte des quêtes** (différée, gros chantier) : changement de modèle vers « one-shot par période ». Va impacter `/quests/*`, services, types.
+- **Cron auto pour la clôture an 2+** : 3 pg_cron + 3 fallbacks à mettre en place après validation manuelle de la saison 2026.
+- **Setup staging propre** : Supabase Branches (option A) à industrialiser. Pour l'instant, les migrations partent direct en prod sur décision Basile.
+- **Modal level-up enrichie** : afficher « Tu gagnes désormais X,Y PdB par € » au franchissement d'un niveau (côté front, mais visualisable depuis l'admin via simulation).

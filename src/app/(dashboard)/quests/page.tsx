@@ -47,6 +47,7 @@ import {
   AlertCircle,
   CheckCircle2,
   FileDown,
+  Beer,
 } from "lucide-react";
 import {
   getQuests,
@@ -105,6 +106,7 @@ const questTypeLabels: Record<QuestType, string> = {
   establishments_visited: "Visiter des établissements",
   orders_count: "Passer des commandes",
   quest_completed: "Compléter des quêtes",
+  consumption_count: "Consommer un type de produit",
 };
 
 const questTypeIcons: Record<QuestType, typeof Target> = {
@@ -113,6 +115,7 @@ const questTypeIcons: Record<QuestType, typeof Target> = {
   establishments_visited: MapPin,
   orders_count: ShoppingCart,
   quest_completed: CheckCircle2,
+  consumption_count: Beer,
 };
 
 export default function QuestsPage() {
@@ -340,6 +343,7 @@ export default function QuestsPage() {
             {quest.quest_type === "establishments_visited" && "établissements"}
             {quest.quest_type === "orders_count" && "commandes"}
             {quest.quest_type === "quest_completed" && "sous-périodes"}
+            {quest.quest_type === "consumption_count" && (quest.consumption_type ?? "produits")}
           </span>
         </TableCell>
         <TableCell>
@@ -499,6 +503,7 @@ export default function QuestsPage() {
             {quest.quest_type === "establishments_visited" && "établissements"}
             {quest.quest_type === "orders_count" && "commandes"}
             {quest.quest_type === "quest_completed" && "sous-périodes"}
+            {quest.quest_type === "consumption_count" && (quest.consumption_type ?? "produits")}
           </span>
         </TableCell>
         <TableCell>

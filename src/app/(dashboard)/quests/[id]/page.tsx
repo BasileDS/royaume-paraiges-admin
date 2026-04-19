@@ -50,7 +50,17 @@ import type {
   PeriodType,
   QuestType,
   AvailablePeriod,
+  ConsumptionType,
 } from "@/types/database";
+
+const CONSUMPTION_TYPES: { value: ConsumptionType; label: string }[] = [
+  { value: "biere", label: "Bières" },
+  { value: "cocktail", label: "Cocktails" },
+  { value: "alcool", label: "Alcools" },
+  { value: "soft", label: "Sodas / softs" },
+  { value: "boisson_chaude", label: "Boissons chaudes" },
+  { value: "restauration", label: "Restauration" },
+];
 
 export default function EditQuestPage() {
   const router = useRouter();
@@ -72,6 +82,7 @@ export default function EditQuestPage() {
     lore: "",
     slug: "",
     questType: "orders_count" as QuestType,
+    consumptionType: "" as ConsumptionType | "",
     targetValue: "",
     periodType: "weekly" as PeriodType,
     couponTemplateId: "none",
@@ -105,6 +116,7 @@ export default function EditQuestPage() {
             lore: quest.lore || "",
             slug: quest.slug,
             questType: quest.quest_type,
+            consumptionType: (quest.consumption_type as ConsumptionType | null) || "",
             targetValue: targetValueDisplay,
             periodType: quest.period_type as PeriodType,
             couponTemplateId: quest.coupon_template_id?.toString() || "none",
@@ -183,12 +195,27 @@ export default function EditQuestPage() {
         ? Math.round(parseFloat(form.targetValue) * 100)
         : parseInt(form.targetValue);
 
+      // Validation : consumption_type obligatoire si quest_type = consumption_count
+      if (form.questType === "consumption_count" && !form.consumptionType) {
+        toast({
+          variant: "destructive",
+          title: "Type de produit requis",
+          description: "Sélectionnez le type de produit à compter.",
+        });
+        setLoading(false);
+        return;
+      }
+
       const quest: QuestUpdate = {
         name: form.name,
         description: form.description || null,
         lore: form.lore || null,
         slug: form.slug,
         quest_type: form.questType,
+        consumption_type:
+          form.questType === "consumption_count" && form.consumptionType
+            ? (form.consumptionType as ConsumptionType)
+            : null,
         target_value: targetValue,
         period_type: form.periodType,
         coupon_template_id:
@@ -359,6 +386,9 @@ export default function EditQuestPage() {
                       updates.periodType = "monthly";
                       updates.periods = [];
                     }
+                    if (value !== "consumption_count") {
+                      updates.consumptionType = "";
+                    }
                     setForm({ ...form, ...updates });
                   }}
                 >
@@ -371,6 +401,7 @@ export default function EditQuestPage() {
                     <SelectItem value="establishments_visited">Visiter des établissements</SelectItem>
                     <SelectItem value="orders_count">Passer des commandes</SelectItem>
                     <SelectItem value="quest_completed">Compléter des quêtes</SelectItem>
+                    <SelectItem value="consumption_count">Consommer un type de produit</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -394,6 +425,7 @@ export default function EditQuestPage() {
                   {form.questType === "establishments_visited" && "Nombre d'établissements à visiter"}
                   {form.questType === "orders_count" && "Nombre de commandes à passer"}
                   {form.questType === "quest_completed" && "Nombre de sous-périodes avec au moins 1 quête complétée"}
+                  {form.questType === "consumption_count" && "Quantité de produits du type sélectionné à consommer"}
                 </p>
               </div>
 
@@ -414,6 +446,33 @@ export default function EditQuestPage() {
                 </Select>
               </div>
             </div>
+
+            {/* Type de produit (visible uniquement pour consumption_count) */}
+            {form.questType === "consumption_count" && (
+              <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+                <Label htmlFor="consumptionType">Type de produit à compter *</Label>
+                <Select
+                  value={form.consumptionType}
+                  onValueChange={(value: ConsumptionType) =>
+                    setForm({ ...form, consumptionType: value })
+                  }
+                >
+                  <SelectTrigger id="consumptionType">
+                    <SelectValue placeholder="Sélectionner un type de produit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONSUMPTION_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  La progression compte la somme des <code>quantity</code> dans <code>receipt_consumption_items</code> du type choisi sur la période.
+                </p>
+              </div>
+            )}
 
             {/* Périodes spécifiques */}
             <div className="space-y-4 rounded-lg border p-4">

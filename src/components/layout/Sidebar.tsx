@@ -19,6 +19,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Shield,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ const navigationGroups = [
       { name: "Recompenses", href: "/coupons", icon: Ticket },
       { name: "Templates", href: "/templates", icon: FileText },
       { name: "Tiers", href: "/rewards", icon: Trophy },
+      { name: "Cloture saison", href: "/rewards/season", icon: CalendarClock },
       { name: "Quetes", href: "/quests", icon: Target },
       { name: "Historique", href: "/history", icon: History },
     ],
