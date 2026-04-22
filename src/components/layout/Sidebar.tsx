@@ -14,12 +14,16 @@ import {
   Beer,
   Building2,
   BookOpen,
+  BookText,
   LogOut,
   Target,
   ChevronsLeft,
   ChevronsRight,
   Shield,
   CalendarClock,
+  Medal,
+  Activity,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -57,8 +61,10 @@ const navigationGroups = [
       { name: "Recompenses", href: "/coupons", icon: Ticket },
       { name: "Templates", href: "/templates", icon: FileText },
       { name: "Tiers", href: "/rewards", icon: Trophy },
+      { name: "Badges succès", href: "/rewards/achievements", icon: Medal },
       { name: "Cloture saison", href: "/rewards/season", icon: CalendarClock },
       { name: "Quetes", href: "/quests", icon: Target },
+      { name: "Sante des quetes", href: "/quests/health", icon: Activity },
       { name: "Historique", href: "/history", icon: History },
     ],
   },
@@ -82,6 +88,18 @@ const navigationGroups = [
       { name: "RGPD", href: "/gdpr", icon: Shield },
     ],
   },
+  {
+    title: "Documentation",
+    items: [
+      { name: "Documentation", href: "/documentation", icon: BookText },
+    ],
+  },
+  {
+    title: null,
+    items: [
+      { name: "Parametres", href: "/settings", icon: SettingsIcon },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -100,6 +118,19 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+
+  const activeHref = navigationGroups
+    .flatMap((group) => group.items)
+    .filter((item) =>
+      item.href === "/"
+        ? pathname === "/"
+        : pathname === item.href || pathname.startsWith(item.href + "/")
+    )
+    .reduce<string | null>(
+      (best, item) =>
+        best === null || item.href.length > best.length ? item.href : best,
+      null
+    );
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -143,9 +174,7 @@ export function Sidebar({
             )}
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
+                const isActive = item.href === activeHref;
 
                 const linkContent = (
                   <Link

@@ -25,12 +25,23 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2, X } from "lucide-react";
 import { PeriodCalendar } from "@/components/period-calendar";
-import { createQuest, setQuestPeriods } from "@/lib/services/questService";
+import { EstablishmentsPicker } from "@/components/establishments-picker";
+import { QuestConflictDialog } from "@/components/quest-conflict-dialog";
+import {
+  createQuest,
+  setQuestPeriods,
+  setQuestEstablishments,
+  deleteQuest,
+} from "@/lib/services/questService";
 import { getActiveTemplates } from "@/lib/services/templateService";
 import {
   getAvailablePeriodsByType,
   getCurrentPeriodIdentifier,
 } from "@/lib/services/periodService";
+import {
+  parseQuestRedundancyError,
+  type QuestRedundancyDetails,
+} from "@/lib/supabase/errorParser";
 import { useToast } from "@/components/ui/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import type {
@@ -68,6 +79,7 @@ export default function CreateQuestPage() {
   const [templates, setTemplates] = useState<CouponTemplate[]>([]);
   const [availablePeriods, setAvailablePeriods] = useState<AvailablePeriod[]>([]);
   const [loadingPeriods, setLoadingPeriods] = useState(false);
+  const [conflictDetails, setConflictDetails] = useState<QuestRedundancyDetails | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -84,6 +96,7 @@ export default function CreateQuestPage() {
     displayOrder: "0",
     isActive: true,
     periods: [] as string[],
+    establishments: [] as number[],
   });
 
   // Charger les templates au montage
@@ -191,21 +204,49 @@ export default function CreateQuestPage() {
         is_active: form.isActive,
       };
 
-      const createdQuest = await createQuest(quest);
+      // Si on crée la quête directement active, on la tente comme inactive
+      // d'abord si un scope est fourni, pour que l'INSERT des liens valide
+      // la signature finale. En pratique, les triggers détectent aussi à
+      // la création — on laisse Supabase gérer l'ordre.
+      let createdQuestId: number | null = null;
+      try {
+        const createdQuest = await createQuest(quest);
+        createdQuestId = createdQuest.id;
 
-      // Sauvegarder les périodes si elles sont définies
-      if (form.periods.length > 0) {
-        await setQuestPeriods(createdQuest.id, form.periods);
+        if (form.periods.length > 0) {
+          await setQuestPeriods(createdQuest.id, form.periods);
+        }
+
+        if (form.establishments.length > 0) {
+          await setQuestEstablishments(createdQuest.id, form.establishments);
+        }
+      } catch (mutationError) {
+        // Si la création a réussi mais l'ajout d'établissements a échoué
+        // (P0421 typiquement), on supprime la quête orpheline pour laisser
+        // l'admin repartir d'un état propre.
+        if (createdQuestId !== null) {
+          try {
+            await deleteQuest(createdQuestId);
+          } catch {
+            // Non bloquant — l'admin pourra nettoyer manuellement.
+          }
+        }
+        throw mutationError;
       }
 
       toast({ title: "Quête créée avec succès" });
       router.push("/quests");
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de créer la quête",
-      });
+      const conflict = parseQuestRedundancyError(error);
+      if (conflict) {
+        setConflictDetails(conflict);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Impossible de créer la quête",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -453,6 +494,23 @@ export default function CreateQuestPage() {
               />
             </div>
 
+            {/* Scoping établissements (M2M quests_establishments) */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="space-y-1">
+                <Label>Établissements ciblés</Label>
+                <p className="text-sm text-muted-foreground">
+                  Restreignez la quête à certains établissements ou laissez vide pour qu&apos;elle
+                  soit globale. Les triggers de redondance bloquent toute configuration qui
+                  créerait un conflit avec une autre quête active de même signature.
+                </p>
+              </div>
+              <EstablishmentsPicker
+                value={form.establishments}
+                onChange={(establishments) => setForm((prev) => ({ ...prev, establishments }))}
+                disabled={loading}
+              />
+            </div>
+
             {/* Recompenses */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Récompenses</h3>
@@ -563,6 +621,14 @@ export default function CreateQuestPage() {
           </CardContent>
         </Card>
       </form>
+
+      <QuestConflictDialog
+        open={conflictDetails !== null}
+        onOpenChange={(open) => {
+          if (!open) setConflictDetails(null);
+        }}
+        details={conflictDetails}
+      />
     </div>
   );
 }

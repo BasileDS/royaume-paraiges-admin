@@ -7,6 +7,7 @@ import type {
   QuestCompletionLog,
   QuestPeriod,
   QuestPeriodInsert,
+  QuestEstablishmentInsert,
   PeriodType,
   QuestType,
 } from "@/types/database";
@@ -289,6 +290,57 @@ export async function removeQuestPeriod(questId: number, periodIdentifier: strin
     .eq("period_identifier", periodIdentifier);
 
   if (error) throw error;
+}
+
+// ---------------------------------------------------------------------
+// Quest <-> Establishment M2M (migration 020)
+// Aucune entrée pour une quête = quête globale (applicable à tous les
+// établissements). ≥ 1 entrée = quête locale. Les triggers de la migration
+// 021 bloquent toute redondance de signature (errcode P0421).
+// ---------------------------------------------------------------------
+
+export async function getQuestEstablishments(questId: number): Promise<number[]> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from("quests_establishments") as any)
+    .select("establishment_id")
+    .eq("quest_id", questId);
+
+  if (error) throw error;
+  return ((data || []) as { establishment_id: number }[]).map((r) => r.establishment_id);
+}
+
+/**
+ * Remplace les liens établissements d'une quête (DELETE + INSERT).
+ * Passer un tableau vide remet la quête en « globale ».
+ *
+ * Peut lever une erreur P0421 (quest redundancy) : utiliser
+ * `parseQuestRedundancyError` pour extraire le DETAIL JSON.
+ */
+export async function setQuestEstablishments(
+  questId: number,
+  establishmentIds: number[]
+): Promise<void> {
+  const supabase = createClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: deleteError } = await (supabase.from("quests_establishments") as any)
+    .delete()
+    .eq("quest_id", questId);
+
+  if (deleteError) throw deleteError;
+
+  if (establishmentIds.length > 0) {
+    const rows: QuestEstablishmentInsert[] = establishmentIds.map((id) => ({
+      quest_id: questId,
+      establishment_id: id,
+    }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: insertError } = await (supabase.from("quests_establishments") as any)
+      .insert(rows);
+
+    if (insertError) throw insertError;
+  }
 }
 
 // CSV Export/Import

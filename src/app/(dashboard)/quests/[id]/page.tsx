@@ -36,12 +36,25 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Loader2, Trash2, X } from "lucide-react";
 import { PeriodCalendar } from "@/components/period-calendar";
-import { getQuest, updateQuest, deleteQuest, setQuestPeriods } from "@/lib/services/questService";
+import { EstablishmentsPicker } from "@/components/establishments-picker";
+import { QuestConflictDialog } from "@/components/quest-conflict-dialog";
+import {
+  getQuest,
+  updateQuest,
+  deleteQuest,
+  setQuestPeriods,
+  getQuestEstablishments,
+  setQuestEstablishments,
+} from "@/lib/services/questService";
 import { getActiveTemplates } from "@/lib/services/templateService";
 import {
   getAvailablePeriodsByType,
   getCurrentPeriodIdentifier,
 } from "@/lib/services/periodService";
+import {
+  parseQuestRedundancyError,
+  type QuestRedundancyDetails,
+} from "@/lib/supabase/errorParser";
 import { useToast } from "@/components/ui/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import type {
@@ -75,6 +88,7 @@ export default function EditQuestPage() {
   const [templates, setTemplates] = useState<CouponTemplate[]>([]);
   const [availablePeriods, setAvailablePeriods] = useState<AvailablePeriod[]>([]);
   const [loadingPeriods, setLoadingPeriods] = useState(false);
+  const [conflictDetails, setConflictDetails] = useState<QuestRedundancyDetails | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -91,15 +105,17 @@ export default function EditQuestPage() {
     displayOrder: "0",
     isActive: true,
     periods: [] as string[],
+    establishments: [] as number[],
   });
 
   // Charger les données de la quête et les templates
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [quest, templatesData] = await Promise.all([
+        const [quest, templatesData, establishments] = await Promise.all([
           getQuest(id),
           getActiveTemplates(),
+          getQuestEstablishments(id),
         ]);
 
         setTemplates(templatesData || []);
@@ -125,6 +141,7 @@ export default function EditQuestPage() {
             displayOrder: quest.display_order.toString(),
             isActive: quest.is_active,
             periods,
+            establishments,
           });
         }
       } catch (error) {
@@ -230,15 +247,21 @@ export default function EditQuestPage() {
 
       await updateQuest(id, quest);
       await setQuestPeriods(id, form.periods);
+      await setQuestEstablishments(id, form.establishments);
 
       toast({ title: "Quête modifiée avec succes" });
       router.push("/quests");
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de modifier la quête",
-      });
+      const conflict = parseQuestRedundancyError(error);
+      if (conflict) {
+        setConflictDetails(conflict);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Impossible de modifier la quête",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -528,6 +551,23 @@ export default function EditQuestPage() {
               />
             </div>
 
+            {/* Scoping établissements (M2M quests_establishments) */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="space-y-1">
+                <Label>Établissements ciblés</Label>
+                <p className="text-sm text-muted-foreground">
+                  Restreignez la quête à certains établissements ou laissez vide pour qu&apos;elle
+                  soit globale. Les triggers de redondance bloquent toute configuration qui
+                  créerait un conflit avec une autre quête active de même signature.
+                </p>
+              </div>
+              <EstablishmentsPicker
+                value={form.establishments}
+                onChange={(establishments) => setForm((prev) => ({ ...prev, establishments }))}
+                disabled={loading}
+              />
+            </div>
+
             {/* Recompenses */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Recompenses</h3>
@@ -627,6 +667,14 @@ export default function EditQuestPage() {
           </CardContent>
         </Card>
       </form>
+
+      <QuestConflictDialog
+        open={conflictDetails !== null}
+        onOpenChange={(open) => {
+          if (!open) setConflictDetails(null);
+        }}
+        details={conflictDetails}
+      />
     </div>
   );
 }

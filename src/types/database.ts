@@ -14,6 +14,52 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "user_stats"
+            referencedColumns: ["customer_id"]
+          },
+        ]
+      }
       available_periods: {
         Row: {
           created_at: string | null
@@ -851,6 +897,27 @@ export type Database = {
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
           },
+          {
+            foreignKeyName: "gdpr_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gdpr_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gdpr_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_stats"
+            referencedColumns: ["customer_id"]
+          },
         ]
       }
       leaderboard_reward_distributions: {
@@ -1303,6 +1370,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age_certified_at: string | null
           attached_establishment_id: number | null
           avatar_url: string | null
           birthdate: string | null
@@ -1317,11 +1385,13 @@ export type Database = {
           last_name: string | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
+          terms_accepted_at: string | null
           updated_at: string | null
           username: string | null
           xp_coefficient: number
         }
         Insert: {
+          age_certified_at?: string | null
           attached_establishment_id?: number | null
           avatar_url?: string | null
           birthdate?: string | null
@@ -1336,11 +1406,13 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          terms_accepted_at?: string | null
           updated_at?: string | null
           username?: string | null
           xp_coefficient?: number
         }
         Update: {
+          age_certified_at?: string | null
           attached_establishment_id?: number | null
           avatar_url?: string | null
           birthdate?: string | null
@@ -1355,6 +1427,7 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          terms_accepted_at?: string | null
           updated_at?: string | null
           username?: string | null
           xp_coefficient?: number
@@ -1577,7 +1650,9 @@ export type Database = {
           badge_type_id: number | null
           bonus_cashback: number
           bonus_xp: number
-          consumption_type: Database["public"]["Enums"]["consumption_type"] | null
+          consumption_type:
+            | Database["public"]["Enums"]["consumption_type"]
+            | null
           coupon_template_id: number | null
           created_at: string
           created_by: string | null
@@ -1597,7 +1672,9 @@ export type Database = {
           badge_type_id?: number | null
           bonus_cashback?: number
           bonus_xp?: number
-          consumption_type?: Database["public"]["Enums"]["consumption_type"] | null
+          consumption_type?:
+            | Database["public"]["Enums"]["consumption_type"]
+            | null
           coupon_template_id?: number | null
           created_at?: string
           created_by?: string | null
@@ -1617,7 +1694,9 @@ export type Database = {
           badge_type_id?: number | null
           bonus_cashback?: number
           bonus_xp?: number
-          consumption_type?: Database["public"]["Enums"]["consumption_type"] | null
+          consumption_type?:
+            | Database["public"]["Enums"]["consumption_type"]
+            | null
           coupon_template_id?: number | null
           created_at?: string
           created_by?: string | null
@@ -1668,6 +1747,39 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_stats"
             referencedColumns: ["customer_id"]
+          },
+        ]
+      }
+      quests_establishments: {
+        Row: {
+          created_at: string
+          establishment_id: number
+          quest_id: number
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: number
+          quest_id: number
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: number
+          quest_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quests_establishments_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quests_establishments_quest_id_fkey"
+            columns: ["quest_id"]
+            isOneToOne: false
+            referencedRelation: "quests"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1941,6 +2053,20 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "season_snapshots_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "season_snapshots_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "user_stats"
+            referencedColumns: ["customer_id"]
+          },
         ]
       }
       spendings: {
@@ -2073,6 +2199,13 @@ export type Database = {
       }
     }
     Views: {
+      avg_ticket_12m: {
+        Row: {
+          avg_ticket_cents: number | null
+          sample_size: number | null
+        }
+        Relationships: []
+      }
       monthly_xp_leaderboard: {
         Row: {
           customer_id: string | null
@@ -2223,6 +2356,10 @@ export type Database = {
       }
     }
     Functions: {
+      award_season_rank_badges: {
+        Args: { p_source?: string; p_year: number }
+        Returns: Json
+      }
       award_user_badge: {
         Args: {
           p_badge_slug: string
@@ -2251,6 +2388,11 @@ export type Database = {
         Args: { p_period_identifier: string; p_period_type: string }
         Returns: boolean
       }
+      check_username_exists: {
+        Args: { username_to_check: string }
+        Returns: boolean
+      }
+      compute_level_from_xp: { Args: { p_xp: number }; Returns: number }
       create_frequency_coupon: {
         Args: { p_customer_id: string }
         Returns: Json
@@ -2409,6 +2551,8 @@ export type Database = {
         Args: { p_period_type: string }
         Returns: string
       }
+      get_season_rank_from_level: { Args: { p_level: number }; Returns: Json }
+      get_season_xp: { Args: { p_customer_id: string }; Returns: number }
       get_user_badges: {
         Args: { p_customer_id: string }
         Returns: {
@@ -2455,12 +2599,25 @@ export type Database = {
         }[]
       }
       get_user_xp_stats: { Args: { p_customer_id: string }; Returns: Json }
+      preview_season_closure: { Args: { p_year: number }; Returns: Json }
+      reset_season: {
+        Args: { p_source?: string; p_year: number }
+        Returns: Json
+      }
+      snapshot_season: {
+        Args: { p_source?: string; p_year: number }
+        Returns: Json
+      }
       sync_auth_to_profiles: {
         Args: never
         Returns: {
           synced_count: number
           user_ids: string[]
         }[]
+      }
+      update_cashback_coefficient: {
+        Args: { p_customer_id: string }
+        Returns: undefined
       }
       update_meta_quest_progress: {
         Args: { p_completed_quest_period_type: string; p_customer_id: string }
@@ -2710,3 +2867,12 @@ export type EstablishmentUpdate = Database["public"]["Tables"]["establishments"]
 
 // Distribution status (utilisé par les pages reward periods)
 export type DistributionStatus = "pending" | "distributed" | "cancelled" | "failed"
+
+// Quest <-> Establishment M2M (migration 020)
+export type QuestEstablishment = Database["public"]["Tables"]["quests_establishments"]["Row"]
+export type QuestEstablishmentInsert = Database["public"]["Tables"]["quests_establishments"]["Insert"]
+
+// Admin settings key-value (migration 020)
+export type AdminSetting = Database["public"]["Tables"]["admin_settings"]["Row"]
+export type AdminSettingInsert = Database["public"]["Tables"]["admin_settings"]["Insert"]
+export type AdminSettingUpdate = Database["public"]["Tables"]["admin_settings"]["Update"]

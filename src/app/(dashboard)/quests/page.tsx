@@ -60,6 +60,11 @@ import {
   type QuestCsvRow,
   type QuestProgressStats,
 } from "@/lib/services/questService";
+import {
+  parseQuestRedundancyError,
+  type QuestRedundancyDetails,
+} from "@/lib/supabase/errorParser";
+import { QuestConflictDialog } from "@/components/quest-conflict-dialog";
 import { formatCurrency, formatPercentage } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import type { QuestWithRelations, PeriodType, QuestType } from "@/types/database";
@@ -130,6 +135,7 @@ export default function QuestsPage() {
   const [importing, setImporting] = useState(false);
   const [archiveStats, setArchiveStats] = useState<Map<number, QuestProgressStats>>(new Map());
   const [loadingArchiveStats, setLoadingArchiveStats] = useState(false);
+  const [conflictDetails, setConflictDetails] = useState<QuestRedundancyDetails | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -181,11 +187,16 @@ export default function QuestsPage() {
         title: isActive ? "Quête activée" : "Quête désactivée",
       });
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de modifier la quête",
-      });
+      const conflict = parseQuestRedundancyError(error);
+      if (conflict) {
+        setConflictDetails(conflict);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Impossible de modifier la quête",
+        });
+      }
     }
   };
 
@@ -876,6 +887,14 @@ export default function QuestsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <QuestConflictDialog
+        open={conflictDetails !== null}
+        onOpenChange={(open) => {
+          if (!open) setConflictDetails(null);
+        }}
+        details={conflictDetails}
+      />
     </div>
   );
 }
