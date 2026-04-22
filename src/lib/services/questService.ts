@@ -417,11 +417,11 @@ export function generateQuestsCsvTemplate(): string {
   );
   lines.push(
     [
-      "Dépensier du mois",
-      "Dépensez 50€ ce mois-ci",
+      "Collectionneur du mois",
+      "Collecte 50 Paraiges de Bronze ce mois-ci",
       "",
-      "depensier_mois",
-      "amount_spent",
+      "collectionneur_mois",
+      "cashback_earned",
       "50",
       "monthly",
       "",
@@ -533,7 +533,7 @@ export function parseQuestsCsv(csvContent: string): { rows: QuestCsvRow[]; error
   }
   if (errors.length > 0) return { rows, errors };
 
-  const validQuestTypes = ["xp_earned", "amount_spent", "establishments_visited", "orders_count", "quest_completed"];
+  const validQuestTypes = ["xp_earned", "amount_spent", "cashback_earned", "establishments_visited", "orders_count", "quest_completed", "consumption_count"];
   const validPeriodTypes = ["weekly", "monthly", "yearly"];
 
   for (let i = 1; i < lines.length; i++) {

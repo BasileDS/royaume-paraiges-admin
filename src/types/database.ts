@@ -89,9 +89,13 @@ export type Database = {
       }
       badge_types: {
         Row: {
+          archived_at: string | null
           category: string | null
           created_at: string | null
+          criterion_params: Json
+          criterion_type: string | null
           description: string | null
+          evaluation_mode: string
           icon: string | null
           id: number
           lore: string | null
@@ -100,9 +104,13 @@ export type Database = {
           slug: string
         }
         Insert: {
+          archived_at?: string | null
           category?: string | null
           created_at?: string | null
+          criterion_params?: Json
+          criterion_type?: string | null
           description?: string | null
+          evaluation_mode?: string
           icon?: string | null
           id?: number
           lore?: string | null
@@ -111,9 +119,13 @@ export type Database = {
           slug: string
         }
         Update: {
+          archived_at?: string | null
           category?: string | null
           created_at?: string | null
+          criterion_params?: Json
+          criterion_type?: string | null
           description?: string | null
+          evaluation_mode?: string
           icon?: string | null
           id?: number
           lore?: string | null
@@ -2145,6 +2157,7 @@ export type Database = {
           period_identifier: string | null
           period_type: string | null
           rank: number | null
+          seen_at: string | null
         }
         Insert: {
           badge_id: number
@@ -2155,6 +2168,7 @@ export type Database = {
           period_identifier?: string | null
           period_type?: string | null
           rank?: number | null
+          seen_at?: string | null
         }
         Update: {
           badge_id?: number
@@ -2165,6 +2179,7 @@ export type Database = {
           period_identifier?: string | null
           period_type?: string | null
           rank?: number | null
+          seen_at?: string | null
         }
         Relationships: [
           {
@@ -2356,6 +2371,15 @@ export type Database = {
       }
     }
     Functions: {
+      award_achievements_for_all_cron: { Args: never; Returns: Json }
+      award_achievements_for_all_for_badge: {
+        Args: { p_badge_id: number }
+        Returns: Json
+      }
+      award_achievements_for_user: {
+        Args: { p_customer_id: string; p_mode?: string }
+        Returns: Json
+      }
       award_season_rank_badges: {
         Args: { p_source?: string; p_year: number }
         Returns: Json
@@ -2379,6 +2403,30 @@ export type Database = {
         }
         Returns: number
       }
+      check_achievement_all_establishments_visited: {
+        Args: { p_customer_id: string; p_params?: Json }
+        Returns: boolean
+      }
+      check_achievement_cities_visited: {
+        Args: { p_customer_id: string; p_params: Json }
+        Returns: boolean
+      }
+      check_achievement_consecutive_weekly_quests: {
+        Args: { p_customer_id: string; p_params: Json }
+        Returns: boolean
+      }
+      check_achievement_establishments_threshold: {
+        Args: { p_customer_id: string; p_params: Json }
+        Returns: boolean
+      }
+      check_achievement_first_order: {
+        Args: { p_customer_id: string; p_params?: Json }
+        Returns: boolean
+      }
+      check_achievement_orders_threshold: {
+        Args: { p_customer_id: string; p_params: Json }
+        Returns: boolean
+      }
       check_cashback_balance: {
         Args: { p_cashback_requested: number; p_customer_id: string }
         Returns: Json
@@ -2387,6 +2435,14 @@ export type Database = {
       check_period_closed: {
         Args: { p_period_identifier: string; p_period_type: string }
         Returns: boolean
+      }
+      check_quest_redundancy: {
+        Args: { p_quest_id: number }
+        Returns: {
+          conflict_kind: string
+          conflict_quest_id: number
+          conflict_quest_name: string
+        }[]
       }
       check_username_exists: {
         Args: { username_to_check: string }
@@ -2476,6 +2532,10 @@ export type Database = {
       gdpr_anonymize_user: { Args: { target_user_id: string }; Returns: Json }
       gdpr_enforce_retention: { Args: never; Returns: Json }
       gdpr_export_user_data: { Args: { target_user_id: string }; Returns: Json }
+      get_achievement_progress: {
+        Args: { p_badge_slug: string; p_customer_id: string }
+        Returns: Json
+      }
       get_analytics_debts: {
         Args: {
           p_employee_id?: string
@@ -2553,6 +2613,21 @@ export type Database = {
       }
       get_season_rank_from_level: { Args: { p_level: number }; Returns: Json }
       get_season_xp: { Args: { p_customer_id: string }; Returns: number }
+      get_unseen_badges: {
+        Args: { p_customer_id: string }
+        Returns: {
+          badge_id: number
+          category: string
+          description: string
+          earned_at: string
+          icon: string
+          lore: string
+          name: string
+          rarity: string
+          slug: string
+          user_badge_id: number
+        }[]
+      }
       get_user_badges: {
         Args: { p_customer_id: string }
         Returns: {
@@ -2599,7 +2674,35 @@ export type Database = {
         }[]
       }
       get_user_xp_stats: { Args: { p_customer_id: string }; Returns: Json }
+      mark_badges_seen: {
+        Args: { p_customer_id: string; p_user_badge_ids: number[] }
+        Returns: undefined
+      }
       preview_season_closure: { Args: { p_year: number }; Returns: Json }
+      progress_achievement_all_establishments_visited: {
+        Args: { p_customer_id: string; p_params?: Json }
+        Returns: Json
+      }
+      progress_achievement_cities_visited: {
+        Args: { p_customer_id: string; p_params: Json }
+        Returns: Json
+      }
+      progress_achievement_consecutive_weekly_quests: {
+        Args: { p_customer_id: string; p_params: Json }
+        Returns: Json
+      }
+      progress_achievement_establishments_threshold: {
+        Args: { p_customer_id: string; p_params: Json }
+        Returns: Json
+      }
+      progress_achievement_first_order: {
+        Args: { p_customer_id: string; p_params?: Json }
+        Returns: Json
+      }
+      progress_achievement_orders_threshold: {
+        Args: { p_customer_id: string; p_params: Json }
+        Returns: Json
+      }
       reset_season: {
         Args: { p_source?: string; p_year: number }
         Returns: Json
@@ -2656,6 +2759,7 @@ export type Database = {
         | "orders_count"
         | "quest_completed"
         | "consumption_count"
+        | "cashback_earned"
       user_role: "client" | "employee" | "establishment" | "admin"
     }
     CompositeTypes: {
@@ -2800,6 +2904,7 @@ export const Constants = {
         "orders_count",
         "quest_completed",
         "consumption_count",
+        "cashback_earned",
       ],
       user_role: ["client", "employee", "establishment", "admin"],
     },

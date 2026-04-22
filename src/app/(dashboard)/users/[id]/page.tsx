@@ -913,6 +913,7 @@ export default function UserDetailPage() {
                           : qp.target_value.toLocaleString();
                         const unitLabel = !isAmountSpent
                           ? questType === "xp_earned" ? " XP"
+                            : questType === "cashback_earned" ? " PdB"
                             : questType === "establishments_visited" ? " établ."
                             : questType === "orders_count" ? " cmd" : ""
                           : "";

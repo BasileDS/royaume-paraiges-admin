@@ -166,10 +166,9 @@ export default function CreateQuestPage() {
     setLoading(true);
 
     try {
-      // Conversion euros → centimes pour amount_spent
-      const targetValue = form.questType === "amount_spent"
-        ? Math.round(parseFloat(form.targetValue) * 100)
-        : parseInt(form.targetValue);
+      // target_value est stocké en PdB (= centimes) pour cashback_earned,
+      // directement saisi par l'admin — pas de conversion.
+      const targetValue = parseInt(form.targetValue);
 
       // Validation : consumption_type obligatoire si quest_type = consumption_count
       if (form.questType === "consumption_count" && !form.consumptionType) {
@@ -352,7 +351,7 @@ export default function CreateQuestPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="xp_earned">Gagner de l&apos;XP</SelectItem>
-                    <SelectItem value="amount_spent">Dépenser de l&apos;argent</SelectItem>
+                    <SelectItem value="cashback_earned">Collecter des Paraiges de Bronze</SelectItem>
                     <SelectItem value="establishments_visited">Visiter des établissements</SelectItem>
                     <SelectItem value="orders_count">Passer des commandes</SelectItem>
                     <SelectItem value="quest_completed">Compléter des quêtes</SelectItem>
@@ -363,16 +362,16 @@ export default function CreateQuestPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="targetValue">
-                  Objectif {form.questType === "amount_spent" ? "(€)" : ""} *
+                  Objectif {form.questType === "cashback_earned" ? "(PdB)" : ""} *
                 </Label>
                 <Input
                   id="targetValue"
                   type="number"
-                  step={form.questType === "amount_spent" ? "0.01" : "1"}
+                  step="1"
                   placeholder={
                     form.questType === "xp_earned"
                       ? "500"
-                      : form.questType === "amount_spent"
+                      : form.questType === "cashback_earned"
                       ? "50"
                       : form.questType === "establishments_visited"
                       ? "3"
@@ -383,11 +382,11 @@ export default function CreateQuestPage() {
                   value={form.targetValue}
                   onChange={(e) => setForm({ ...form, targetValue: e.target.value })}
                   required
-                  min={form.questType === "amount_spent" ? 0.01 : 1}
+                  min={1}
                 />
                 <p className="text-xs text-muted-foreground">
                   {form.questType === "xp_earned" && "Quantité d'XP à gagner"}
-                  {form.questType === "amount_spent" && "Montant en euros (ex: 50 = 50€)"}
+                  {form.questType === "cashback_earned" && "Nombre de Paraiges de Bronze à collecter (ex: 50 = 50 PdB)"}
                   {form.questType === "establishments_visited" && "Nombre d'établissements à visiter"}
                   {form.questType === "orders_count" && "Nombre de commandes à passer"}
                   {form.questType === "quest_completed" && "Nombre de sous-périodes avec au moins 1 quête complétée"}

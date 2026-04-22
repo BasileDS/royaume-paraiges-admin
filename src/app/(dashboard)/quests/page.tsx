@@ -107,7 +107,8 @@ const periodTypeLabels: Record<PeriodType, string> = {
 
 const questTypeLabels: Record<QuestType, string> = {
   xp_earned: "Gagner de l'XP",
-  amount_spent: "Dépenser de l'argent",
+  amount_spent: "Dépenser de l'argent (déprécié)",
+  cashback_earned: "Collecter des Paraiges de Bronze",
   establishments_visited: "Visiter des établissements",
   orders_count: "Passer des commandes",
   quest_completed: "Compléter des quêtes",
@@ -117,6 +118,7 @@ const questTypeLabels: Record<QuestType, string> = {
 const questTypeIcons: Record<QuestType, typeof Target> = {
   xp_earned: Zap,
   amount_spent: Receipt,
+  cashback_earned: Receipt,
   establishments_visited: MapPin,
   orders_count: ShoppingCart,
   quest_completed: CheckCircle2,
@@ -351,6 +353,7 @@ export default function QuestsPage() {
           </span>
           <span className="text-muted-foreground ml-1">
             {quest.quest_type === "xp_earned" && "XP"}
+            {quest.quest_type === "cashback_earned" && "PdB"}
             {quest.quest_type === "establishments_visited" && "établissements"}
             {quest.quest_type === "orders_count" && "commandes"}
             {quest.quest_type === "quest_completed" && "sous-périodes"}
@@ -425,6 +428,9 @@ export default function QuestsPage() {
             if (quest.quest_type === "amount_spent") {
               // target_value already in centimes
               spentCentimes = quest.target_value;
+            } else if (quest.quest_type === "cashback_earned") {
+              // 1 PdB ≈ 1 centime de dépense (avec cashback 1% & coefficient 1,0)
+              spentCentimes = quest.target_value * 100;
             } else if (quest.quest_type === "xp_earned") {
               // 1€ = 1.66 XP → euros = XP / 1.66, then * 100 for centimes
               spentCentimes = Math.round((quest.target_value / 1.66) * 100);
@@ -511,6 +517,7 @@ export default function QuestsPage() {
           </span>
           <span className="text-muted-foreground ml-1">
             {quest.quest_type === "xp_earned" && "XP"}
+            {quest.quest_type === "cashback_earned" && "PdB"}
             {quest.quest_type === "establishments_visited" && "établissements"}
             {quest.quest_type === "orders_count" && "commandes"}
             {quest.quest_type === "quest_completed" && "sous-périodes"}
@@ -826,6 +833,8 @@ export default function QuestsPage() {
                         <TableCell>
                           {row.quest_type === "amount_spent"
                             ? `${row.target_value} €`
+                            : row.quest_type === "cashback_earned"
+                            ? `${row.target_value} PdB`
                             : row.target_value}
                         </TableCell>
                         <TableCell>

@@ -122,7 +122,9 @@ export default function EditQuestPage() {
 
         if (quest) {
           const periods = quest.quest_periods?.map((p) => p.period_identifier) || [];
-          // Conversion centimes → euros pour amount_spent
+          // target_value est en PdB (centimes) pour cashback_earned — pas de conversion.
+          // Pour amount_spent (déprécié), conserver la conversion euros → centimes
+          // afin de permettre l'édition rétrocompatible d'éventuelles quêtes existantes.
           const targetValueDisplay = quest.quest_type === "amount_spent"
             ? (quest.target_value / 100).toString()
             : quest.target_value.toString();
@@ -207,7 +209,8 @@ export default function EditQuestPage() {
     setLoading(true);
 
     try {
-      // Conversion euros → centimes pour amount_spent
+      // Conversion euros → centimes pour amount_spent (déprécié, rétrocompat).
+      // cashback_earned : target_value directement en PdB, pas de conversion.
       const targetValue = form.questType === "amount_spent"
         ? Math.round(parseFloat(form.targetValue) * 100)
         : parseInt(form.targetValue);
@@ -420,7 +423,7 @@ export default function EditQuestPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="xp_earned">Gagner de l&apos;XP</SelectItem>
-                    <SelectItem value="amount_spent">Dépenser de l&apos;argent</SelectItem>
+                    <SelectItem value="cashback_earned">Collecter des Paraiges de Bronze</SelectItem>
                     <SelectItem value="establishments_visited">Visiter des établissements</SelectItem>
                     <SelectItem value="orders_count">Passer des commandes</SelectItem>
                     <SelectItem value="quest_completed">Compléter des quêtes</SelectItem>
@@ -431,7 +434,7 @@ export default function EditQuestPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="targetValue">
-                  Objectif {form.questType === "amount_spent" ? "(€)" : ""} *
+                  Objectif {form.questType === "amount_spent" ? "(€)" : form.questType === "cashback_earned" ? "(PdB)" : ""} *
                 </Label>
                 <Input
                   id="targetValue"
@@ -444,7 +447,8 @@ export default function EditQuestPage() {
                 />
                 <p className="text-xs text-muted-foreground">
                   {form.questType === "xp_earned" && "Quantité d'XP à gagner"}
-                  {form.questType === "amount_spent" && "Montant en euros (ex: 50 = 50€)"}
+                  {form.questType === "amount_spent" && "Montant en euros (ex: 50 = 50€) — type déprécié"}
+                  {form.questType === "cashback_earned" && "Nombre de Paraiges de Bronze à collecter (ex: 50 = 50 PdB)"}
                   {form.questType === "establishments_visited" && "Nombre d'établissements à visiter"}
                   {form.questType === "orders_count" && "Nombre de commandes à passer"}
                   {form.questType === "quest_completed" && "Nombre de sous-périodes avec au moins 1 quête complétée"}

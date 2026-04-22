@@ -101,6 +101,14 @@ function computeReference(
         reason: `${formatEuro(quest.target_value)} à dépenser`,
         excluded: false,
       };
+    case "cashback_earned":
+      // target_value en PdB. À cashback 1% & coef 1,0, 1 PdB = 1 centime
+      // dépensé → équivalent en centimes = target_value * 100.
+      return {
+        cents: quest.target_value * 100,
+        reason: `${quest.target_value} PdB à collecter (~ ${formatEuro(quest.target_value * 100)} dépensés)`,
+        excluded: false,
+      };
     case "xp_earned":
       return {
         cents: null,

@@ -6,6 +6,9 @@
 >
 > **Refonte des quêtes — avril 2026** (en prod)
 > Migrations 010-013 : consolidation (17 doublons désactivés), nouveau type `consumption_count`, 9 nouvelles quêtes, 3 badges quête. Modèle conservé (template récurrent + instances par période). UI admin étendue avec Select `consumption_type` conditionnel.
+>
+> **Zéro euro côté client — avril 2026** (en prod)
+> Migrations 028-029 : nouveau `quest_type = 'cashback_earned'` (progression = SUM(`gains.cashback_money`) sur la période, coefficient client et bonus coupons inclus). `amount_spent` déprécié — **retiré du formulaire de création** (pages `quests/create` et `quests/[id]`) mais conservé dans l'enum pour compatibilité. Règle produit : le front client Expo ne doit jamais afficher d'euros — l'admin reste libre d'afficher en €.
 
 ## Apercu du Projet
 
@@ -80,7 +83,7 @@ royaume-paraiges-admin/
 │   │   └── utils.ts
 │   │
 │   └── types/                    # Types TypeScript
-│       └── database.ts           # Types Supabase (inclut tables migrees depuis Directus)
+│       └── database.ts           # Types Supabase (toutes les tables)
 │
 ├── docs/                         # SUBMODULE - Documentation partagee
 │   └── docs/
@@ -187,7 +190,7 @@ await createManualCoupon({
 
 **Onglet Gains** : Liste détaillée paginée de chaque entrée `gains` pour l'utilisateur. Filtre par `source_type` (Ticket, Bonus manuel, Classement, Quête, Trigger, Migration). Colonnes : ID, Source (badge coloré), XP, Cashback, Établissement, Période, Date.
 
-**Section Quêtes (dans Activité)** : Progression des quêtes de l'utilisateur depuis `quest_progress` avec join `quests`. Filtres par type de période (hebdo/mensuel/annuel) et statut (en cours/complétée/récompensée). Barre de progression colorée par statut. Conversion centimes→euros pour `amount_spent`. Colonnes : Quête (lien), Période, Progression (barre + texte), Statut (badge coloré), Complétée le, Mise à jour.
+**Section Quêtes (dans Activité)** : Progression des quêtes de l'utilisateur depuis `quest_progress` avec join `quests`. Filtres par type de période (hebdo/mensuel/annuel) et statut (en cours/complétée/récompensée). Barre de progression colorée par statut. Formatage spécifique par type : `amount_spent` en euros (legacy), `cashback_earned` en PdB, `xp_earned` en XP, etc. Colonnes : Quête (lien), Période, Progression (barre + texte), Statut (badge coloré), Complétée le, Mise à jour.
 
 **Fonction** : `getUserActivityStats(userId, startDate, endDate)` dans `userService.ts` — 3 requêtes parallèles (receipts, gains, spendings)
 **Fonction** : `getUserGains(userId, limit, offset, sourceFilter?)` dans `userService.ts` — requête paginée `gains` avec join établissement
@@ -372,7 +375,8 @@ Systeme de defis periodiques pour les utilisateurs.
 | Type | Description | Unite objectif |
 |------|-------------|----------------|
 | `xp_earned` | Gagner de l'XP | XP |
-| `amount_spent` | Depenser de l'argent | Euros (€) dans le frontend, centimes en BDD |
+| `cashback_earned` | Collecter des Paraiges de Bronze (ajouté migration 028) | PdB (1 PdB = 1 centime). Target saisi directement en PdB, pas de conversion. Progression = SUM(`gains.cashback_money`) sur la période, coefficient client et bonus coupons inclus. |
+| `amount_spent` | Depenser de l'argent (**déprécié** avril 2026) | Euros (€) dans le frontend, centimes en BDD. Retiré du formulaire de création ; conservé dans l'enum et la logique d'édition pour compatibilité. |
 | `establishments_visited` | Visiter des etablissements | Nombre |
 | `orders_count` | Passer des commandes | Nombre |
 | `quest_completed` | Completer des quetes dans N sous-periodes | Nombre de sous-periodes (monthly→weekly, yearly→monthly). Incompatible avec `weekly`. |
