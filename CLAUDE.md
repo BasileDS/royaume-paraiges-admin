@@ -9,6 +9,9 @@
 >
 > **Zéro euro côté client — avril 2026** (en prod)
 > Migrations 028-029 : nouveau `quest_type = 'cashback_earned'` (progression = SUM(`gains.cashback_money`) sur la période, coefficient client et bonus coupons inclus). `amount_spent` déprécié — **retiré du formulaire de création** (pages `quests/create` et `quests/[id]`) mais conservé dans l'enum pour compatibilité. Règle produit : le front client Expo ne doit jamais afficher d'euros — l'admin reste libre d'afficher en €.
+>
+> **Badges succès — avril 2026** (en prod)
+> Migrations 022-027 + 030 : nouvelle catégorie `achievement` sur `badge_types` avec `criterion_type` paramétrable (`first_order`, `orders_threshold`, `cities_visited`, `all_establishments_visited`, `establishments_threshold`, `consecutive_weekly_quests`), attribution temps réel via hook dans `create_receipt` (step 12b), cron nocturne 02:00 UTC pour les critères de streak, RLS durcie (self-only sauf admin/employee/establishment). Admin UI : `/rewards/achievements` (liste + create + édition + soft-delete via `archived_at` + bouton « Réévaluer pour tous »), formulaire dynamique par `criterion_type` (pattern copié de `quests/create`). Nouveau service `lib/services/achievementBadgeService.ts`. Cf. `docs/docs/supabase/functions/achievement_badges.md`.
 
 ## Apercu du Projet
 
@@ -426,6 +429,20 @@ import {
 } from '@/lib/services/questService';
 ```
 
+### 6b. Gestion des Badges succès (avril 2026)
+
+**Fichiers clés** :
+- `src/app/(dashboard)/rewards/achievements/page.tsx` — Liste des badges achievement actifs (`category = 'achievement' AND archived_at IS NULL`), tri par date de création décroissante.
+- `src/app/(dashboard)/rewards/achievements/create/page.tsx` — Formulaire de création, attribution rétroactive automatique au submit.
+- `src/app/(dashboard)/rewards/achievements/[id]/page.tsx` — Édition + bouton « Réévaluer pour tous » + AlertDialog soft-delete (`archived_at = now()`).
+- `src/app/(dashboard)/rewards/achievements/_form/AchievementBadgeForm.tsx` — Formulaire dynamique (switch sur `criterion_type` → champs `threshold` / `min_cities` / `n_weeks` conditionnels). Pattern copié de `quests/create/page.tsx`.
+- `src/lib/services/achievementBadgeService.ts` — CRUD complet + `archiveAchievementBadge` (soft-delete) + `reawardAchievementBadge` (via RPC `award_achievements_for_all_for_badge`).
+
+**Règles de conception** :
+- **Soft-delete uniquement** : la FK `user_badges.badge_id` est `ON DELETE CASCADE` — un hard-delete effacerait tous les badges déjà obtenus. Passer par `archived_at`.
+- **`criterion_type` extensible** : ajouter un nouveau type nécessite (1) une fonction SQL `check_achievement_*` + `progress_achievement_*` (migration), (2) une entrée `CASE` dans chaque dispatcher (`award_achievements_for_user`, `get_achievement_progress`), (3) une option dans `CRITERION_OPTIONS` du formulaire admin.
+- **RLS durcie depuis migration 030** : `award_achievements_for_all_for_badge` requiert `get_current_user_role() = 'admin'`. Le client Supabase admin s'exécute bien dans ce rôle via RLS.
+
 ### 7. Gestion du Contenu
 
 **Fichiers cles** :
@@ -681,7 +698,7 @@ export type CouponWithRelations = Coupon & {
 - **`level_thresholds` contient exactement 25 lignes** (Écuyer I → Chevalier de la Table Ronde). Toute requête doit s'y fier dynamiquement, jamais hardcoder le plafond.
 - **Niveau dérivé du XP de la saison courante** : `compute_level_from_xp(p_xp)` lit `level_thresholds`, `get_season_xp(p_customer_id)` filtre `gains.created_at` par année calendaire en cours.
 - **`profiles.cashback_coefficient` est auto-maintenu** : ne JAMAIS le modifier manuellement (sauf via la RPC `reset_season`). Un trigger sur `gains` recalcule à chaque INSERT/UPDATE/DELETE.
-- **`badge_types.category` accepte 6 valeurs** : `weekly | monthly | yearly | special | season_rank | quest`. Les 6 badges `season_rank_*` sont attribués au reset annuel via `award_season_rank_badges`. La catégorie `quest` est prête mais aucun badge de quête n'est encore créé.
+- **`badge_types.category` accepte 7 valeurs** : `weekly | monthly | yearly | special | season_rank | quest | achievement`. Les 6 badges `season_rank_*` sont attribués au reset annuel via `award_season_rank_badges`. Les 5 badges `achievement_*` (seed migration 025) sont attribués automatiquement via le hook realtime de `create_receipt` ou le cron nocturne selon le `evaluation_mode`. La catégorie `quest` est prête mais aucun badge de quête n'est encore créé.
 - **Tables `season_snapshots` et `season_closure_log`** : photographies par année pour la mémoire de saison. Idempotence garantie par PK composite. Ne pas DELETE manuellement sauf debug.
 - **Reset n'efface JAMAIS** : ni le solde PdB (`gains` intact), ni les badges (`user_badges` intact), ni les snapshots passés. Seul `cashback_coefficient` revient à 100.
 

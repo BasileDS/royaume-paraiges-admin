@@ -1,0 +1,59 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import {
+  createAchievementBadge,
+  reawardAchievementBadge,
+} from "@/lib/services/achievementBadgeService";
+import { useToast } from "@/components/ui/use-toast";
+import { AchievementBadgeForm } from "../_form/AchievementBadgeForm";
+
+export default function CreateAchievementBadgePage() {
+  const router = useRouter();
+  const { toast } = useToast();
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <div className="flex items-center gap-3">
+        <Link href="/rewards/achievements">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Retour
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Nouveau badge succès</h1>
+          <p className="text-muted-foreground">
+            Le badge sera attribué rétroactivement aux joueurs éligibles après création.
+          </p>
+        </div>
+      </div>
+
+      <AchievementBadgeForm
+        submitLabel="Créer le badge"
+        onCancel={() => router.push("/rewards/achievements")}
+        onSubmit={async (payload) => {
+          const created = await createAchievementBadge(payload);
+          try {
+            const res = await reawardAchievementBadge(created.id);
+            toast({
+              title: "Badge créé",
+              description: `${res.awarded_count} joueur(s) éligible(s) ont reçu ce badge.`,
+            });
+          } catch (err) {
+            console.error(err);
+            toast({
+              variant: "destructive",
+              title: "Badge créé mais réévaluation échouée",
+              description: "Tu peux relancer l'attribution depuis la page d'édition.",
+            });
+          }
+          router.push("/rewards/achievements");
+        }}
+      />
+    </div>
+  );
+}
