@@ -26,7 +26,7 @@ export async function getGdprRequests(
   const { data, error, count } = await query;
 
   if (error) {
-    console.error("Error fetching GDPR requests:", error);
+    console.error("Error fetching GDPR requests:", error.message, error);
     throw error;
   }
 
