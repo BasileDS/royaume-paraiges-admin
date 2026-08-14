@@ -77,6 +77,13 @@ export function EditTab({ user, establishments }: EditTabProps) {
   const canEditRole =
     isSuperAdmin || user.role === "client" || user.role === "employee";
 
+  // Garde-fou BDD : triggers BEFORE DELETE trg_protect_staff_account_delete /
+  // trg_protect_staff_profile_delete + garde dans gdpr_anonymize_user
+  // (migration 073, errcode P0424). Seul un compte client est supprimable ; on
+  // masque l'action plutôt que de la laisser échouer. Procédure : repasser le
+  // compte en client d'abord (Select ci-dessus), puis supprimer.
+  const isStaffAccount = user.role !== "client";
+
   // Miroir de trg_protect_role. Sur un profil admin/establishment édité par un
   // admin non super, on n'expose que le rôle courant pour que le Select reste
   // lisible malgré le disabled.
@@ -128,9 +135,16 @@ export function EditTab({ user, establishments }: EditTabProps) {
       });
       queryClient.invalidateQueries({ queryKey: userKeys.all });
     },
-    onError: () => {
+    onError: (error: unknown) => {
+      const code = (error as { code?: string })?.code;
       toast.error("Erreur", {
-        description: "Impossible de supprimer le compte",
+        description:
+          // P0424 : compte du personnel, refusé par la BDD (migration 073).
+          // L'action est masquée pour ces comptes : ce cas ne survient qu'après
+          // un changement de rôle dans un autre onglet.
+          code === "P0424"
+            ? "Un compte du personnel ne peut pas être supprimé. Repassez-le en client au préalable."
+            : "Impossible de supprimer le compte",
       });
     },
   });
@@ -275,38 +289,48 @@ export function EditTab({ user, establishments }: EditTabProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={anonymizeMutation.isPending || !!user.deletedAt}
-              >
-                {anonymizeMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {user.deletedAt ? "Compte deja supprime" : "Supprimer le compte (RGPD)"}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirmer la suppression RGPD</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Cette action est irreversible. Le profil sera anonymise : toutes les donnees
-                  personnelles (nom, email, telephone, avatar) seront supprimees. Les donnees
-                  transactionnelles (tickets, gains) seront conservees a des fins comptables.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => anonymizeMutation.mutate()}
+          {isStaffAccount ? (
+            <p className="text-sm text-muted-foreground">
+              Un compte {ROLE_LABELS[user.role].toLowerCase()} ne peut pas être supprimé : la
+              suppression casserait ses rattachements métier (tickets encaissés, quêtes créées,
+              établissement rattaché). Repassez-le en client via le champ Rôle ci-dessus
+              {canEditRole ? "" : " (réservé au super-administrateur pour ce rôle)"}, puis
+              revenez ici.
+            </p>
+          ) : (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={anonymizeMutation.isPending || !!user.deletedAt}
                 >
-                  Confirmer la suppression
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  {anonymizeMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {user.deletedAt ? "Compte deja supprime" : "Supprimer le compte (RGPD)"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirmer la suppression RGPD</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action est irreversible. Le profil sera anonymise : toutes les donnees
+                    personnelles (nom, email, telephone, avatar) seront supprimees. Les donnees
+                    transactionnelles (tickets, gains) seront conservees a des fins comptables.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => anonymizeMutation.mutate()}
+                  >
+                    Confirmer la suppression
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </CardContent>
       </Card>
     </>
