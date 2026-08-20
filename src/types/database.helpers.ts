@@ -150,3 +150,141 @@ export type RedirectLinkWithStats = RedirectLink & {
   total_clicks: number;
   last_click_at: string | null;
 };
+
+// ============================================================================
+// Rapports e-mail automatises (migrations 076 / 077)
+// ============================================================================
+//
+// Ces trois tables ne figurent pas dans `database.generated.ts` : la
+// regeneration passe par un CLI Supabase connecte a un autre compte, qui n'a
+// pas acces au projet Royaume (elle vide le fichier au lieu de le remplir).
+// Les types sont donc ecrits a la main ici, ou rien n'est jamais regenere.
+// A la prochaine regeneration reussie, ce bloc peut etre remplace par les
+// alias `Database["public"]["Tables"][...]` habituels.
+
+/** Type de donnees d'un rapport : determine le builder SQL et le gabarit HTML. */
+export type EmailReportType = "activity_summary" | "leaderboard";
+
+/** Periodicite d'un rapport. Le rapport porte toujours sur la periode ecoulee. */
+export type EmailReportPeriodType = "weekly" | "monthly";
+
+/** Issue d'une tentative d'envoi. */
+export type EmailReportRunStatus = "success" | "partial" | "error" | "skipped";
+
+/** Origine d'une tentative d'envoi. */
+export type EmailReportTriggerSource = "cron" | "manual" | "test";
+
+export type EmailReport = {
+  id: string;
+  key: string;
+  report_type: EmailReportType;
+  period_type: EmailReportPeriodType;
+  name: string;
+  description: string | null;
+  subject_template: string;
+  options: { top_n?: number } | null;
+  is_active: boolean;
+  /** Derniere periode envoyee : porte l'idempotence du cron. */
+  last_period_sent: string | null;
+  last_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EmailReportRecipient = {
+  id: string;
+  report_id: string;
+  /** Normalisee en minuscules par un trigger BDD. */
+  email: string;
+  label: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type EmailReportRun = {
+  id: number;
+  report_id: string;
+  period_identifier: string;
+  status: EmailReportRunStatus;
+  trigger_source: EmailReportTriggerSource;
+  sent_count: number;
+  failed_count: number;
+  error_message: string | null;
+  payload: Record<string, unknown> | null;
+  triggered_by: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+/** Rapport enrichi des agregats affiches dans la liste /reports. */
+export type EmailReportWithStats = EmailReport & {
+  recipients_count: number;
+  last_run: EmailReportRun | null;
+};
+
+/**
+ * Schema minimal decrivant uniquement les tables des rapports, pour typer le
+ * client Supabase sans toucher a `database.generated.ts`. La forme (Row /
+ * Insert / Update / Relationships + Views / Functions / Enums / CompositeTypes
+ * vides) reproduit celle attendue par supabase-js : s'en ecarter fait resoudre
+ * les payloads en `never` et casse toutes les ecritures au typage.
+ */
+export type EmailReportsDatabase = {
+  __InternalSupabase: { PostgrestVersion: "14.5" };
+  public: {
+    Tables: {
+      email_reports: {
+        Row: EmailReport;
+        Insert: {
+          key: string;
+          report_type: EmailReportType;
+          period_type: EmailReportPeriodType;
+          name: string;
+          subject_template: string;
+          description?: string | null;
+          options?: { top_n?: number } | null;
+          is_active?: boolean;
+          last_period_sent?: string | null;
+          last_run_at?: string | null;
+        };
+        Update: {
+          name?: string;
+          description?: string | null;
+          subject_template?: string;
+          options?: { top_n?: number } | null;
+          is_active?: boolean;
+          last_period_sent?: string | null;
+          last_run_at?: string | null;
+        };
+        Relationships: [];
+      };
+      email_report_recipients: {
+        Row: EmailReportRecipient;
+        Insert: {
+          report_id: string;
+          email: string;
+          label?: string | null;
+          is_active?: boolean;
+        };
+        Update: {
+          email?: string;
+          label?: string | null;
+          is_active?: boolean;
+        };
+        Relationships: [];
+      };
+      // Journal ecrit exclusivement par l'Edge Function en service_role : aucune
+      // policy d'ecriture `authenticated` n'existe, l'admin ne fait que lire.
+      email_report_runs: {
+        Row: EmailReportRun;
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+    };
+    Views: { [_ in never]: never };
+    Functions: { [_ in never]: never };
+    Enums: { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
+  };
+}

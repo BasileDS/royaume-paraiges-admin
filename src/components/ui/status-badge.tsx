@@ -45,6 +45,11 @@ const statusRegistry: Record<string, { label: string; tone: StatusTone }> = {
   // Coupons
   active: { label: "Actif", tone: "success" },
   used: { label: "Utilisé", tone: "neutral" },
+  // Envois de rapports e-mail
+  success: { label: "Envoyé", tone: "success" },
+  partial: { label: "Partiel", tone: "warning" },
+  error: { label: "Échec", tone: "destructive" },
+  skipped: { label: "Ignoré", tone: "neutral" },
 };
 
 interface StatusBadgeProps {

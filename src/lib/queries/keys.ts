@@ -190,6 +190,14 @@ export const redirectLinkKeys = {
     [...redirectLinkKeys.all, "clicks", id, days] as const,
 };
 
+export const emailReportKeys = {
+  all: ["emailReports"] as const,
+  lists: () => [...emailReportKeys.all, "list"] as const,
+  detail: (key: string) => [...emailReportKeys.all, "detail", key] as const,
+  recipients: (reportId: string) => [...emailReportKeys.all, "recipients", reportId] as const,
+  runs: (reportId: string) => [...emailReportKeys.all, "runs", reportId] as const,
+};
+
 export const adminAccessKeys = {
   all: ["adminAccess"] as const,
   current: () => [...adminAccessKeys.all, "current"] as const,

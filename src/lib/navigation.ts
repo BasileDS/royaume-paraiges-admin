@@ -18,6 +18,7 @@ import {
   Coins,
   Award,
   Link2,
+  MailCheck,
   Settings as SettingsIcon,
   UserCog,
   Zap,
@@ -83,6 +84,7 @@ export const navigationGroups: NavGroup[] = [
   {
     title: "Système",
     items: [
+      { name: "Rapports e-mail", href: "/reports", icon: MailCheck, featureKey: "reports" },
       { name: "RGPD", href: "/gdpr", icon: Shield, featureKey: "gdpr" },
       { name: "Documentation", href: "/documentation", icon: BookText, featureKey: "documentation" },
       { name: "Paramètres", href: "/settings", icon: SettingsIcon, featureKey: "settings" },
@@ -116,6 +118,7 @@ export const segmentLabels: Record<string, string> = {
   storytelling: "Niveaux & lore",
   templates: "Modèles de coupons",
   links: "Liens de redirection",
+  reports: "Rapports e-mail",
   gdpr: "RGPD",
   documentation: "Documentation",
   settings: "Paramètres",
