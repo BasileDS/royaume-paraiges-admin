@@ -173,12 +173,13 @@ Page hub (`/rewards/page.tsx`) = pure navigation (5 cartes, zéro fetch). Sous-r
 
 ## Rapports e-mail (`/reports`)
 
-Envois automatiques de chiffres vers des adresses **internes** (équipe, gérants). Migrations 076/077/078 + Edge Function `send-email-reports`. Détail complet : `CLAUDE.md` du workspace, section « Rapports E-mail Automatisés ».
+Envois automatiques vers des adresses **internes** (équipe, gérants). Migrations 076/077/078, étendues par 079/080 + Edge Function `send-email-reports`. Détail complet : `CLAUDE.md` du workspace, section « Rapports E-mail Automatisés ».
 
-- **Trois rapports en seed**, inactifs par défaut : `monthly_activity` (CA, tickets, panier moyen, répartition par établissement, communauté), `weekly_leaderboard`, `monthly_leaderboard`. Ils sont créés **par migration**, pas depuis l'UI : la page ne fait que les configurer.
+- **Cinq rapports en seed**, inactifs par défaut : `monthly_activity` (CA, tickets, panier moyen, répartition par établissement, communauté), `weekly_leaderboard`, `monthly_leaderboard`, plus `weekly_new_quests` / `monthly_new_quests` (défis qui s'ouvrent sur la période : nouveautés, défis reconduits, objectifs, récompenses, établissements concernés). Ils sont créés **par migration**, pas depuis l'UI : la page ne fait que les configurer.
+- **Bilan ou annonce** : `period_type` donne le **rythme** d'envoi (lundi / 1er du mois), `period_scope` (migration 079) la **période couverte** — `previous` = bilan de la période écoulée, `current` = annonce de la période qui s'ouvre (les deux rapports de défis). Les libellés UI dérivent des deux via `reports/_lib/report-labels.ts` (`cadenceLabel` / `coverageLabel` / `scheduleLabel` / `defaultPeriodLabel`) : **ne pas réécrire « sur la période écoulée » en dur**, ce n'est plus vrai de tous les rapports.
 - **Pages** : `/reports` (liste + interrupteur d'activation) et `/reports/[key]` (destinataires, envoi manuel, envoi de test, prévisualisation, historique des runs). Service `emailReportService.ts`, keys `emailReportKeys`, Zod `emailReport.schema.ts`.
 - **Feature key `reports`** dans `features.ts` : le gating est appliqué **en RLS** sur les écritures (`admin_has_feature('reports')`), pas seulement par le middleware. Un admin restreint voit la config en lecture et échoue à l'écriture.
-- **Activer un rapport n'envoie jamais rétroactivement** la période déjà écoulée (trigger BDD `trg_email_report_activation`). Le bouton « Envoyer maintenant » sert à cela, et fonctionne même si le rapport est inactif.
+- **Activer un rapport ne déclenche jamais d'envoi dans la foulée** (trigger BDD `trg_email_report_activation`, qui marque la période **visée** — selon la portée — comme déjà envoyée). Le premier envoi part au prochain changement de période ; le bouton « Envoyer maintenant » sert à ne pas attendre, et fonctionne même si le rapport est inactif.
 - **L'envoi de test ne consomme pas la période** : `last_period_sent` reste inchangé, l'envoi automatique reste programmé.
 - **Prévisualisation** : appelle l'Edge Function en mode `preview`, qui renvoie le HTML sans rien envoyer ; l'UI l'ouvre via un blob dans un onglet isolé (popups à autoriser).
 - **Statuts de run** ajoutés au registre central `status-badge.tsx` : `success` / `partial` / `error` / `skipped`. Ne pas créer de badge parallèle.

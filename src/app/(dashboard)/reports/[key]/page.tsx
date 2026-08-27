@@ -22,11 +22,7 @@ import { formatDateTime } from "@/lib/utils";
 import { RecipientsCard } from "./_components/recipients-card";
 import { ReportActionsCard } from "./_components/report-actions-card";
 import { RunsCard } from "./_components/runs-card";
-
-const PERIOD_LABEL: Record<string, string> = {
-  weekly: "Chaque lundi, sur la semaine ecoulee",
-  monthly: "Le 1er de chaque mois, sur le mois ecoule",
-};
+import { scheduleLabel } from "../_lib/report-labels";
 
 export default function ReportDetailPage() {
   const { key } = useParams<{ key: string }>();
@@ -61,7 +57,7 @@ export default function ReportDetailPage() {
       toast.success(report.is_active ? "Envoi automatique desactive" : "Envoi automatique active", {
         description: report.is_active
           ? undefined
-          : "La periode deja ecoulee ne sera pas envoyee retroactivement.",
+          : "Le premier envoi aura lieu au prochain changement de periode : rien ne part retroactivement.",
       });
     } catch (err) {
       console.error(err);
@@ -133,7 +129,7 @@ export default function ReportDetailPage() {
         <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-6 text-sm">
           <Badge variant="outline" className="gap-1">
             <CalendarClock className="h-3 w-3" aria-hidden="true" />
-            {PERIOD_LABEL[report.period_type] ?? report.period_type}
+            {scheduleLabel(report)}
           </Badge>
           <div className="text-muted-foreground">
             Objet :{" "}

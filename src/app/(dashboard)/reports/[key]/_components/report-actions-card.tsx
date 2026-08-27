@@ -17,6 +17,7 @@ import {
 import { emailReportKeys } from "@/lib/queries/keys";
 import { periodIdentifierSchema } from "@/lib/schemas/emailReport.schema";
 import type { EmailReport } from "@/types/database";
+import { defaultPeriodLabel } from "../../_lib/report-labels";
 
 interface ReportActionsCardProps {
   report: EmailReport;
@@ -148,7 +149,7 @@ export function ReportActionsCard({ report, recipientsCount }: ReportActionsCard
       <CardHeader>
         <CardTitle className="text-base">Envoi manuel</CardTitle>
         <CardDescription>
-          Sans periode precisee, le rapport porte sur la derniere periode ecoulee.
+          Sans periode precisee, le rapport porte sur {defaultPeriodLabel(report)}.
         </CardDescription>
       </CardHeader>
 
@@ -168,7 +169,7 @@ export function ReportActionsCard({ report, recipientsCount }: ReportActionsCard
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Permet de renvoyer un rapport d&apos;une periode passee.
+              Permet de viser une autre periode que celle du prochain envoi.
             </p>
           )}
         </div>
@@ -229,7 +230,7 @@ export function ReportActionsCard({ report, recipientsCount }: ReportActionsCard
           <>
             {recipientsCount} destinataire{recipientsCount > 1 ? "s" : ""} recevront{" "}
             <strong>{report.name}</strong>
-            {period.trim() ? ` pour la periode ${period.trim()}` : " pour la periode ecoulee"}.
+            {period.trim() ? ` pour la periode ${period.trim()}` : ` pour ${defaultPeriodLabel(report)}`}.
             Cette action est immediate et irreversible.
           </>
         }

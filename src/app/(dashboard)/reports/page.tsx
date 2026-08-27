@@ -20,11 +20,7 @@ import { getEmailReports, setReportActive } from "@/lib/services/emailReportServ
 import { emailReportKeys } from "@/lib/queries/keys";
 import { formatDateTime } from "@/lib/utils";
 import type { EmailReportWithStats } from "@/types/database";
-
-const PERIOD_LABEL: Record<string, string> = {
-  weekly: "Chaque lundi",
-  monthly: "Le 1er de chaque mois",
-};
+import { cadenceLabel, coverageLabel } from "./_lib/report-labels";
 
 export default function ReportsPage() {
   const queryClient = useQueryClient();
@@ -56,7 +52,7 @@ export default function ReportsPage() {
         {
           description: report.is_active
             ? undefined
-            : "L'activation n'envoie pas la periode deja ecoulee. Utilisez « Envoyer maintenant » pour cela.",
+            : "Le premier envoi aura lieu au prochain changement de periode. Utilisez « Envoyer maintenant » pour ne pas attendre.",
         },
       );
     } catch (err) {
@@ -99,7 +95,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Rapports e-mail"
-        description="Envois automatiques de chiffres vers une liste d'adresses internes. Chaque rapport porte sur la periode ecoulee."
+        description="Envois automatiques vers une liste d'adresses internes. Les bilans chiffres portent sur la periode ecoulee, les annonces sur la periode qui s'ouvre."
       />
 
       {reports.length === 0 ? (
@@ -149,8 +145,9 @@ export default function ReportsPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="gap-1">
                     <CalendarClock className="h-3 w-3" aria-hidden="true" />
-                    {PERIOD_LABEL[report.period_type] ?? report.period_type}
+                    {cadenceLabel(report.period_type)}
                   </Badge>
+                  <Badge variant="outline">{coverageLabel(report)}</Badge>
                   <Badge
                     variant={report.recipients_count > 0 ? "outline" : "destructive"}
                     className="gap-1"

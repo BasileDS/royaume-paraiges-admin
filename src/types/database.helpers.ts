@@ -163,10 +163,18 @@ export type RedirectLinkWithStats = RedirectLink & {
 // alias `Database["public"]["Tables"][...]` habituels.
 
 /** Type de donnees d'un rapport : determine le builder SQL et le gabarit HTML. */
-export type EmailReportType = "activity_summary" | "leaderboard";
+export type EmailReportType = "activity_summary" | "leaderboard" | "new_quests";
 
-/** Periodicite d'un rapport. Le rapport porte toujours sur la periode ecoulee. */
+/** Periodicite de l'envoi : chaque lundi, ou le 1er de chaque mois. */
 export type EmailReportPeriodType = "weekly" | "monthly";
+
+/**
+ * Portee : de quelle periode parle le rapport (migration 079). A ne pas
+ * confondre avec `EmailReportPeriodType`, qui n'en donne que le rythme.
+ * `previous` = bilan de la periode ecoulee ; `current` = annonce de la periode
+ * qui s'ouvre (defis de la semaine / du mois).
+ */
+export type EmailReportPeriodScope = "previous" | "current";
 
 /** Issue d'une tentative d'envoi. */
 export type EmailReportRunStatus = "success" | "partial" | "error" | "skipped";
@@ -179,6 +187,7 @@ export type EmailReport = {
   key: string;
   report_type: EmailReportType;
   period_type: EmailReportPeriodType;
+  period_scope: EmailReportPeriodScope;
   name: string;
   description: string | null;
   subject_template: string;
@@ -241,6 +250,7 @@ export type EmailReportsDatabase = {
           period_type: EmailReportPeriodType;
           name: string;
           subject_template: string;
+          period_scope?: EmailReportPeriodScope;
           description?: string | null;
           options?: { top_n?: number } | null;
           is_active?: boolean;
