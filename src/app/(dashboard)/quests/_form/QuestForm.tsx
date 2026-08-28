@@ -177,45 +177,53 @@ const formSchema = z
     if (!hasReward) {
       ctx.addIssue({
         code: "custom",
-        message: "Configurez au moins une récompense (coupon, XP, ou cashback).",
+        message:
+          "Configurez au moins une récompense (coupon, XP, ou cashback).",
         path: ["bonusXp"],
       });
     }
 
-    if (data.isRepeatable) {
-      data.iterations.forEach((row, idx) => {
-        if (row.targetValue !== "") {
-          const value =
-            data.questType === "amount_spent"
-              ? parseFloat(row.targetValue)
-              : parseInt(row.targetValue, 10);
-          if (isNaN(value) || value <= 0) {
-            ctx.addIssue({
-              code: "custom",
-              message: "Objectif d'itération invalide (nombre > 0 ou vide pour hériter).",
-              path: ["iterations", idx, "targetValue"],
-            });
-          }
-        }
-        if (row.bonusXp !== "" && (isNaN(parseInt(row.bonusXp, 10)) || parseInt(row.bonusXp, 10) < 0)) {
+    // Les itérations sont validées même répétition désactivée : la config est
+    // conservée en BDD (inerte tant que `is_repeatable` est faux) et doit donc
+    // rester saine.
+    data.iterations.forEach((row, idx) => {
+      if (row.targetValue !== "") {
+        const value =
+          data.questType === "amount_spent"
+            ? parseFloat(row.targetValue)
+            : parseInt(row.targetValue, 10);
+        if (isNaN(value) || value <= 0) {
           ctx.addIssue({
             code: "custom",
-            message: "Bonus XP invalide (entier >= 0 ou vide pour hériter).",
-            path: ["iterations", idx, "bonusXp"],
+            message:
+              "Objectif d'itération invalide (nombre > 0 ou vide pour hériter).",
+            path: ["iterations", idx, "targetValue"],
           });
         }
-        if (
-          row.bonusCashback !== "" &&
-          (isNaN(parseFloat(row.bonusCashback)) || parseFloat(row.bonusCashback) < 0)
-        ) {
-          ctx.addIssue({
-            code: "custom",
-            message: "Bonus cashback invalide (nombre >= 0 ou vide pour hériter).",
-            path: ["iterations", idx, "bonusCashback"],
-          });
-        }
-      });
-    }
+      }
+      if (
+        row.bonusXp !== "" &&
+        (isNaN(parseInt(row.bonusXp, 10)) || parseInt(row.bonusXp, 10) < 0)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Bonus XP invalide (entier >= 0 ou vide pour hériter).",
+          path: ["iterations", idx, "bonusXp"],
+        });
+      }
+      if (
+        row.bonusCashback !== "" &&
+        (isNaN(parseFloat(row.bonusCashback)) ||
+          parseFloat(row.bonusCashback) < 0)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Bonus cashback invalide (nombre >= 0 ou vide pour hériter).",
+          path: ["iterations", idx, "bonusCashback"],
+        });
+      }
+    });
   });
 
 export type QuestFormInput = z.infer<typeof formSchema>;
@@ -401,18 +409,23 @@ export function QuestForm({
     setValue("iterations", [...watch("iterations"), makeInheritRow()]);
   };
 
-  // À l'activation de la répétition, pré-remplir une itération par rang au-delà
-  // du premier (l'itération 1 = la config de base = rang le plus bas), toutes en
-  // héritage par défaut. On ne touche rien si des itérations existent déjà
-  // (édition d'une quête déjà configurée).
+  // Pré-remplit une itération par rang au-delà du premier (l'itération 1 = la
+  // config de base = rang le plus bas), toutes en héritage. Ne touche rien si
+  // des itérations existent déjà.
+  const handleFillIterations = () => {
+    if (watch("iterations").length > 0 || maxIterationRows === 0) return;
+    setValue(
+      "iterations",
+      Array.from({ length: maxIterationRows }, makeInheritRow),
+    );
+  };
+
+  // L'interrupteur ne pilote QUE l'activation : il ne crée ni ne détruit jamais
+  // de lignes. La config d'un rang ne se perd qu'en la retirant explicitement.
+  // Confort : premier passage à ON sur une quête vierge = pré-remplissage.
   const handleRepeatableChange = (checked: boolean) => {
     setValue("isRepeatable", checked);
-    if (checked && watch("iterations").length === 0 && maxIterationRows > 0) {
-      setValue(
-        "iterations",
-        Array.from({ length: maxIterationRows }, makeInheritRow),
-      );
-    }
+    if (checked) handleFillIterations();
   };
 
   const handleRemoveIteration = (index: number) => {
@@ -452,26 +465,28 @@ export function QuestForm({
       is_repeatable: values.isRepeatable,
       // Champ vide = null = hérite de la quête de base. Les numéros d'itération
       // sont contigus à partir de 2 (itération 1 = la quête elle-même).
-      iterations: values.isRepeatable
-        ? values.iterations.map((row, idx) => ({
-            iteration: idx + 2,
-            target_value:
-              row.targetValue === ""
-                ? null
-                : values.questType === "amount_spent"
-                ? Math.round(parseFloat(row.targetValue) * 100)
-                : parseInt(row.targetValue, 10),
-            coupon_template_id:
-              row.couponTemplateId && row.couponTemplateId !== INHERIT_TEMPLATE
-                ? parseInt(row.couponTemplateId, 10)
-                : null,
-            bonus_xp: row.bonusXp === "" ? null : parseInt(row.bonusXp, 10) || 0,
-            bonus_cashback:
-              row.bonusCashback === ""
-                ? null
-                : Math.round(parseFloat(row.bonusCashback) * 100) || 0,
-          }))
-        : [],
+      // Toujours persistées, même répétition désactivée : le moteur
+      // (`distribute_quest_rewards`) et le front bornent à 1 complétion quand
+      // `is_repeatable` est faux, les lignes sont donc inertes — mais on ne
+      // perd plus la configuration au premier aller-retour du switch.
+      iterations: values.iterations.map((row, idx) => ({
+        iteration: idx + 2,
+        target_value:
+          row.targetValue === ""
+            ? null
+            : values.questType === "amount_spent"
+              ? Math.round(parseFloat(row.targetValue) * 100)
+              : parseInt(row.targetValue, 10),
+        coupon_template_id:
+          row.couponTemplateId && row.couponTemplateId !== INHERIT_TEMPLATE
+            ? parseInt(row.couponTemplateId, 10)
+            : null,
+        bonus_xp: row.bonusXp === "" ? null : parseInt(row.bonusXp, 10) || 0,
+        bonus_cashback:
+          row.bonusCashback === ""
+            ? null
+            : Math.round(parseFloat(row.bonusCashback) * 100) || 0,
+      })),
       periods: values.periods,
       establishments: values.establishments,
     };
@@ -483,8 +498,8 @@ export function QuestForm({
     questType === "amount_spent"
       ? "(€)"
       : questType === "cashback_earned"
-      ? "(PdB)"
-      : "";
+        ? "(PdB)"
+        : "";
 
   const targetHelp = (() => {
     switch (questType) {
@@ -813,8 +828,8 @@ export function QuestForm({
                             {template.amount
                               ? ` (${formatCurrency(template.amount)} - Bonus CB immédiat)`
                               : template.percentage
-                              ? ` (${template.percentage}% - Coupon sur commande)`
-                              : ""}
+                                ? ` (${template.percentage}% - Coupon sur commande)`
+                                : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -869,7 +884,7 @@ export function QuestForm({
           {/* Répétition selon le niveau */}
           <FormSection
             title="Répétition selon le niveau"
-            description="Désactivée par défaut. À l'activation, une ligne est créée automatiquement par rang (au-delà du premier), toutes en héritage de la config de base ci-dessus. Chaque rang = une répétition supplémentaire possible ; un joueur ne peut compléter que jusqu'au rang qu'il a atteint. Retirez des rangs pour plafonner plus bas, ou personnalisez objectif/récompenses rang par rang."
+            description="Chaque rang = une répétition supplémentaire possible ; un joueur ne peut compléter que jusqu'au rang qu'il a atteint. Retirez des rangs pour plafonner plus bas, ou personnalisez objectif/récompenses rang par rang. La configuration se prépare sans activer la répétition, et n'est jamais effacée par l'interrupteur."
             action={
               <Switch
                 checked={isRepeatable}
@@ -877,124 +892,131 @@ export function QuestForm({
               />
             }
           >
-            {isRepeatable && (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Une ligne par rang. Champ vide = hérite de la config de base.
-                  Le badge n&apos;est attribué qu&apos;une fois par période.
+            <div className="space-y-3">
+              {!isRepeatable && (
+                <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                  Répétition désactivée : la quête reste complétable une seule
+                  fois par période. Les rangs ci-dessous sont conservés à
+                  l&apos;enregistrement et reprendront effet à la réactivation.
                 </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Une ligne par rang. Champ vide = hérite de la config de base. Le
+                badge n&apos;est attribué qu&apos;une fois par période.
+              </p>
 
-                {iterations.length > 0 && (
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[600px] space-y-1.5">
-                      {/* En-têtes de colonnes (une seule fois) */}
-                      <div className="grid grid-cols-[1.3fr_0.9fr_1.7fr_0.7fr_0.9fr_2rem] items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        <span>Rang</span>
-                        <span>Objectif {targetUnitLabel}</span>
-                        <span>Coupon</span>
-                        <span>XP</span>
-                        <span>Cashback €</span>
-                        <span className="sr-only">Retirer</span>
-                      </div>
+              {iterations.length > 0 && (
+                <div className="overflow-x-auto">
+                  <div className="min-w-[600px] space-y-1.5">
+                    {/* En-têtes de colonnes (une seule fois) */}
+                    <div className="grid grid-cols-[1.3fr_0.9fr_1.7fr_0.7fr_0.9fr_2rem] items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      <span>Rang</span>
+                      <span>Objectif {targetUnitLabel}</span>
+                      <span>Coupon</span>
+                      <span>XP</span>
+                      <span>Cashback €</span>
+                      <span className="sr-only">Retirer</span>
+                    </div>
 
-                      {iterations.map((row, idx) => {
-                        const rankLabel =
-                          rankNameForIteration(idx + 2) ?? `Rang ${idx + 2}`;
-                        const rowErr = errors.iterations?.[idx];
-                        return (
-                          <div key={idx}>
-                            <div className="grid grid-cols-[1.3fr_0.9fr_1.7fr_0.7fr_0.9fr_2rem] items-center gap-2">
-                              <span
-                                className="truncate text-sm font-medium"
-                                title={rankLabel}
-                              >
-                                {rankLabel}
-                              </span>
-                              <Input
-                                className="h-8 text-sm"
-                                type="number"
-                                step={questType === "amount_spent" ? "0.01" : "1"}
-                                min={questType === "amount_spent" ? 0.01 : 1}
-                                placeholder={baseTargetValue || "hérite"}
-                                {...register(`iterations.${idx}.targetValue`)}
-                              />
-                              <Controller
-                                control={control}
-                                name={`iterations.${idx}.couponTemplateId`}
-                                render={({ field }) => (
-                                  <Select
-                                    value={field.value}
-                                    onValueChange={field.onChange}
-                                  >
-                                    <SelectTrigger className="h-8 text-sm">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value={INHERIT_TEMPLATE}>
-                                        {baseCouponTemplateId &&
-                                        baseCouponTemplateId !== NONE_TEMPLATE
-                                          ? "Hériter (coupon de base)"
-                                          : "Hériter (aucun coupon)"}
-                                      </SelectItem>
-                                      {templates.map((template) => (
-                                        <SelectItem
-                                          key={template.id}
-                                          value={template.id.toString()}
-                                        >
-                                          {template.name}
-                                          {template.amount
-                                            ? ` (${formatCurrency(template.amount)})`
-                                            : template.percentage
+                    {iterations.map((row, idx) => {
+                      const rankLabel =
+                        rankNameForIteration(idx + 2) ?? `Rang ${idx + 2}`;
+                      const rowErr = errors.iterations?.[idx];
+                      return (
+                        <div key={idx}>
+                          <div className="grid grid-cols-[1.3fr_0.9fr_1.7fr_0.7fr_0.9fr_2rem] items-center gap-2">
+                            <span
+                              className="truncate text-sm font-medium"
+                              title={rankLabel}
+                            >
+                              {rankLabel}
+                            </span>
+                            <Input
+                              className="h-8 text-sm"
+                              type="number"
+                              step={questType === "amount_spent" ? "0.01" : "1"}
+                              min={questType === "amount_spent" ? 0.01 : 1}
+                              placeholder={baseTargetValue || "hérite"}
+                              {...register(`iterations.${idx}.targetValue`)}
+                            />
+                            <Controller
+                              control={control}
+                              name={`iterations.${idx}.couponTemplateId`}
+                              render={({ field }) => (
+                                <Select
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={INHERIT_TEMPLATE}>
+                                      {baseCouponTemplateId &&
+                                      baseCouponTemplateId !== NONE_TEMPLATE
+                                        ? "Hériter (coupon de base)"
+                                        : "Hériter (aucun coupon)"}
+                                    </SelectItem>
+                                    {templates.map((template) => (
+                                      <SelectItem
+                                        key={template.id}
+                                        value={template.id.toString()}
+                                      >
+                                        {template.name}
+                                        {template.amount
+                                          ? ` (${formatCurrency(template.amount)})`
+                                          : template.percentage
                                             ? ` (${template.percentage}%)`
                                             : ""}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                              <Input
-                                className="h-8 text-sm"
-                                type="number"
-                                min={0}
-                                placeholder={baseBonusXp || "hérite"}
-                                {...register(`iterations.${idx}.bonusXp`)}
-                              />
-                              <Input
-                                className="h-8 text-sm"
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                placeholder={baseBonusCashback || "hérite"}
-                                {...register(`iterations.${idx}.bonusCashback`)}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleRemoveIteration(idx)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            {(rowErr?.targetValue ||
-                              rowErr?.bonusXp ||
-                              rowErr?.bonusCashback) && (
-                              <p className="px-1 pt-0.5 text-[11px] text-destructive">
-                                {rowErr?.targetValue?.message ??
-                                  rowErr?.bonusXp?.message ??
-                                  rowErr?.bonusCashback?.message}
-                              </p>
-                            )}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                            <Input
+                              className="h-8 text-sm"
+                              type="number"
+                              min={0}
+                              placeholder={baseBonusXp || "hérite"}
+                              {...register(`iterations.${idx}.bonusXp`)}
+                            />
+                            <Input
+                              className="h-8 text-sm"
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              placeholder={baseBonusCashback || "hérite"}
+                              {...register(`iterations.${idx}.bonusCashback`)}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleRemoveIteration(idx)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
-                        );
-                      })}
-                    </div>
+                          {(rowErr?.targetValue ||
+                            rowErr?.bonusXp ||
+                            rowErr?.bonusCashback) && (
+                            <p className="px-1 pt-0.5 text-[11px] text-destructive">
+                              {rowErr?.targetValue?.message ??
+                                rowErr?.bonusXp?.message ??
+                                rowErr?.bonusCashback?.message}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
+              )}
 
-                {iterations.length < maxIterationRows ? (
+              {iterations.length < maxIterationRows ? (
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -1003,17 +1025,27 @@ export function QuestForm({
                   >
                     Ajouter un rang
                   </Button>
-                ) : (
-                  maxIterationRows > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Tous les rangs ({sortedRanks.length}) sont couverts —
-                      au-delà, une itération n&apos;aurait aucun effet (plafond
-                      lié au rang).
-                    </p>
-                  )
-                )}
-              </div>
-            )}
+                  {iterations.length === 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleFillIterations}
+                    >
+                      Pré-remplir tous les rangs ({maxIterationRows})
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                maxIterationRows > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Tous les rangs ({sortedRanks.length}) sont couverts —
+                    au-delà, une itération n&apos;aurait aucun effet (plafond
+                    lié au rang).
+                  </p>
+                )
+              )}
+            </div>
           </FormSection>
 
           {/* Activation */}
