@@ -50,6 +50,12 @@ const statusRegistry: Record<string, { label: string; tone: StatusTone }> = {
   partial: { label: "Partiel", tone: "warning" },
   error: { label: "Échec", tone: "destructive" },
   skipped: { label: "Ignoré", tone: "neutral" },
+
+  // Rendus vidéo des rapports (migration 082). `expired` est partagé avec les
+  // quêtes plus haut : même libellé, même tonalité, rien à redéfinir.
+  queued: { label: "En attente", tone: "neutral" },
+  rendering: { label: "Rendu en cours", tone: "info" },
+  ready: { label: "Prête", tone: "success" },
 };
 
 interface StatusBadgeProps {

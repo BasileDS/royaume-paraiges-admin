@@ -6,6 +6,7 @@ import type {
   EmailReportRun,
   EmailReportWithStats,
   EmailReportsDatabase,
+  ReportVideoRender,
 } from "@/types/database";
 
 /**
@@ -133,7 +134,7 @@ export async function setReportActive(id: string, isActive: boolean): Promise<vo
 
 export async function updateReportOptions(
   id: string,
-  options: { top_n?: number },
+  options: { top_n?: number; video?: boolean },
 ): Promise<void> {
   const { error } = await reportsClient()
     .from("email_reports")
@@ -244,4 +245,86 @@ export async function previewReport(
   if (error) throw error;
   if (!data) throw new Error("Reponse vide de send-email-reports");
   return data;
+}
+
+// ============================================================================
+// Videos de classement (migration 082)
+// ============================================================================
+
+const VIDEO_BUCKET = "report-videos";
+
+/**
+ * Chemin de l'objet dans le bucket. Deterministe : c'est pour ca que
+ * `report_video_renders` ne stocke aucune URL.
+ */
+export function videoObjectPath(reportKey: string, periodIdentifier: string): string {
+  return `${reportKey}/${periodIdentifier}.mp4`;
+}
+
+/** Historique des rendus d'un rapport, le plus recent d'abord. */
+export async function getVideoRenders(
+  reportId: string,
+  limit = 10,
+): Promise<ReportVideoRender[]> {
+  const { data, error } = await reportsClient()
+    .from("report_video_renders")
+    .select("*")
+    .eq("report_id", reportId)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as ReportVideoRender[];
+}
+
+/**
+ * URL signee de lecture du MP4, ou `null` si l'objet n'existe pas (purge, rendu
+ * jamais abouti). Le bucket est prive : c'est le seul moyen de lire la video
+ * depuis le navigateur, et la policy admin SELECT de la 082 autorise l'appel.
+ */
+export async function getVideoSignedUrl(
+  reportKey: string,
+  periodIdentifier: string,
+  expiresInSeconds = 600,
+): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from(VIDEO_BUCKET)
+    .createSignedUrl(videoObjectPath(reportKey, periodIdentifier), expiresInSeconds);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+export interface VideoRenderRequestResult {
+  status: "rendering" | "skipped";
+  code?: string;
+  reason?: string;
+  period_identifier?: string;
+  attempt?: number;
+}
+
+/**
+ * Demande un (re-)rendu au service de rendu.
+ *
+ * Passe par une route serveur de l'admin plutot que d'appeler le renderer
+ * directement : le bearer partage ne doit jamais atteindre le navigateur.
+ */
+export async function requestVideoRender(params: {
+  reportKey: string;
+  periodIdentifier?: string;
+  force?: boolean;
+}): Promise<VideoRenderRequestResult> {
+  const response = await fetch(`/api/reports/${params.reportKey}/video-render`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      period_identifier: params.periodIdentifier,
+      force: params.force ?? false,
+    }),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body?.reason ?? body?.error ?? `Echec de la demande (HTTP ${response.status})`);
+  }
+  return body as VideoRenderRequestResult;
 }

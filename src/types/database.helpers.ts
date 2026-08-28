@@ -191,7 +191,7 @@ export type EmailReport = {
   name: string;
   description: string | null;
   subject_template: string;
-  options: { top_n?: number } | null;
+  options: { top_n?: number; video?: boolean } | null;
   is_active: boolean;
   /** Derniere periode envoyee : porte l'idempotence du cron. */
   last_period_sent: string | null;
@@ -225,6 +225,26 @@ export type EmailReportRun = {
   finished_at: string | null;
 }
 
+/**
+ * Statut du rendu video d'un rapport pour une periode (migration 082).
+ * `expired` = le MP4 a ete purge apres 7 jours, la ligne survit au fichier.
+ */
+export type ReportVideoStatus = "queued" | "rendering" | "ready" | "error" | "expired";
+
+/**
+ * Etat du rendu video, une ligne par rapport et par periode. Ne contient
+ * aucune donnee de classement : celles-ci restent calculees a la volee.
+ * Ecrite exclusivement en service_role par le renderer, l'admin ne fait que lire.
+ */
+export type ReportVideoRender = {
+  report_id: string;
+  period_identifier: string;
+  status: ReportVideoStatus;
+  attempts: number;
+  last_error: string | null;
+  updated_at: string;
+}
+
 /** Rapport enrichi des agregats affiches dans la liste /reports. */
 export type EmailReportWithStats = EmailReport & {
   recipients_count: number;
@@ -252,7 +272,7 @@ export type EmailReportsDatabase = {
           subject_template: string;
           period_scope?: EmailReportPeriodScope;
           description?: string | null;
-          options?: { top_n?: number } | null;
+          options?: { top_n?: number; video?: boolean } | null;
           is_active?: boolean;
           last_period_sent?: string | null;
           last_run_at?: string | null;
@@ -261,7 +281,7 @@ export type EmailReportsDatabase = {
           name?: string;
           description?: string | null;
           subject_template?: string;
-          options?: { top_n?: number } | null;
+          options?: { top_n?: number; video?: boolean } | null;
           is_active?: boolean;
           last_period_sent?: string | null;
           last_run_at?: string | null;
@@ -287,6 +307,14 @@ export type EmailReportsDatabase = {
       // policy d'ecriture `authenticated` n'existe, l'admin ne fait que lire.
       email_report_runs: {
         Row: EmailReportRun;
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      // Meme regime que email_report_runs : alimentee par le renderer en
+      // service_role, seule la lecture est ouverte a `authenticated`.
+      report_video_renders: {
+        Row: ReportVideoRender;
         Insert: Record<string, never>;
         Update: Record<string, never>;
         Relationships: [];

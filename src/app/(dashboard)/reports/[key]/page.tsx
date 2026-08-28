@@ -22,6 +22,7 @@ import { formatDateTime } from "@/lib/utils";
 import { RecipientsCard } from "./_components/recipients-card";
 import { ReportActionsCard } from "./_components/report-actions-card";
 import { RunsCard } from "./_components/runs-card";
+import { VideoCard } from "./_components/video-card";
 import { scheduleLabel } from "../_lib/report-labels";
 
 export default function ReportDetailPage() {
@@ -153,6 +154,9 @@ export default function ReportDetailPage() {
         <RecipientsCard reportId={report.id} />
         <ReportActionsCard report={report} recipientsCount={activeRecipients} />
       </div>
+
+      {/* Seuls les rapports de classement ont un template video a date. */}
+      {report.report_type === "leaderboard" && <VideoCard report={report} />}
 
       <RunsCard reportId={report.id} />
     </div>
