@@ -21,6 +21,7 @@ import {
   MailCheck,
   Settings as SettingsIcon,
   UserCog,
+  Swords,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -50,6 +51,7 @@ export const navigationGroups: NavGroup[] = [
       { name: "Analytics", href: "/analytics", icon: BarChart3, featureKey: "analytics" },
       { name: "Répartition XP", href: "/analytics/xp", icon: Zap, featureKey: "analytics-xp" },
       { name: "Analytics établissements", href: "/analytics/establishments", icon: Building2, featureKey: "analytics-establishments" },
+      { name: "Niveaux", href: "/analytics/levels", icon: Swords, featureKey: "analytics-levels" },
       { name: "Réconciliation Cashpad", href: "/reconciliation", icon: Scale, featureKey: "reconciliation" },
     ],
   },
@@ -98,6 +100,7 @@ export const navigationGroups: NavGroup[] = [
 export const segmentLabels: Record<string, string> = {
   analytics: "Analytics",
   xp: "Répartition XP",
+  levels: "Niveaux",
   reconciliation: "Réconciliation Cashpad",
   health: "Santé",
   users: "Utilisateurs",

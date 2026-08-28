@@ -180,6 +180,14 @@ export const analyticsKeys = {
       year,
       [...customerIds].sort(),
     ] as const,
+  levelSummary: (year: number) =>
+    [...analyticsKeys.all, "levelSummary", year] as const,
+  levelStats: (year: number) =>
+    [...analyticsKeys.all, "levelStats", year] as const,
+  levelTimeline: (year: number) =>
+    [...analyticsKeys.all, "levelTimeline", year] as const,
+  levelMembers: (year: number, level: number) =>
+    [...analyticsKeys.all, "levelMembers", year, level] as const,
 };
 
 export const redirectLinkKeys = {

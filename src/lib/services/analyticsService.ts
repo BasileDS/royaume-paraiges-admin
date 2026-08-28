@@ -1502,3 +1502,247 @@ export async function getXpWeeklyTotalsForUsers(
       .sort((a, b) => a.week_start.localeCompare(b.week_start)),
   }));
 }
+
+// ============================================================================
+// Statistiques de niveaux (/analytics/levels) — migration 084
+// ============================================================================
+
+/** numeric PostgREST → number | null (les numeric arrivent en string). */
+function numOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Compteurs globaux de la saison (RPC get_level_summary). */
+export interface LevelSummary {
+  season_year: number;
+  season_start: string;
+  season_end: string;
+  /** Jours écoulés depuis le 1er janvier de la saison. */
+  days_elapsed: number;
+  /** Jours restants avant la clôture (0 pour une saison passée). */
+  days_remaining: number;
+  /** Tous les clients réels, y compris ceux à 0 XP. */
+  clients_total: number;
+  players_with_xp: number;
+  players_without_xp: number;
+  avg_xp: number;
+  median_xp: number;
+  max_xp: number;
+  avg_level: number;
+  max_level: number;
+  /** Niveau le plus haut qu'un joueur atteindrait au rythme observé. */
+  projected_max_level: number;
+  inactive_30d: number;
+  /** Dernier niveau existant dans level_thresholds. */
+  top_level_available: number;
+}
+
+/** Une ligne par niveau (RPC get_level_stats). */
+export interface LevelStatsRow {
+  level: number;
+  level_name: string;
+  xp_required: number;
+  /** NULL sur le dernier niveau de la grille. */
+  next_xp_required: number | null;
+  /** Joueurs actuellement à ce niveau. */
+  users_count: number;
+  /** Joueurs dont le niveau courant est ≥ à celui-ci (entonnoir). */
+  reached_count: number;
+  /** Franchissements observés du palier précédent vers celui-ci. */
+  transitions_count: number;
+  avg_days_to_level: number | null;
+  median_days_to_level: number | null;
+  /** Progression moyenne dans le palier, en % du palier suivant. */
+  avg_progress_pct: number | null;
+  /** Joueurs à ≥ 80 % du niveau suivant. */
+  near_next_count: number;
+  inactive_30d_count: number;
+  avg_days_since_last_xp: number | null;
+  /** Coefficient PdB moyen (1,00 = 1 PdB par €). */
+  avg_cashback_coefficient: number | null;
+  pdb_generated_cents: number;
+  receipts_count: number;
+  euro_spent_cents: number;
+  /** Effectif projeté à ce niveau en fin de saison, au rythme observé. */
+  projected_users_count: number;
+
+  // ── Coût du palier : fenêtre entre le franchissement précédent et celui-ci ──
+
+  /**
+   * Coût théorique du palier : XP à combler converti en euros au taux
+   * `constants.xp_gains`. NULL au niveau 1. Seuls les paiements card + cash
+   * génèrent de l'XP, donc cette assiette est exactement la bonne.
+   */
+  theoretical_euro_cents: number | null;
+  /** Euros réellement dépensés pendant le palier (médiane / moyenne). */
+  median_euro_to_level_cents: number | null;
+  avg_euro_to_level_cents: number | null;
+  /** PdB gagnés pendant le palier (médiane). */
+  median_pdb_to_level_cents: number | null;
+  /** Passages en caisse pendant le palier (médiane). */
+  median_receipts_to_level: number | null;
+  /** Euros cumulés depuis l'inscription jusqu'au franchissement de ce niveau. */
+  median_euro_total_cents: number | null;
+}
+
+/** Un joueur actuellement à un niveau donné (RPC get_level_members). */
+export interface LevelMemberRow {
+  customer_id: string;
+  /** username, sinon prénom + nom, sinon « Sans pseudo ». */
+  pseudo: string;
+  season_xp: number;
+  /** XP restant avant le niveau suivant ; NULL au dernier palier. */
+  xp_to_next: number | null;
+  /** Progression dans le palier en % ; NULL au dernier palier. */
+  progress_pct: number | null;
+  /** Date d'arrivée à ce niveau ; NULL au niveau 1 (jamais franchi). */
+  reached_at: string | null;
+  /** Jours passés à ce niveau (depuis l'inscription au niveau 1). */
+  days_at_level: number | null;
+  last_xp_at: string | null;
+  days_since_last_xp: number | null;
+  receipts_count: number;
+  euro_spent_cents: number;
+  pdb_generated_cents: number;
+  projected_level: number;
+}
+
+/** Un point par semaine ISO (RPC get_level_average_timeline). */
+export interface LevelTimelinePoint {
+  /** Lundi de la semaine ISO (YYYY-MM-DD). */
+  week_start: string;
+  /** Joueurs ayant déjà gagné de l'XP à cette date (dénominateur de avg_level). */
+  players_count: number;
+  avg_level: number;
+  max_level: number;
+  total_xp: number;
+}
+
+/**
+ * Compteurs globaux de la saison. `year` omis = saison courante.
+ * Périmètre RPC : clients réels uniquement (role client, hors test/supprimés).
+ */
+export async function getLevelSummary(year?: number): Promise<LevelSummary | null> {
+  const supabase = createClient();
+
+  const { data, error } = await (supabase.rpc as any)("get_level_summary", {
+    p_year: year ?? null,
+  });
+
+  if (error) throw error;
+  const row = ((data || []) as Record<string, unknown>[])[0];
+  if (!row) return null;
+
+  return {
+    season_year: Number(row.season_year),
+    season_start: String(row.season_start),
+    season_end: String(row.season_end),
+    days_elapsed: Number(row.days_elapsed) || 0,
+    days_remaining: Number(row.days_remaining) || 0,
+    clients_total: Number(row.clients_total) || 0,
+    players_with_xp: Number(row.players_with_xp) || 0,
+    players_without_xp: Number(row.players_without_xp) || 0,
+    avg_xp: Number(row.avg_xp) || 0,
+    median_xp: Number(row.median_xp) || 0,
+    max_xp: Number(row.max_xp) || 0,
+    avg_level: Number(row.avg_level) || 0,
+    max_level: Number(row.max_level) || 1,
+    projected_max_level: Number(row.projected_max_level) || 1,
+    inactive_30d: Number(row.inactive_30d) || 0,
+    top_level_available: Number(row.top_level_available) || 1,
+  };
+}
+
+/** Une ligne par niveau de la grille, y compris les niveaux vides. */
+export async function getLevelStats(year?: number): Promise<LevelStatsRow[]> {
+  const supabase = createClient();
+
+  const { data, error } = await (supabase.rpc as any)("get_level_stats", {
+    p_year: year ?? null,
+  });
+
+  if (error) throw error;
+  return ((data || []) as Record<string, unknown>[]).map((r) => ({
+    level: Number(r.level),
+    level_name: String(r.level_name ?? ""),
+    xp_required: Number(r.xp_required) || 0,
+    next_xp_required: numOrNull(r.next_xp_required),
+    users_count: Number(r.users_count) || 0,
+    reached_count: Number(r.reached_count) || 0,
+    transitions_count: Number(r.transitions_count) || 0,
+    avg_days_to_level: numOrNull(r.avg_days_to_level),
+    median_days_to_level: numOrNull(r.median_days_to_level),
+    avg_progress_pct: numOrNull(r.avg_progress_pct),
+    near_next_count: Number(r.near_next_count) || 0,
+    inactive_30d_count: Number(r.inactive_30d_count) || 0,
+    avg_days_since_last_xp: numOrNull(r.avg_days_since_last_xp),
+    avg_cashback_coefficient: numOrNull(r.avg_cashback_coefficient),
+    pdb_generated_cents: Number(r.pdb_generated_cents) || 0,
+    receipts_count: Number(r.receipts_count) || 0,
+    euro_spent_cents: Number(r.euro_spent_cents) || 0,
+    projected_users_count: Number(r.projected_users_count) || 0,
+    theoretical_euro_cents: numOrNull(r.theoretical_euro_cents),
+    median_euro_to_level_cents: numOrNull(r.median_euro_to_level_cents),
+    avg_euro_to_level_cents: numOrNull(r.avg_euro_to_level_cents),
+    median_pdb_to_level_cents: numOrNull(r.median_pdb_to_level_cents),
+    median_receipts_to_level: numOrNull(r.median_receipts_to_level),
+    median_euro_total_cents: numOrNull(r.median_euro_total_cents),
+  }));
+}
+
+/**
+ * Joueurs actuellement au niveau donné, triés par XP décroissant.
+ * Volume borné par l'effectif du niveau (≈ 240 max à date) : pas de pagination
+ * serveur, la table pagine côté client.
+ */
+export async function getLevelMembers(
+  level: number,
+  year?: number
+): Promise<LevelMemberRow[]> {
+  const supabase = createClient();
+
+  const { data, error } = await (supabase.rpc as any)("get_level_members", {
+    p_level: level,
+    p_year: year ?? null,
+  });
+
+  if (error) throw error;
+  return ((data || []) as Record<string, unknown>[]).map((r) => ({
+    customer_id: String(r.customer_id),
+    pseudo: String(r.pseudo ?? "Sans pseudo"),
+    season_xp: Number(r.season_xp) || 0,
+    xp_to_next: numOrNull(r.xp_to_next),
+    progress_pct: numOrNull(r.progress_pct),
+    reached_at: r.reached_at ? String(r.reached_at) : null,
+    days_at_level: numOrNull(r.days_at_level),
+    last_xp_at: r.last_xp_at ? String(r.last_xp_at) : null,
+    days_since_last_xp: numOrNull(r.days_since_last_xp),
+    receipts_count: Number(r.receipts_count) || 0,
+    euro_spent_cents: Number(r.euro_spent_cents) || 0,
+    pdb_generated_cents: Number(r.pdb_generated_cents) || 0,
+    projected_level: Number(r.projected_level) || 1,
+  }));
+}
+
+/** Niveau moyen de la communauté à la fin de chaque semaine ISO de la saison. */
+export async function getLevelAverageTimeline(
+  year?: number
+): Promise<LevelTimelinePoint[]> {
+  const supabase = createClient();
+
+  const { data, error } = await (supabase.rpc as any)(
+    "get_level_average_timeline",
+    { p_year: year ?? null }
+  );
+
+  if (error) throw error;
+  return ((data || []) as Record<string, unknown>[]).map((r) => ({
+    week_start: String(r.week_start),
+    players_count: Number(r.players_count) || 0,
+    avg_level: Number(r.avg_level) || 0,
+    max_level: Number(r.max_level) || 1,
+    total_xp: Number(r.total_xp) || 0,
+  }));
+}
