@@ -326,3 +326,61 @@ export type EmailReportsDatabase = {
     CompositeTypes: { [_ in never]: never };
   };
 }
+
+// ============================================================================
+// Journal des distributions de classement (migration 083, alertes 088)
+// ============================================================================
+
+export type RewardRunStatus = "success" | "partial" | "error" | "skipped";
+export type RewardRunOrigin = "cron" | "manual";
+export type RewardRunPeriodType = "weekly" | "monthly" | "yearly";
+
+/** Une erreur individuelle rattrapee par le bloc EXCEPTION de la boucle. */
+export type RewardRunError = {
+  customer_id?: string;
+  rank?: number;
+  error?: string;
+};
+
+export type RewardDistributionRun = {
+  id: number;
+  period_type: string;
+  period_identifier: string | null;
+  status: RewardRunStatus;
+  reason: string | null;
+  origin: RewardRunOrigin;
+  rewards_distributed: number;
+  leaderboard_size: number | null;
+  errors: RewardRunError[];
+  duration_ms: number | null;
+  period_start: string | null;
+  period_end: string | null;
+  forced: boolean;
+  triggered_by: string | null;
+  alerted_at: string | null;
+  created_at: string;
+};
+
+/**
+ * Meme regime que `email_report_runs` : la table est alimentee exclusivement par
+ * la RPC `distribute_period_rewards_v2` en SECURITY DEFINER, aucune policy
+ * d'ecriture `authenticated` n'existe. L'admin ne fait que lire, d'ou les
+ * Insert / Update en `never`.
+ */
+export type RewardRunsDatabase = {
+  __InternalSupabase: { PostgrestVersion: "14.5" };
+  public: {
+    Tables: {
+      reward_distribution_runs: {
+        Row: RewardDistributionRun;
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+    };
+    Views: { [_ in never]: never };
+    Functions: { [_ in never]: never };
+    Enums: { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
+  };
+}

@@ -114,6 +114,7 @@ export const segmentLabels: Record<string, string> = {
   achievements: "Badges",
   "cashback-gains": "Bonus cashback",
   distribute: "Distribution",
+  distributions: "Journal des distributions",
   season: "Clôture de saison",
   content: "Contenu",
   beers: "Bières",

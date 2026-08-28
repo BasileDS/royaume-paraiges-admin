@@ -12,6 +12,7 @@ import {
   Crown,
   Medal,
   PlayCircle,
+  ScrollText,
   Sparkles,
 } from "lucide-react";
 
@@ -43,6 +44,13 @@ const sections = [
     description:
       "Prévisualisez puis lancez la distribution des récompenses d'une période.",
     icon: PlayCircle,
+  },
+  {
+    href: "/rewards/distributions",
+    title: "Journal des distributions",
+    description:
+      "Ce que le moteur a fait à chaque passage, y compris quand il n'a rien distribué.",
+    icon: ScrollText,
   },
   {
     href: "/rewards/season",

@@ -215,3 +215,10 @@ export const adminAccessKeys = {
   admins: () => [...adminAccessKeys.all, "admins"] as const,
   disabledFeatures: () => [...adminAccessKeys.all, "disabledFeatures"] as const,
 };
+
+export const rewardRunKeys = {
+  all: ["rewardRuns"] as const,
+  summary: () => [...rewardRunKeys.all, "summary"] as const,
+  list: (periodType: string, status: string, page: number) =>
+    [...rewardRunKeys.all, "list", periodType, status, page] as const,
+};
