@@ -93,6 +93,10 @@ Dans `QuestForm.submit` :
 - `cashback_earned` : `parseInt(value)` → PdB direct (saisie "50" = `target_value = 50`, **pas 5000**)
 - Autres : `parseInt(value)` → unités directes
 
+### Répétition selon le niveau — la config survit à l'interrupteur
+
+Section « Répétition selon le niveau » de `QuestForm` : l'interrupteur pilote **uniquement** `quests.is_repeatable`. Le barème par rang (lignes `quest_iterations`) est **toujours éditable et toujours persisté**, même répétition désactivée — une ligne ne disparaît qu'en la retirant explicitement (bouton ×). Ne pas remettre de `values.isRepeatable ? … : []` dans le payload de submit : c'était la cause de la perte de configuration à chaque aller-retour du switch. Les lignes d'une quête `is_repeatable = false` sont inertes côté BDD (`distribute_quest_rewards` borne à 1 complétion) et côté front Expo (`buildQuestWithProgress`), le stockage est donc sans effet de bord. Corollaire : les règles Zod des itérations s'appliquent en permanence, pas seulement quand la répétition est active.
+
 ## Gotchas BDD
 
 - Colonne `used` (pas `is_used`) dans `coupons`. Pas de `establishment_id` ni `used_at`.
