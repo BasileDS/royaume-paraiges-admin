@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarClock, MailCheck, Users } from "lucide-react";
@@ -23,6 +23,7 @@ import type { EmailReportWithStats } from "@/types/database";
 import { cadenceLabel, coverageLabel } from "./_lib/report-labels";
 
 export default function ReportsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const reportsQuery = useQuery({
@@ -111,18 +112,27 @@ export default function ReportsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {reports.map((report) => (
-            <Card key={report.id} className="flex flex-col">
+            <Card
+              key={report.id}
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(`/reports/${report.key}`)}
+              onKeyDown={(e) => {
+                // Ne reagir qu'aux touches recues par la carte elle-meme :
+                // Espace/Entree sur l'interrupteur ne doivent pas naviguer.
+                if (e.target !== e.currentTarget) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push(`/reports/${report.key}`);
+                }
+              }}
+              aria-label={`Ouvrir le rapport ${report.name}`}
+              className="flex cursor-pointer flex-col transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <CardTitle className="text-base">
-                      <Link
-                        href={`/reports/${report.key}`}
-                        className="hover:underline"
-                      >
-                        {report.name}
-                      </Link>
-                    </CardTitle>
+                    <CardTitle className="text-base">{report.name}</CardTitle>
                     <CardDescription className="mt-1 line-clamp-3">
                       {report.description}
                     </CardDescription>
