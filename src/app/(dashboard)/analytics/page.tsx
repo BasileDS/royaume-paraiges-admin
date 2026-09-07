@@ -80,8 +80,10 @@ export default function AnalyticsPage() {
   const [date, setDate] = useState<string>(() => todayUtcISO());
   const [selectedEstablishments, setSelectedEstablishments] = useState<number[]>([]);
   const [estFilterOpen, setEstFilterOpen] = useState(false);
-  // Comparaison Cashpad : calcul lourd (agrégation snapshot 454 MB) → désactivé
-  // par défaut, activable à la demande via la checkbox.
+  // Comparaison Cashpad : depuis la migration 092 les totaux par mode de
+  // paiement sont matérialisés au moment du snapshot, le surcoût n'est plus
+  // qu'une somme de colonnes indexées. Reste off par défaut — c'est un choix
+  // d'affichage (lignes de comparaison en plus), pas une contrainte de perf.
   const [showCashpad, setShowCashpad] = useState(false);
 
   // Hauteur de la barre de filtres → offset auquel figer l'entête du tableau.
@@ -204,6 +206,12 @@ export default function AnalyticsPage() {
 
   // Export d'une année complète : fetch dédié (hors query affichée), mêmes
   // filtres établissements + comparaison Cashpad que l'écran.
+  //
+  // L'année entière avec comparaison Cashpad a longtemps été hors d'atteinte
+  // (~44 s contre un statement_timeout de 8 s) : la RPC ré-extrayait les
+  // montants du JSONB `raw_payload` de ~289 000 tickets à chaque appel. Depuis
+  // la migration 092 ces totaux sont matérialisés sur la ligne du ticket au
+  // moment du snapshot → l'année complète tient en ~0,4 s, Cashpad compris.
   const currentYear = new Date().getFullYear();
   const exportableYears = Array.from(
     { length: currentYear - 2025 + 1 },
@@ -271,7 +279,7 @@ export default function AnalyticsPage() {
         {/* Comparaison Cashpad — calcul lourd, activable à la demande. */}
         <label
           className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"
-          title="Compare les encaissements Cashpad aux receipts Royaume. Calcul plus lent : à activer ponctuellement."
+          title="Compare les encaissements Cashpad aux receipts Royaume."
         >
           <Checkbox
             checked={showCashpad}
