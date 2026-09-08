@@ -144,6 +144,11 @@ export function MenuItemRow({
           className="h-8 w-8"
           disabled={busy}
           aria-label={`${item.is_featured ? "Retirer des" : "Mettre en"} coups de cœur : ${item.resolved_title}`}
+          title={
+            item.is_featured
+              ? "Retirer le coup de cœur"
+              : "Coup de cœur de la catégorie (remplace le précédent)"
+          }
           onClick={() => onToggleFeatured(item)}
         >
           <Star

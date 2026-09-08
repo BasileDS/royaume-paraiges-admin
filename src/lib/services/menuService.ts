@@ -346,10 +346,15 @@ export async function createMenuItem(input: MenuItemInput): Promise<MenuItem> {
 
   const { data, error } = await menusClient()
     .from("menu_items")
-    .insert(item)
+    .insert({ ...item, is_featured: false })
     .select()
     .single();
   if (error) throw error;
+
+  // La mise en avant est posée à part : elle doit passer par la RPC de
+  // transfert, sinon l'insertion bute sur l'index unique quand la catégorie a
+  // déjà un coup de cœur.
+  if (item.is_featured) await setMenuItemFeatured(data.id, true);
 
   if (variants.length > 0) {
     const { error: vErr } = await menusClient()
@@ -384,10 +389,13 @@ export async function updateMenuItem(
   const payload = menuItemUpdateSchema.parse(input);
   const { variants, ...item } = payload;
 
-  if (Object.keys(item).length > 0) {
-    const { error } = await menusClient().from("menu_items").update(item).eq("id", id);
+  // Même raison qu'à la création : la mise en avant est traitée à part.
+  const { is_featured, ...rest } = item;
+  if (Object.keys(rest).length > 0) {
+    const { error } = await menusClient().from("menu_items").update(rest).eq("id", id);
     if (error) throw error;
   }
+  if (is_featured !== undefined) await setMenuItemFeatured(id, is_featured);
 
   if (variants === undefined) return;
 
@@ -433,14 +441,24 @@ export async function setMenuItemActive(id: number, isActive: boolean): Promise<
   if (error) throw error;
 }
 
+/**
+ * Pose ou retire le coup de cœur.
+ *
+ * Passe par la RPC `set_menu_item_featured` (migration 103) et non par un update
+ * direct : la catégorie n'en accepte qu'un, et l'étoile doit se **déplacer**
+ * plutôt que buter sur l'index unique. Le retrait de l'ancien et la pose du
+ * nouveau sont atomiques, ce que deux appels REST ne peuvent pas garantir.
+ */
 export async function setMenuItemFeatured(
   id: number,
   isFeatured: boolean,
 ): Promise<void> {
-  const { error } = await menusClient()
-    .from("menu_items")
-    .update({ is_featured: isFeatured })
-    .eq("id", id);
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.rpc as any)("set_menu_item_featured", {
+    p_item_id: id,
+    p_featured: isFeatured,
+  });
   if (error) throw error;
 }
 
@@ -477,7 +495,13 @@ export function describeMenuError(error: unknown): string {
     return "La catégorie appartient à un autre établissement.";
   }
   if (e.code === "23505") {
+    if (e.message?.includes("one_featured_per_category")) {
+      return "Cette catégorie a déjà un coup de cœur.";
+    }
     return "Ce produit est déjà sur la carte de cet établissement.";
+  }
+  if (e.code === "P0427") {
+    return "Produit introuvable : il a peut-être été supprimé depuis un autre onglet.";
   }
   if (e.code === "23514") {
     return "Choisir une seule source de descriptif : bière, catalogue, ou nom local.";

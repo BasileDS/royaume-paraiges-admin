@@ -572,7 +572,8 @@ export function MenuItemForm({ establishmentId, item }: MenuItemFormProps) {
                 <span className="text-sm">
                   Coup de cœur
                   <span className="text-muted-foreground block text-xs">
-                    Mis en avant en haut de la carte
+                    Un seul par catégorie : le poser ici le retire du produit
+                    qui l&apos;avait
                   </span>
                 </span>
               </label>
