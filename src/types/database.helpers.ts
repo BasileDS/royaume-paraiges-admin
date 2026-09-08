@@ -420,11 +420,28 @@ export type MenuCatalogProduct = {
   updated_at: string;
 }
 
+/**
+ * Chapitre de la carte (migration 107) : regroupe des categories racines par
+ * `menu_categories.section_id`. Sans item ni position : il se place a
+ * l'emplacement de sa premiere categorie visible.
+ */
+export type MenuSection = {
+  id: number;
+  establishment_id: number;
+  title: string;
+  /** Phrase sous le titre du chapitre, sur la carte publique. */
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Regroupement editorial, deux niveaux au plus (trigger `trg_menu_categories_depth`). */
 export type MenuCategory = {
   id: number;
   establishment_id: number;
   parent_id: number | null;
+  /** Chapitre de la carte. Reserve aux categories racines (trigger `trg_menu_categories_section`). NULL = a plat. */
+  section_id: number | null;
   title: string;
   /** Bloc de texte de section. Une categorie sans item mais avec description est un bloc de texte. */
   description: string | null;
@@ -603,11 +620,25 @@ export type MenusDatabase = {
         };
         Relationships: [];
       };
+      menu_sections: {
+        Row: MenuSection;
+        Insert: {
+          establishment_id: number;
+          title: string;
+          description?: string | null;
+        };
+        Update: {
+          title?: string;
+          description?: string | null;
+        };
+        Relationships: [];
+      };
       menu_categories: {
         Row: MenuCategory;
         Insert: {
           establishment_id: number;
           parent_id?: number | null;
+          section_id?: number | null;
           title: string;
           description?: string | null;
           position?: number;
@@ -615,6 +646,7 @@ export type MenusDatabase = {
         };
         Update: {
           parent_id?: number | null;
+          section_id?: number | null;
           title?: string;
           description?: string | null;
           position?: number;

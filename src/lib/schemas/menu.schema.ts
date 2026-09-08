@@ -23,6 +23,8 @@ const menuCategoryCoreSchema = z.object({
   establishment_id: z.number().int().positive("Établissement requis"),
   /** NULL = catégorie racine. La profondeur est bornée à deux niveaux en base. */
   parent_id: z.number().int().positive().nullable().optional(),
+  /** Chapitre de la carte. Réservé aux racines : le trigger `trg_menu_categories_section` refuse le reste. */
+  section_id: z.number().int().positive().nullable().optional(),
   title: z.string().min(1, "Titre requis").max(120),
   description: z.string().max(2000).nullable().optional(),
   position: z.number().int().min(0),
@@ -39,6 +41,24 @@ export const menuCategoryUpdateSchema = menuCategoryCoreSchema
 
 export type MenuCategoryInput = z.infer<typeof menuCategorySchema>;
 export type MenuCategoryUpdateInput = z.infer<typeof menuCategoryUpdateSchema>;
+
+// ============================================================================
+// Sections (chapitres de la carte, migration 107)
+// ============================================================================
+
+const menuSectionCoreSchema = z.object({
+  establishment_id: z.number().int().positive("Établissement requis"),
+  title: z.string().trim().min(1, "Titre requis").max(120),
+  description: z.string().max(2000).nullable().optional(),
+});
+
+export const menuSectionSchema = menuSectionCoreSchema;
+export const menuSectionUpdateSchema = menuSectionCoreSchema
+  .omit({ establishment_id: true })
+  .partial();
+
+export type MenuSectionInput = z.infer<typeof menuSectionSchema>;
+export type MenuSectionUpdateInput = z.infer<typeof menuSectionUpdateSchema>;
 
 // ============================================================================
 // Items de carte

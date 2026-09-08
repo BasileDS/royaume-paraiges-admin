@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import {
   getEstablishmentMenuSummaries,
   getMenuCategories,
+  getMenuSections,
   getMenuItems,
   setMenuItemActive,
   setMenuItemFeatured,
@@ -31,13 +32,17 @@ import {
   replaceMenuItemVariants,
   updateMenuCategory,
   deleteMenuCategory,
+  deleteMenuSection,
   describeMenuError,
 } from "@/lib/services/menuService";
 import { menuKeys } from "@/lib/queries/keys";
 import type { MenuItemVariantInput } from "@/lib/schemas/menu.schema";
-import type { MenuCategory, MenuItemWithDetails } from "@/types/database";
+import type { MenuCategory, MenuItemWithDetails, MenuSection } from "@/types/database";
 import { MenuItemRow } from "./_components/menu-item-row";
 import { CategoryDialog } from "./_components/category-dialog";
+import { SectionDialog } from "./_components/section-dialog";
+import { SectionGroup } from "./_components/section-group";
+import { SectionActionsSheet } from "./_components/section-actions-sheet";
 import {
   CategoryNav,
   SECTION_SCROLL_MARGIN,
@@ -62,6 +67,15 @@ const UNPLACED_SECTION_ID = "hors-carte";
 const UNPLACED_LABEL = "Hors carte";
 
 /**
+ * Un bloc de la carte : une catégorie racine à plat, ou un chapitre (migration
+ * 107) et les catégories qu'il rassemble. Même règle que la carte publique :
+ * le chapitre prend la place de sa première catégorie.
+ */
+type MenuBlock =
+  | { kind: "category"; node: CategoryNode }
+  | { kind: "section"; section: MenuSection; nodes: CategoryNode[] };
+
+/**
  * Carte d'un établissement, telle que le client la voit, avec les gestes de
  * service à portée de pouce : la page n'orchestre que les requêtes, les
  * mutations et l'état des feuilles ; le rendu vit dans `_components/`.
@@ -80,6 +94,12 @@ export default function MenuDetailPage() {
     category?: MenuCategory;
   }>({ open: false });
   const [categoryToDelete, setCategoryToDelete] = useState<MenuCategory | null>(null);
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
+  const [sectionDialog, setSectionDialog] = useState<{
+    open: boolean;
+    section?: MenuSection;
+  }>({ open: false });
+  const [sectionToDelete, setSectionToDelete] = useState<MenuSection | null>(null);
   const [query, setQuery] = useState("");
   // La saisie reste fluide : le filtrage suit avec un temps de retard si besoin.
   const deferredQuery = useDeferredValue(query);
@@ -97,6 +117,12 @@ export default function MenuDetailPage() {
     enabled: Number.isFinite(establishmentId),
   });
 
+  const sectionsQuery = useQuery({
+    queryKey: menuKeys.sections(establishmentId),
+    queryFn: () => getMenuSections(establishmentId),
+    enabled: Number.isFinite(establishmentId),
+  });
+
   const summariesQuery = useQuery({
     queryKey: menuKeys.summaries(),
     queryFn: getEstablishmentMenuSummaries,
@@ -107,6 +133,7 @@ export default function MenuDetailPage() {
 
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data]);
+  const sections = useMemo(() => sectionsQuery.data ?? [], [sectionsQuery.data]);
 
   /**
    * L'arbre est construit ici plutôt qu'en base : deux niveaux au plus, et la
@@ -190,6 +217,37 @@ export default function MenuDetailPage() {
     return { visibleTree, visibleUnplaced, resultCount: count as number | null };
   }, [searching, tokens, tree, unplaced]);
 
+  /**
+   * Les blocs affichés : les chapitres regroupent leurs catégories à la place
+   * de la première, les autres restent à plat. Calculé sur l'arbre filtré pour
+   * que la recherche traverse les chapitres.
+   */
+  const blocks = useMemo<MenuBlock[]>(() => {
+    const infos = new Map(sections.map((s) => [s.id, s]));
+    const placed = new Map<number, Extract<MenuBlock, { kind: "section" }>>();
+    const out: MenuBlock[] = [];
+    for (const node of visibleTree) {
+      const sectionId = node.category.section_id ?? null;
+      const section = sectionId === null ? undefined : infos.get(sectionId);
+      if (!section) {
+        out.push({ kind: "category", node });
+        continue;
+      }
+      let block = placed.get(section.id);
+      if (!block) {
+        block = { kind: "section", section, nodes: [] };
+        placed.set(section.id, block);
+        out.push(block);
+      }
+      block.nodes.push(node);
+    }
+    return out;
+  }, [visibleTree, sections]);
+
+  /** Nombre de catégories racines d'un chapitre, hors recherche. */
+  const sectionSize = (sectionId: number) =>
+    tree.filter((n) => (n.category.section_id ?? null) === sectionId).length;
+
   // L'item de la feuille est relu dans la liste à chaque rafraîchissement : les
   // interrupteurs reflètent l'état réel, et la feuille se ferme s'il disparaît.
   const selectedItem =
@@ -198,6 +256,10 @@ export default function MenuDetailPage() {
     selectedCategoryId === null
       ? null
       : (categories.find((c) => c.id === selectedCategoryId) ?? null);
+  const selectedSection =
+    selectedSectionId === null
+      ? null
+      : (sections.find((s) => s.id === selectedSectionId) ?? null);
 
   const editHref = `/menus/${establishmentId}/produit`;
   const newProductHref = (categoryId?: number) =>
@@ -349,6 +411,26 @@ export default function MenuDetailPage() {
     );
   };
 
+  const handleEditSection = (section: MenuSection) => {
+    setSelectedSectionId(null);
+    setSectionDialog({ open: true, section });
+  };
+
+  const handleAskDeleteSection = (section: MenuSection) => {
+    setSelectedSectionId(null);
+    setSectionToDelete(section);
+  };
+
+  const handleDeleteSection = async () => {
+    const section = sectionToDelete;
+    if (!section) return;
+    setSectionToDelete(null);
+    await runCategoryAction(
+      () => deleteMenuSection(section.id),
+      `Chapitre « ${section.title} » dissous, ses catégories restent sur la carte`,
+    );
+  };
+
   // ------------------------------------------------------------------- rendu
   const loading = categoriesQuery.isLoading || itemsQuery.isLoading;
   const emptyCard = tree.length === 0 && unplaced.length === 0;
@@ -448,16 +530,38 @@ export default function MenuDetailPage() {
           )}
 
           <div className="space-y-4">
-            {visibleTree.map((node) => (
-              <CategorySection
-                key={node.category.id}
-                node={node}
-                onOpenCategory={(category) => setSelectedCategoryId(category.id)}
-                onEditCategory={handleEditCategory}
-                onDeleteCategory={handleAskDeleteCategory}
-                {...itemHandlers}
-              />
-            ))}
+            {blocks.map((block) =>
+              block.kind === "category" ? (
+                <CategorySection
+                  key={`cat-${block.node.category.id}`}
+                  node={block.node}
+                  onOpenCategory={(category) => setSelectedCategoryId(category.id)}
+                  onEditCategory={handleEditCategory}
+                  onDeleteCategory={handleAskDeleteCategory}
+                  {...itemHandlers}
+                />
+              ) : (
+                <SectionGroup
+                  key={`sec-${block.section.id}`}
+                  section={block.section}
+                  count={block.nodes.length}
+                  onOpenSection={(section) => setSelectedSectionId(section.id)}
+                  onEditSection={handleEditSection}
+                  onDeleteSection={handleAskDeleteSection}
+                >
+                  {block.nodes.map((node) => (
+                    <CategorySection
+                      key={node.category.id}
+                      node={node}
+                      onOpenCategory={(category) => setSelectedCategoryId(category.id)}
+                      onEditCategory={handleEditCategory}
+                      onDeleteCategory={handleAskDeleteCategory}
+                      {...itemHandlers}
+                    />
+                  ))}
+                </SectionGroup>
+              ),
+            )}
 
             {visibleUnplaced.length > 0 && (
               <section
@@ -531,6 +635,15 @@ export default function MenuDetailPage() {
         onDelete={handleAskDeleteCategory}
       />
 
+      <SectionActionsSheet
+        section={selectedSection}
+        count={selectedSection ? sectionSize(selectedSection.id) : 0}
+        busy={categoryBusy}
+        onClose={() => setSelectedSectionId(null)}
+        onEdit={handleEditSection}
+        onDelete={handleAskDeleteSection}
+      />
+
       {/* Monté à l'ouverture seulement : le formulaire repart des valeurs de la
           catégorie sans effet de resynchronisation. */}
       {categoryDialog.open && (
@@ -539,9 +652,29 @@ export default function MenuDetailPage() {
           onOpenChange={(open) => setCategoryDialog({ open, category: undefined })}
           establishmentId={establishmentId}
           categories={categories}
+          sections={sections}
           category={categoryDialog.category}
         />
       )}
+
+      {sectionDialog.open && (
+        <SectionDialog
+          open
+          onOpenChange={(open) => setSectionDialog({ open, section: undefined })}
+          establishmentId={establishmentId}
+          section={sectionDialog.section}
+        />
+      )}
+
+      <ConfirmDialog
+        open={sectionToDelete !== null}
+        onOpenChange={(open) => !open && setSectionToDelete(null)}
+        title={`Dissoudre « ${sectionToDelete?.title ?? ""} » ?`}
+        description="Le chapitre disparaît de la carte. Ses catégories et leurs produits restent en place, simplement à plat."
+        confirmLabel="Dissoudre"
+        destructive
+        onConfirm={handleDeleteSection}
+      />
 
       <ConfirmDialog
         open={categoryToDelete !== null}

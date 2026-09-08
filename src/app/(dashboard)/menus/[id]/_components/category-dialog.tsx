@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
@@ -22,22 +22,33 @@ import {
 } from "@/components/ui/select";
 import {
   createMenuCategory,
+  createMenuSection,
   updateMenuCategory,
   describeMenuError,
 } from "@/lib/services/menuService";
 import { menuKeys } from "@/lib/queries/keys";
-import type { MenuCategory } from "@/types/database";
+import type { MenuCategory, MenuSection } from "@/types/database";
 
-const formSchema = z.object({
-  title: z.string().min(1, "Titre requis").max(120),
-  parent_id: z.string(),
-  description: z.string().max(2000),
-  position: z.string().refine(
-    (v) => v.trim() === "" || Number.isInteger(Number(v)),
-    "Position invalide",
-  ),
-  is_active: z.boolean(),
-});
+/** Valeur du sélecteur de chapitre qui ouvre la saisie d'un nouveau titre. */
+const NEW_SECTION = "__new__";
+
+const formSchema = z
+  .object({
+    title: z.string().min(1, "Titre requis").max(120),
+    parent_id: z.string(),
+    section_id: z.string(),
+    new_section_title: z.string().max(120),
+    description: z.string().max(2000),
+    position: z.string().refine(
+      (v) => v.trim() === "" || Number.isInteger(Number(v)),
+      "Position invalide",
+    ),
+    is_active: z.boolean(),
+  })
+  .refine((v) => v.section_id !== NEW_SECTION || v.new_section_title.trim().length > 0, {
+    message: "Titre du chapitre requis",
+    path: ["new_section_title"],
+  });
 
 type FormInput = z.infer<typeof formSchema>;
 
@@ -47,6 +58,8 @@ interface CategoryDialogProps {
   establishmentId: number;
   /** Toutes les catégories de l'établissement, pour le choix du parent. */
   categories: MenuCategory[];
+  /** Les chapitres de l'établissement, pour le rattachement d'une racine. */
+  sections: MenuSection[];
   /** Absent = création. */
   category?: MenuCategory;
 }
@@ -60,6 +73,7 @@ export function CategoryDialog({
   onOpenChange,
   establishmentId,
   categories,
+  sections,
   category,
 }: CategoryDialogProps) {
   const queryClient = useQueryClient();
@@ -74,6 +88,8 @@ export function CategoryDialog({
     defaultValues: {
       title: category?.title ?? "",
       parent_id: category?.parent_id ? String(category.parent_id) : "",
+      section_id: category?.section_id ? String(category.section_id) : "",
+      new_section_title: "",
       description: category?.description ?? "",
       position: String(category?.position ?? 0),
       is_active: category?.is_active ?? true,
@@ -99,16 +115,37 @@ export function CategoryDialog({
   /** Une catégorie qui a des enfants ne peut pas devenir elle-même une sous-catégorie. */
   const hasChildren = categories.some((c) => c.parent_id === category?.id);
 
+  // Une sous-catégorie suit le chapitre de son parent : le trigger
+  // `trg_menu_categories_section` refuse un chapitre posé dessus, le sélecteur
+  // se désactive donc dès qu'un parent est choisi.
+  const parentId = useWatch({ control, name: "parent_id" });
+  const sectionChoice = useWatch({ control, name: "section_id" });
+  const isChild = parentId !== "";
+
   const submit = handleSubmit(async (values) => {
     setServerError(null);
-    const payload = {
-      title: values.title.trim(),
-      parent_id: values.parent_id ? Number(values.parent_id) : null,
-      description: values.description.trim() || null,
-      position: values.position.trim() === "" ? 0 : Number(values.position),
-      is_active: values.is_active,
-    };
     try {
+      // Le chapitre est créé avant la catégorie : s'il échoue, rien n'est écrit.
+      let sectionId: number | null = null;
+      if (!values.parent_id) {
+        if (values.section_id === NEW_SECTION) {
+          const created = await createMenuSection({
+            establishment_id: establishmentId,
+            title: values.new_section_title.trim(),
+          });
+          sectionId = created.id;
+        } else if (values.section_id) {
+          sectionId = Number(values.section_id);
+        }
+      }
+      const payload = {
+        title: values.title.trim(),
+        parent_id: values.parent_id ? Number(values.parent_id) : null,
+        section_id: sectionId,
+        description: values.description.trim() || null,
+        position: values.position.trim() === "" ? 0 : Number(values.position),
+        is_active: values.is_active,
+      };
       if (category) {
         await updateMenuCategory(category.id, payload);
         toast.success("Catégorie enregistrée");
@@ -174,6 +211,55 @@ export function CategoryDialog({
             {hasChildren
               ? "Cette catégorie a des sous-catégories : elle doit rester à la racine."
               : "Deux niveaux au plus : une sous-catégorie ne peut pas en contenir d'autres."}
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="cat-section">Chapitre</Label>
+          <Controller
+            control={control}
+            name="section_id"
+            render={({ field }) => (
+              <Select
+                value={isChild ? "none" : field.value || "none"}
+                onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+                disabled={isChild}
+              >
+                <SelectTrigger id="cat-section" className="mt-1.5 h-11 md:h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun : à plat sur la carte</SelectItem>
+                  {sections.map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.title}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NEW_SECTION}>Nouveau chapitre…</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {!isChild && sectionChoice === NEW_SECTION && (
+            <>
+              <Input
+                className="mt-2 h-11 md:h-10"
+                {...register("new_section_title")}
+                placeholder="Titre du chapitre, par exemple « Les Cocktails »"
+                aria-label="Titre du nouveau chapitre"
+                autoFocus
+              />
+              {errors.new_section_title && (
+                <p className="mt-1 text-xs text-destructive">
+                  {errors.new_section_title.message}
+                </p>
+              )}
+            </>
+          )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {isChild
+              ? "Une sous-catégorie suit le chapitre de son parent."
+              : "Un chapitre rassemble plusieurs catégories sous un même accordéon, à la place de la première d'entre elles."}
           </p>
         </div>
 

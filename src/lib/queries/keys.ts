@@ -203,6 +203,8 @@ export const menuKeys = {
   summaries: () => [...menuKeys.all, "summaries"] as const,
   categories: (establishmentId: number) =>
     [...menuKeys.all, "categories", establishmentId] as const,
+  sections: (establishmentId: number) =>
+    [...menuKeys.all, "sections", establishmentId] as const,
   items: (establishmentId: number) =>
     [...menuKeys.all, "items", establishmentId] as const,
   itemTypes: () => [...menuKeys.all, "itemTypes"] as const,

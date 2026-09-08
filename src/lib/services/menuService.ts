@@ -6,8 +6,12 @@ import {
   menuItemSchema,
   menuItemUpdateSchema,
   menuItemVariantsSchema,
+  menuSectionSchema,
+  menuSectionUpdateSchema,
   type MenuCategoryInput,
   type MenuCategoryUpdateInput,
+  type MenuSectionInput,
+  type MenuSectionUpdateInput,
   type MenuItemInput,
   type MenuItemUpdateInput,
   type MenuItemVariantInput,
@@ -20,6 +24,7 @@ import type {
   MenuItemType,
   MenuItemVariant,
   MenuItemWithDetails,
+  MenuSection,
   MenusDatabase,
 } from "@/types/database";
 
@@ -157,6 +162,19 @@ export async function getEstablishmentMenuSummaries(): Promise<
 // ============================================================================
 // Carte d'un établissement
 // ============================================================================
+
+/** Les chapitres d'une carte (migration 107). Sans position : l'ordre est celui des catégories. */
+export async function getMenuSections(
+  establishmentId: number,
+): Promise<MenuSection[]> {
+  const { data, error } = await menusClient()
+    .from("menu_sections")
+    .select("*")
+    .eq("establishment_id", establishmentId)
+    .order("id");
+  if (error) throw error;
+  return data ?? [];
+}
 
 export async function getMenuCategories(
   establishmentId: number,
@@ -339,6 +357,39 @@ export async function deleteMenuCategory(id: number): Promise<void> {
 }
 
 // ============================================================================
+// Écritures : sections
+// ============================================================================
+
+export async function createMenuSection(input: MenuSectionInput): Promise<MenuSection> {
+  const payload = menuSectionSchema.parse(input);
+  const { data, error } = await menusClient()
+    .from("menu_sections")
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateMenuSection(
+  id: number,
+  input: MenuSectionUpdateInput,
+): Promise<void> {
+  const payload = menuSectionUpdateSchema.parse(input);
+  const { error } = await menusClient().from("menu_sections").update(payload).eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Supprimer un chapitre remet ses catégories à plat (FK en SET NULL) : rien
+ * d'autre ne bouge, ni catégories ni produits.
+ */
+export async function deleteMenuSection(id: number): Promise<void> {
+  const { error } = await menusClient().from("menu_sections").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ============================================================================
 // Écritures : items et variantes
 // ============================================================================
 
@@ -504,7 +555,8 @@ export async function deleteMenuItem(id: number): Promise<void> {
 /**
  * Les garde-fous de la couche menus remontent des codes que l'UI doit rendre
  * lisibles. `P0426` vient des triggers `trg_menu_items_scope` et
- * `trg_menu_categories_depth`, `23505` des deux index uniques par établissement.
+ * `trg_menu_categories_depth` et `trg_menu_categories_section`, `23505` des deux
+ * index uniques par établissement.
  */
 export function describeMenuError(error: unknown): string {
   const e = error as { code?: string; message?: string } | null;
@@ -516,6 +568,12 @@ export function describeMenuError(error: unknown): string {
     }
     if (e.message?.includes("MENU_CATEGORY_TOO_DEEP")) {
       return "Les catégories sont limitées à deux niveaux.";
+    }
+    if (e.message?.includes("MENU_CATEGORY_SECTION_ON_CHILD")) {
+      return "Seule une catégorie racine peut rejoindre un chapitre : une sous-catégorie suit son parent.";
+    }
+    if (e.message?.includes("MENU_SECTION_CROSS_ESTABLISHMENT")) {
+      return "Ce chapitre appartient à un autre établissement.";
     }
     return "La catégorie appartient à un autre établissement.";
   }
