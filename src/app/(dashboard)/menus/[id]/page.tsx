@@ -10,6 +10,7 @@ import {
   Clock,
   EyeOff,
   FolderPlus,
+  Lock,
   Plus,
   SearchX,
   UtensilsCrossed,
@@ -56,6 +57,7 @@ import {
 import { MenuItemSheet } from "./_components/menu-item-sheet";
 import { CategoryActionsSheet } from "./_components/category-actions-sheet";
 import { MenuActionBar } from "./_components/menu-action-bar";
+import { useMenuAccess } from "../_lib/access";
 import {
   buildItemSearchIndex,
   buildSearchIndex,
@@ -84,6 +86,12 @@ export default function MenuDetailPage() {
   const { id } = useParams<{ id: string }>();
   const establishmentId = Number(id);
   const queryClient = useQueryClient();
+
+  // Un admin ne modifie que la carte de son établissement de rattachement
+  // (migration 109) ; les autres s'ouvrent en lecture seule. La RLS refuse de
+  // toute façon, l'interface ne propose simplement pas les gestes.
+  const access = useMenuAccess(establishmentId);
+  const readOnly = !access.canEdit;
 
   const [busyId, setBusyId] = useState<number | null>(null);
   const [categoryBusy, setCategoryBusy] = useState(false);
@@ -129,6 +137,10 @@ export default function MenuDetailPage() {
   });
   const summary = summariesQuery.data?.find(
     (s) => s.establishment_id === establishmentId,
+  );
+  /** L'établissement de rattachement de l'admin, pour nommer sa carte dans le bandeau. */
+  const referenceSummary = summariesQuery.data?.find(
+    (s) => s.establishment_id === access.attachedEstablishmentId,
   );
 
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
@@ -432,12 +444,14 @@ export default function MenuDetailPage() {
   };
 
   // ------------------------------------------------------------------- rendu
-  const loading = categoriesQuery.isLoading || itemsQuery.isLoading;
+  // Le profil compte aussi : sans lui, la page hésiterait entre lecture et édition.
+  const loading = categoriesQuery.isLoading || itemsQuery.isLoading || access.isLoading;
   const emptyCard = tree.length === 0 && unplaced.length === 0;
 
   const itemHandlers = {
     editHref,
     busyId,
+    readOnly,
     highlightTokens: tokens,
     onOpenItem: (item: MenuItemWithDetails) => setSelectedItemId(item.id),
     onToggleActive: handleToggleActive,
@@ -447,7 +461,7 @@ export default function MenuDetailPage() {
 
   return (
     // Le pied laisse la place à la barre d'actions fixe sur téléphone.
-    <div className="space-y-6 pb-24 md:pb-0">
+    <div className={cn("space-y-6", !readOnly && "pb-24 md:pb-0")}>
       <Button variant="ghost" size="sm" asChild className="-ml-2">
         <Link href="/menus">
           <ArrowLeft className="mr-1 h-4 w-4" aria-hidden="true" />
@@ -472,21 +486,58 @@ export default function MenuDetailPage() {
               </Badge>
             )}
             {/* Sur téléphone, ces deux actions vivent dans la barre du bas. */}
-            <div className="hidden items-center gap-2 md:flex">
-              <Button variant="outline" onClick={() => setCategoryDialog({ open: true })}>
-                <FolderPlus className="mr-1 h-4 w-4" aria-hidden="true" />
-                Catégorie
-              </Button>
-              <Button asChild>
-                <Link href={newProductHref()}>
-                  <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
-                  Produit
-                </Link>
-              </Button>
-            </div>
+            {!readOnly && (
+              <div className="hidden items-center gap-2 md:flex">
+                <Button variant="outline" onClick={() => setCategoryDialog({ open: true })}>
+                  <FolderPlus className="mr-1 h-4 w-4" aria-hidden="true" />
+                  Catégorie
+                </Button>
+                <Button asChild>
+                  <Link href={newProductHref()}>
+                    <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+                    Produit
+                  </Link>
+                </Button>
+              </div>
+            )}
           </>
         }
       />
+
+      {!loading && readOnly && (
+        <div
+          role="status"
+          className="flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="flex items-start gap-2">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>
+              <strong>Lecture seule.</strong>{" "}
+              {access.attachedEstablishmentId !== null ? (
+                <>
+                  Vous ne pouvez modifier que la carte de{" "}
+                  <strong>
+                    {referenceSummary?.establishment_title ??
+                      "votre établissement de référence"}
+                  </strong>
+                  .
+                </>
+              ) : (
+                <>
+                  Votre compte n&apos;est rattaché à aucun établissement : demandez
+                  à un super admin de le rattacher pour modifier une carte.
+                </>
+              )}
+            </span>
+          </p>
+          {access.attachedEstablishmentId !== null &&
+            access.attachedEstablishmentId !== establishmentId && (
+              <Button variant="outline" size="sm" asChild className="shrink-0">
+                <Link href={`/menus/${access.attachedEstablishmentId}`}>Ouvrir ma carte</Link>
+              </Button>
+            )}
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-4">
@@ -498,12 +549,18 @@ export default function MenuDetailPage() {
         <EmptyState
           icon={UtensilsCrossed}
           title="Carte vide"
-          description="Cet établissement n'a pas encore de carte. Commencez par une catégorie, puis ajoutez-y des produits."
+          description={
+            readOnly
+              ? "Cet établissement n'a pas encore de carte."
+              : "Cet établissement n'a pas encore de carte. Commencez par une catégorie, puis ajoutez-y des produits."
+          }
           action={
-            <Button variant="outline" onClick={() => setCategoryDialog({ open: true })}>
-              <FolderPlus className="mr-1 h-4 w-4" aria-hidden="true" />
-              Créer une catégorie
-            </Button>
+            readOnly ? undefined : (
+              <Button variant="outline" onClick={() => setCategoryDialog({ open: true })}>
+                <FolderPlus className="mr-1 h-4 w-4" aria-hidden="true" />
+                Créer une catégorie
+              </Button>
+            )
           }
         />
       ) : (
@@ -545,6 +602,7 @@ export default function MenuDetailPage() {
                   key={`sec-${block.section.id}`}
                   section={block.section}
                   count={block.nodes.length}
+                  readOnly={readOnly}
                   onOpenSection={(section) => setSelectedSectionId(section.id)}
                   onEditSection={handleEditSection}
                   onDeleteSection={handleAskDeleteSection}
@@ -593,6 +651,7 @@ export default function MenuDetailPage() {
                       item={item}
                       editHref={editHref}
                       busy={busyId === item.id}
+                      readOnly={readOnly}
                       highlightTokens={tokens}
                       onOpen={itemHandlers.onOpenItem}
                       onToggleActive={handleToggleActive}
@@ -607,10 +666,12 @@ export default function MenuDetailPage() {
         </>
       )}
 
-      <MenuActionBar
-        addProductHref={newProductHref()}
-        onAddCategory={() => setCategoryDialog({ open: true })}
-      />
+      {!readOnly && (
+        <MenuActionBar
+          addProductHref={newProductHref()}
+          onAddCategory={() => setCategoryDialog({ open: true })}
+        />
+      )}
 
       <MenuItemSheet
         item={selectedItem}

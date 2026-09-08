@@ -22,6 +22,11 @@ interface ItemHandlers {
   busyId: number | null;
   /** Mots de la recherche en cours, surlignés dans les noms. */
   highlightTokens?: string[];
+  /**
+   * Carte d'un autre établissement que le sien (migration 109) : tout se lit,
+   * rien ne s'ouvre ni ne se modifie.
+   */
+  readOnly?: boolean;
   onOpenItem: (item: MenuItemWithDetails) => void;
   onToggleActive: (item: MenuItemWithDetails) => void;
   onToggleFeatured: (item: MenuItemWithDetails) => void;
@@ -95,6 +100,7 @@ function ItemRow({
   editHref,
   busyId,
   highlightTokens,
+  readOnly,
   onOpenItem,
   onToggleActive,
   onToggleFeatured,
@@ -106,6 +112,7 @@ function ItemRow({
       editHref={editHref}
       busy={busyId === item.id}
       highlightTokens={highlightTokens}
+      readOnly={readOnly}
       onOpen={onOpenItem}
       onToggleActive={onToggleActive}
       onToggleFeatured={onToggleFeatured}
@@ -117,20 +124,57 @@ function ItemRow({
 interface CategoryHeaderProps {
   node: CategoryNode;
   depth: 0 | 1;
+  readOnly?: boolean;
   onOpenCategory: (category: MenuCategory) => void;
   onEditCategory: (category: MenuCategory) => void;
   onDeleteCategory: (category: MenuCategory) => void;
 }
 
+const HEADER_CELL_CLASS =
+  "flex min-h-12 min-w-0 flex-1 items-center gap-2 px-4 py-2.5 text-left";
+
 function CategoryHeader({
   node,
   depth,
+  readOnly = false,
   onOpenCategory,
   onEditCategory,
   onDeleteCategory,
 }: CategoryHeaderProps) {
   const { category } = node;
   const count = node.items.length;
+
+  const label = (
+    <>
+      <span
+        id={depth === 0 ? `${sectionIdFor(category.id)}-title` : undefined}
+        className={cn("font-semibold leading-tight", depth === 0 ? "text-base" : "text-sm")}
+      >
+        {category.title}
+      </span>
+      {!category.is_active && (
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+          Masquée
+        </span>
+      )}
+      <span className="text-xs tabular-nums text-muted-foreground">
+        {count} produit{count > 1 ? "s" : ""}
+      </span>
+    </>
+  );
+
+  if (readOnly) {
+    return (
+      <div className={cn(depth > 0 && "bg-muted/40")}>
+        <div className={HEADER_CELL_CLASS}>{label}</div>
+        {category.description && (
+          <p className="-mt-1 whitespace-pre-line px-4 pb-3 text-sm text-muted-foreground">
+            {category.description}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={cn(depth > 0 && "bg-muted/40")}>
@@ -139,22 +183,12 @@ function CategoryHeader({
           type="button"
           onClick={() => onOpenCategory(category)}
           aria-haspopup="dialog"
-          className="flex min-h-12 min-w-0 flex-1 items-center gap-2 px-4 py-2.5 text-left transition-colors active:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/60 md:hover:bg-muted/40"
-        >
-          <span
-            id={depth === 0 ? `${sectionIdFor(category.id)}-title` : undefined}
-            className={cn("font-semibold leading-tight", depth === 0 ? "text-base" : "text-sm")}
-          >
-            {category.title}
-          </span>
-          {!category.is_active && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-              Masquée
-            </span>
+          className={cn(
+            HEADER_CELL_CLASS,
+            "transition-colors active:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/60 md:hover:bg-muted/40",
           )}
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {count} produit{count > 1 ? "s" : ""}
-          </span>
+        >
+          {label}
           <MoreHorizontal
             className="ml-auto h-5 w-5 shrink-0 text-muted-foreground/70 md:hidden"
             aria-hidden="true"

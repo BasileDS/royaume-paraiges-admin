@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getMenuItem, deleteMenuItem, describeMenuError } from "@/lib/services/menuService";
 import { menuKeys } from "@/lib/queries/keys";
+import { MenuEditGuard } from "../../../_components/menu-edit-guard";
 import { MenuItemForm } from "../../_form/MenuItemForm";
 
 export default function EditMenuItemPage() {
@@ -54,50 +55,53 @@ export default function EditMenuItemPage() {
         </Link>
       </Button>
 
-      {itemQuery.isLoading ? (
-        <div className="space-y-4">
-          <div className="bg-muted h-9 w-64 animate-pulse rounded" />
-          <div className="bg-muted h-96 w-full animate-pulse rounded-lg" />
-        </div>
-      ) : !item ? (
-        <EmptyState
-          title="Produit introuvable"
-          description="Il a peut-être été supprimé depuis un autre onglet."
-        />
-      ) : (
-        <>
-          <PageHeader
-            title={item.resolved_title}
-            description={item.type_label}
-            actions={
-              <Button
-                variant="outline"
-                onClick={() => setConfirmDelete(true)}
-                disabled={deleting}
-              >
-                <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
-                Supprimer
-              </Button>
-            }
+      {/* Un admin ne modifie un produit que sur la carte de son établissement (migration 109). */}
+      <MenuEditGuard establishmentId={establishmentId}>
+        {itemQuery.isLoading ? (
+          <div className="space-y-4">
+            <div className="bg-muted h-9 w-64 animate-pulse rounded" />
+            <div className="bg-muted h-96 w-full animate-pulse rounded-lg" />
+          </div>
+        ) : !item ? (
+          <EmptyState
+            title="Produit introuvable"
+            description="Il a peut-être été supprimé depuis un autre onglet."
           />
+        ) : (
+          <>
+            <PageHeader
+              title={item.resolved_title}
+              description={item.type_label}
+              actions={
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={deleting}
+                >
+                  <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
+                  Supprimer
+                </Button>
+              }
+            />
 
-          <MenuItemForm establishmentId={establishmentId} item={item} />
+            <MenuItemForm establishmentId={establishmentId} item={item} />
 
-          <ConfirmDialog
-            open={confirmDelete}
-            onOpenChange={setConfirmDelete}
-            title={`Supprimer « ${item.resolved_title} » ?`}
-            description={
-              item.source === "beer"
-                ? "Le produit et ses formats sont supprimés définitivement. Cette bière ne comptera plus comme disponible dans l'application des Compagnons. Pour la sortir de la carte en la gardant disponible, utiliser plutôt « Retirer de la carte »."
-                : "Le produit et ses formats sont supprimés définitivement."
-            }
-            confirmLabel="Supprimer"
-            destructive
-            onConfirm={handleDelete}
-          />
-        </>
-      )}
+            <ConfirmDialog
+              open={confirmDelete}
+              onOpenChange={setConfirmDelete}
+              title={`Supprimer « ${item.resolved_title} » ?`}
+              description={
+                item.source === "beer"
+                  ? "Le produit et ses formats sont supprimés définitivement. Cette bière ne comptera plus comme disponible dans l'application des Compagnons. Pour la sortir de la carte en la gardant disponible, utiliser plutôt « Retirer de la carte »."
+                  : "Le produit et ses formats sont supprimés définitivement."
+              }
+              confirmLabel="Supprimer"
+              destructive
+              onConfirm={handleDelete}
+            />
+          </>
+        )}
+      </MenuEditGuard>
     </div>
   );
 }

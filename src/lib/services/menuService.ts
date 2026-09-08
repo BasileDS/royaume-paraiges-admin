@@ -29,12 +29,13 @@ import type {
 } from "@/types/database";
 
 /**
- * Accès à la couche menus (migrations 094 à 101).
+ * Accès à la couche menus (migrations 094 à 109).
  *
- * RLS admin-only, avec feature gating `admin_has_feature('menus')` en écriture :
- * le contrôle d'accès est délégué à PostgreSQL, il n'est pas revérifié ici. Un
- * admin privé de la fonctionnalité verra la lecture fonctionner et toute
- * écriture échouer, le blocage dur étant côté middleware.
+ * RLS admin-only en lecture ; en écriture, un admin ne touche que la carte de
+ * son établissement de rattachement (`admin_can_edit_menu`, migration 109),
+ * un super admin toutes. Le contrôle d'accès est délégué à PostgreSQL, il
+ * n'est pas revérifié ici : l'interface se contente de ne pas proposer les
+ * gestes qui échoueraient (`useMenuAccess`).
  *
  * La carte publique ne passe PAS par ce service : elle appelle la RPC
  * `get_public_menu(slug)`, seul chemin ouvert à `anon`.
@@ -47,6 +48,20 @@ import type {
  */
 function menusClient(): SupabaseClient<MenusDatabase> {
   return createClient() as unknown as SupabaseClient<MenusDatabase>;
+}
+
+/**
+ * PostgREST ne signale pas une écriture filtrée par la RLS : un UPDATE ou un
+ * DELETE hors périmètre « réussit » en ne touchant aucune ligne. Depuis que
+ * le périmètre dépend de l'établissement (migration 109), ce silence serait
+ * un mensonge pour l'interface : on relit les lignes touchées et on refuse
+ * s'il n'y en a pas. Même code que la RLS (42501), traduit par
+ * `describeMenuError`.
+ */
+function assertTouched(rows: unknown[] | null): void {
+  if (!rows || rows.length === 0) {
+    throw Object.assign(new Error("MENU_WRITE_IGNORED"), { code: "42501" });
+  }
 }
 
 // ============================================================================
@@ -339,11 +354,13 @@ export async function updateMenuCategory(
   input: MenuCategoryUpdateInput,
 ): Promise<void> {
   const payload = menuCategoryUpdateSchema.parse(input);
-  const { error } = await menusClient()
+  const { data, error } = await menusClient()
     .from("menu_categories")
     .update(payload)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertTouched(data);
 }
 
 /**
@@ -352,8 +369,13 @@ export async function updateMenuCategory(
  * sont supprimées en cascade.
  */
 export async function deleteMenuCategory(id: number): Promise<void> {
-  const { error } = await menusClient().from("menu_categories").delete().eq("id", id);
+  const { data, error } = await menusClient()
+    .from("menu_categories")
+    .delete()
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertTouched(data);
 }
 
 // ============================================================================
@@ -376,8 +398,13 @@ export async function updateMenuSection(
   input: MenuSectionUpdateInput,
 ): Promise<void> {
   const payload = menuSectionUpdateSchema.parse(input);
-  const { error } = await menusClient().from("menu_sections").update(payload).eq("id", id);
+  const { data, error } = await menusClient()
+    .from("menu_sections")
+    .update(payload)
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertTouched(data);
 }
 
 /**
@@ -385,8 +412,13 @@ export async function updateMenuSection(
  * d'autre ne bouge, ni catégories ni produits.
  */
 export async function deleteMenuSection(id: number): Promise<void> {
-  const { error } = await menusClient().from("menu_sections").delete().eq("id", id);
+  const { data, error } = await menusClient()
+    .from("menu_sections")
+    .delete()
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertTouched(data);
 }
 
 // ============================================================================
@@ -445,8 +477,13 @@ export async function updateMenuItem(
   // Même raison qu'à la création : la mise en avant est traitée à part.
   const { is_featured, ...rest } = item;
   if (Object.keys(rest).length > 0) {
-    const { error } = await menusClient().from("menu_items").update(rest).eq("id", id);
+    const { data, error } = await menusClient()
+      .from("menu_items")
+      .update(rest)
+      .eq("id", id)
+      .select("id");
     if (error) throw error;
+    assertTouched(data);
   }
   if (is_featured !== undefined) await setMenuItemFeatured(id, is_featured);
 
@@ -494,11 +531,13 @@ export async function moveMenuItem(
   id: number,
   categoryId: number | null,
 ): Promise<void> {
-  const { error } = await menusClient()
+  const { data, error } = await menusClient()
     .from("menu_items")
     .update({ category_id: categoryId })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertTouched(data);
 }
 
 /**
@@ -510,11 +549,13 @@ export async function unplaceMenuItem(id: number): Promise<void> {
 }
 
 export async function setMenuItemActive(id: number, isActive: boolean): Promise<void> {
-  const { error } = await menusClient()
+  const { data, error } = await menusClient()
     .from("menu_items")
     .update({ is_active: isActive })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertTouched(data);
 }
 
 /**
@@ -544,8 +585,13 @@ export async function setMenuItemFeatured(
  * si l'intention est seulement de la sortir de la carte affichée.
  */
 export async function deleteMenuItem(id: number): Promise<void> {
-  const { error } = await menusClient().from("menu_items").delete().eq("id", id);
+  const { data, error } = await menusClient()
+    .from("menu_items")
+    .delete()
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertTouched(data);
 }
 
 // ============================================================================
@@ -556,7 +602,10 @@ export async function deleteMenuItem(id: number): Promise<void> {
  * Les garde-fous de la couche menus remontent des codes que l'UI doit rendre
  * lisibles. `P0426` vient des triggers `trg_menu_items_scope` et
  * `trg_menu_categories_depth` et `trg_menu_categories_section`, `23505` des deux
- * index uniques par établissement.
+ * index uniques par établissement, `42501` de la RLS (fonctionnalité coupée
+ * ou carte d'un autre établissement, migration 109), de la RPC
+ * `set_menu_item_featured` (`MENU_EDIT_FORBIDDEN`) ou de `assertTouched`
+ * (`MENU_WRITE_IGNORED`).
  */
 export function describeMenuError(error: unknown): string {
   const e = error as { code?: string; message?: string } | null;
@@ -590,7 +639,13 @@ export function describeMenuError(error: unknown): string {
     return "Choisir une seule source de descriptif : bière, catalogue, ou nom local.";
   }
   if (e.code === "42501") {
-    return "Vous n'avez pas accès à la gestion des menus.";
+    if (e.message?.includes("MENU_EDIT_FORBIDDEN")) {
+      return "Vous ne pouvez modifier que la carte de votre établissement de référence.";
+    }
+    if (e.message?.includes("MENU_WRITE_IGNORED")) {
+      return "Aucune modification enregistrée : cette carte n'est pas celle de votre établissement de référence, ou l'élément a été supprimé entre-temps.";
+    }
+    return "Écriture refusée : vous n'avez pas accès à la gestion des menus, ou cette carte n'est pas celle de votre établissement de référence.";
   }
   return e.message ?? "Erreur inconnue";
 }

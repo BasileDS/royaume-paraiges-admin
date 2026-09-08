@@ -2,17 +2,23 @@
 
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { MenuSection } from "@/types/database";
 
 interface SectionGroupProps {
   section: MenuSection;
   /** Nombre de catégories affichées dans le chapitre. */
   count: number;
+  /** Carte d'un autre établissement (migration 109) : en-tête sans geste. */
+  readOnly?: boolean;
   onOpenSection: (section: MenuSection) => void;
   onEditSection: (section: MenuSection) => void;
   onDeleteSection: (section: MenuSection) => void;
   children: React.ReactNode;
 }
+
+const HEADER_CELL_CLASS =
+  "flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-1 text-left";
 
 /**
  * Un chapitre de la carte (migration 107) : son en-tête, puis ses catégories
@@ -22,12 +28,37 @@ interface SectionGroupProps {
 export function SectionGroup({
   section,
   count,
+  readOnly = false,
   onOpenSection,
   onEditSection,
   onDeleteSection,
   children,
 }: SectionGroupProps) {
   const titleId = `sec-${section.id}-title`;
+
+  const label = (
+    <>
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Chapitre
+      </span>
+      <span id={titleId} className="truncate text-base font-semibold leading-tight">
+        {section.title}
+      </span>
+      <span className="text-xs tabular-nums text-muted-foreground">
+        {count} catégorie{count > 1 ? "s" : ""}
+      </span>
+    </>
+  );
+
+  if (readOnly) {
+    return (
+      <section aria-labelledby={titleId} className="space-y-3">
+        <div className={HEADER_CELL_CLASS}>{label}</div>
+        <div className="space-y-4 border-l-2 border-border pl-3">{children}</div>
+      </section>
+    );
+  }
+
   return (
     <section aria-labelledby={titleId} className="space-y-3">
       <div className="flex items-stretch">
@@ -35,17 +66,12 @@ export function SectionGroup({
           type="button"
           onClick={() => onOpenSection(section)}
           aria-haspopup="dialog"
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-1 text-left transition-colors active:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/60 md:hover:bg-muted/40"
+          className={cn(
+            HEADER_CELL_CLASS,
+            "transition-colors active:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/60 md:hover:bg-muted/40",
+          )}
         >
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Chapitre
-          </span>
-          <span id={titleId} className="truncate text-base font-semibold leading-tight">
-            {section.title}
-          </span>
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {count} catégorie{count > 1 ? "s" : ""}
-          </span>
+          {label}
           <MoreHorizontal
             className="ml-auto h-5 w-5 shrink-0 text-muted-foreground/70 md:hidden"
             aria-hidden="true"

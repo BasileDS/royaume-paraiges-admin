@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
+import { MenuEditGuard } from "../../../_components/menu-edit-guard";
 import { MenuItemForm } from "../../_form/MenuItemForm";
 
 function NewMenuItemContent() {
@@ -28,12 +29,15 @@ function NewMenuItemContent() {
         </Link>
       </Button>
 
-      <PageHeader
-        title="Ajouter un produit"
-        description="Une bière ou un soft du catalogue partagé, ou un produit propre à cet établissement."
-      />
+      {/* Un admin n'ajoute un produit qu'à la carte de son établissement (migration 109). */}
+      <MenuEditGuard establishmentId={establishmentId}>
+        <PageHeader
+          title="Ajouter un produit"
+          description="Une bière ou un soft du catalogue partagé, ou un produit propre à cet établissement."
+        />
 
-      <MenuItemForm establishmentId={establishmentId} defaultCategoryId={defaultCategoryId} />
+        <MenuItemForm establishmentId={establishmentId} defaultCategoryId={defaultCategoryId} />
+      </MenuEditGuard>
     </div>
   );
 }

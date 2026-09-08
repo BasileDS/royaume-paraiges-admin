@@ -93,12 +93,19 @@ interface MenuItemRowProps {
   busy?: boolean;
   /** Mots de la recherche en cours, surlignés dans le nom. */
   highlightTokens?: string[];
+  /**
+   * Carte d'un autre établissement que le sien (migration 109) : la ligne se
+   * lit mais ne s'ouvre pas, et aucun geste n'est proposé.
+   */
+  readOnly?: boolean;
   /** Tap sur la ligne : ouvre la fiche d'actions rapides. */
   onOpen: (item: MenuItemWithDetails) => void;
   onToggleActive: (item: MenuItemWithDetails) => void;
   onToggleFeatured: (item: MenuItemWithDetails) => void;
   onUnplace: (item: MenuItemWithDetails) => void;
 }
+
+const CELL_CLASS = "flex min-w-0 flex-1 flex-col justify-center gap-0.5 px-4 py-3 text-left";
 
 /**
  * Une ligne de la carte. Sur téléphone : le nom et les prix sont la cible qui
@@ -111,12 +118,63 @@ export function MenuItemRow({
   editHref,
   busy,
   highlightTokens,
+  readOnly = false,
   onOpen,
   onToggleActive,
   onToggleFeatured,
   onUnplace,
 }: MenuItemRowProps) {
   const inactive = !item.is_active;
+
+  const body = (
+    <>
+      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+        {item.is_featured && (
+          <Star
+            className="h-4 w-4 shrink-0 fill-amber-500 text-amber-500"
+            aria-label="Coup de cœur"
+            role="img"
+          />
+        )}
+        <span
+          className={cn(
+            "font-medium leading-snug",
+            inactive && "text-muted-foreground",
+          )}
+        >
+          <Highlighted text={item.resolved_title} tokens={highlightTokens} />
+        </span>
+        {item.precision && (
+          <span className="text-xs italic text-muted-foreground">{item.precision}</span>
+        )}
+        {inactive && (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            Rupture
+          </span>
+        )}
+        <SourceIcon source={item.source} className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+      </span>
+      {item.description && (
+        <span className="hidden line-clamp-1 text-sm text-muted-foreground md:block">
+          {item.description}
+        </span>
+      )}
+      <PriceLine variants={item.variants} muted={inactive} />
+    </>
+  );
+
+  if (readOnly) {
+    return (
+      <div
+        className={cn(
+          "flex items-stretch border-b last:border-b-0",
+          inactive && "bg-muted/30",
+        )}
+      >
+        <div className={CELL_CLASS}>{body}</div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -129,40 +187,12 @@ export function MenuItemRow({
         type="button"
         onClick={() => onOpen(item)}
         aria-haspopup="dialog"
-        className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 px-4 py-3 text-left transition-colors active:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/60 md:hover:bg-muted/40"
-      >
-        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          {item.is_featured && (
-            <Star
-              className="h-4 w-4 shrink-0 fill-amber-500 text-amber-500"
-              aria-label="Coup de cœur"
-              role="img"
-            />
-          )}
-          <span
-            className={cn(
-              "font-medium leading-snug",
-              inactive && "text-muted-foreground",
-            )}
-          >
-            <Highlighted text={item.resolved_title} tokens={highlightTokens} />
-          </span>
-          {item.precision && (
-            <span className="text-xs italic text-muted-foreground">{item.precision}</span>
-          )}
-          {inactive && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-              Rupture
-            </span>
-          )}
-          <SourceIcon source={item.source} className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-        </span>
-        {item.description && (
-          <span className="hidden line-clamp-1 text-sm text-muted-foreground md:block">
-            {item.description}
-          </span>
+        className={cn(
+          CELL_CLASS,
+          "transition-colors active:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/60 md:hover:bg-muted/40",
         )}
-        <PriceLine variants={item.variants} muted={inactive} />
+      >
+        {body}
       </button>
 
       <div className="flex shrink-0 items-center pr-2 md:pr-3">
