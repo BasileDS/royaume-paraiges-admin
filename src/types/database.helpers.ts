@@ -384,3 +384,296 @@ export type RewardRunsDatabase = {
     CompositeTypes: { [_ in never]: never };
   };
 }
+
+// ============================================================================
+// Couche Menus (cartes des etablissements) - migrations 094 a 101
+// ============================================================================
+
+/**
+ * Famille de produit. Table de reference et non enum : ajouter une famille ne
+ * demande pas de migration. A ne pas confondre avec la categorie, qui est le
+ * regroupement editorial d'un etablissement.
+ */
+export type MenuItemType = {
+  id: number;
+  slug: string;
+  label: string;
+  /** Pont facultatif vers l'enum du scan. NULL quand aucune ne s'applique. */
+  consumption_type: ConsumptionType | null;
+  position: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Catalogue partage des produits hors bieres (les softs a date). */
+export type MenuCatalogProduct = {
+  id: number;
+  item_type_id: number;
+  title: string;
+  description: string | null;
+  featured_image: string | null;
+  allergens: string | null;
+  precision: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Regroupement editorial, deux niveaux au plus (trigger `trg_menu_categories_depth`). */
+export type MenuCategory = {
+  id: number;
+  establishment_id: number;
+  parent_id: number | null;
+  title: string;
+  /** Bloc de texte de section. Une categorie sans item mais avec description est un bloc de texte. */
+  description: string | null;
+  position: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Un produit sur la carte d'un etablissement. Le descriptif vient d'exactement
+ * une des trois sources : `beer_id`, `catalog_product_id`, ou les colonnes
+ * locales (contrainte `ck_menu_items_one_source`).
+ */
+export type MenuItem = {
+  id: number;
+  establishment_id: number;
+  /** NULL = disponible mais hors carte affichee. */
+  category_id: number | null;
+  item_type_id: number;
+  beer_id: number | null;
+  catalog_product_id: number | null;
+  title: string | null;
+  description: string | null;
+  featured_image: string | null;
+  allergens: string | null;
+  precision: string | null;
+  position: number;
+  /** FALSE = a la carte mais en rupture. Absence de ligne = pas a la carte. */
+  is_active: boolean;
+  is_featured: boolean;
+  added_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Format tarife. Ne PAS ecrire « happy hour » dans `label` : c'est le role de
+ * `is_happy_hour`. A distinguer de l'option, qui est un choix sans ligne propre.
+ */
+export type MenuItemVariant = {
+  id: number;
+  menu_item_id: number;
+  /** NULL = produit simple. Sinon le format seul : « 25 cl », « Bouteille 75 cl ». */
+  label: string | null;
+  /** NULL = prix non communique, affiche « — ». Distinct de 0, qui est la gratuite. */
+  price: number | null;
+  is_happy_hour: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MenuOptionGroup = {
+  id: number;
+  establishment_id: number;
+  title: string;
+  min_select: number;
+  /** NULL = pas de plafond. */
+  max_select: number | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MenuOption = {
+  id: number;
+  option_group_id: number;
+  label: string;
+  /** NULL ou 0 = compris dans le prix de l'item. */
+  extra_price: number | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MenuFormula = {
+  id: number;
+  establishment_id: number;
+  title: string;
+  description: string | null;
+  position: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MenuFormulaTier = {
+  id: number;
+  formula_id: number;
+  label: string;
+  price: number | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MenuEvent = {
+  id: number;
+  title: string;
+  content: string | null;
+  featured_image: string | null;
+  external_url: string | null;
+  is_active: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Item enrichi de sa source resolue et de ses variantes, pour l'affichage. */
+export type MenuItemWithDetails = MenuItem & {
+  /** Titre effectif : celui de la biere, du produit de catalogue, ou local. */
+  resolved_title: string;
+  /** D'ou vient le descriptif. */
+  source: "beer" | "catalog" | "private";
+  type_slug: string;
+  type_label: string;
+  variants: MenuItemVariant[];
+};
+
+/** Ligne de la liste /menus : un etablissement et l'etat de sa carte. */
+export type EstablishmentMenuSummary = {
+  establishment_id: number;
+  establishment_title: string;
+  slug: string;
+  city: string | null;
+  categories_count: number;
+  /** Items places sur la carte (category_id non NULL). */
+  items_count: number;
+  /** Items disponibles mais hors carte affichee. */
+  unplaced_count: number;
+  inactive_count: number;
+  beers_count: number;
+  happy_hour_start: string | null;
+  happy_hour_end: string | null;
+}
+
+/**
+ * Schema local des tables `menu_*`, absentes de `database.generated.ts` (le CLI
+ * de generation n'a pas acces au projet). Meme forme que EmailReportsDatabase :
+ * s'en ecarter fait resoudre les Insert/Update en `never`.
+ *
+ * `menu_item_types` est en lecture seule cote admin : les 14 familles sont
+ * seedees par la migration 095, en ajouter une releve d'une decision produit et
+ * passe par une migration.
+ */
+export type MenusDatabase = {
+  __InternalSupabase: { PostgrestVersion: "14.5" };
+  public: {
+    Tables: {
+      menu_item_types: {
+        Row: MenuItemType;
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      menu_catalog_products: {
+        Row: MenuCatalogProduct;
+        Insert: {
+          item_type_id: number;
+          title: string;
+          description?: string | null;
+          featured_image?: string | null;
+          allergens?: string | null;
+          precision?: string | null;
+          is_active?: boolean;
+        };
+        Update: {
+          item_type_id?: number;
+          title?: string;
+          description?: string | null;
+          featured_image?: string | null;
+          allergens?: string | null;
+          precision?: string | null;
+          is_active?: boolean;
+        };
+        Relationships: [];
+      };
+      menu_categories: {
+        Row: MenuCategory;
+        Insert: {
+          establishment_id: number;
+          parent_id?: number | null;
+          title: string;
+          description?: string | null;
+          position?: number;
+          is_active?: boolean;
+        };
+        Update: {
+          parent_id?: number | null;
+          title?: string;
+          description?: string | null;
+          position?: number;
+          is_active?: boolean;
+        };
+        Relationships: [];
+      };
+      menu_items: {
+        Row: MenuItem;
+        Insert: {
+          establishment_id: number;
+          item_type_id: number;
+          category_id?: number | null;
+          beer_id?: number | null;
+          catalog_product_id?: number | null;
+          title?: string | null;
+          description?: string | null;
+          featured_image?: string | null;
+          allergens?: string | null;
+          precision?: string | null;
+          position?: number;
+          is_active?: boolean;
+          is_featured?: boolean;
+        };
+        Update: {
+          category_id?: number | null;
+          item_type_id?: number;
+          title?: string | null;
+          description?: string | null;
+          featured_image?: string | null;
+          allergens?: string | null;
+          precision?: string | null;
+          position?: number;
+          is_active?: boolean;
+          is_featured?: boolean;
+        };
+        Relationships: [];
+      };
+      menu_item_variants: {
+        Row: MenuItemVariant;
+        Insert: {
+          menu_item_id: number;
+          label?: string | null;
+          price?: number | null;
+          is_happy_hour?: boolean;
+          position?: number;
+        };
+        Update: {
+          label?: string | null;
+          price?: number | null;
+          is_happy_hour?: boolean;
+          position?: number;
+        };
+        Relationships: [];
+      };
+    };
+    Views: { [_ in never]: never };
+    Functions: { [_ in never]: never };
+    Enums: { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
+  };
+}

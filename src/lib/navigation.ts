@@ -18,6 +18,7 @@ import {
   Coins,
   Award,
   Link2,
+  UtensilsCrossed,
   MailCheck,
   Settings as SettingsIcon,
   UserCog,
@@ -80,6 +81,7 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { name: "Bières", href: "/content/beers", icon: Beer, featureKey: "beers" },
       { name: "Établissements", href: "/content/establishments", icon: Building2, featureKey: "establishments" },
+      { name: "Cartes & menus", href: "/menus", icon: UtensilsCrossed, featureKey: "menus" },
       { name: "Liens de redirection", href: "/links", icon: Link2, featureKey: "links" },
     ],
   },
@@ -122,6 +124,7 @@ export const segmentLabels: Record<string, string> = {
   storytelling: "Niveaux & lore",
   templates: "Modèles de coupons",
   links: "Liens de redirection",
+  menus: "Cartes & menus",
   reports: "Rapports e-mail",
   gdpr: "RGPD",
   documentation: "Documentation",

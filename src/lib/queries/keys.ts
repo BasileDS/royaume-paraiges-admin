@@ -198,6 +198,17 @@ export const redirectLinkKeys = {
     [...redirectLinkKeys.all, "clicks", id, days] as const,
 };
 
+export const menuKeys = {
+  all: ["menus"] as const,
+  summaries: () => [...menuKeys.all, "summaries"] as const,
+  categories: (establishmentId: number) =>
+    [...menuKeys.all, "categories", establishmentId] as const,
+  items: (establishmentId: number) =>
+    [...menuKeys.all, "items", establishmentId] as const,
+  itemTypes: () => [...menuKeys.all, "itemTypes"] as const,
+  catalogProducts: () => [...menuKeys.all, "catalogProducts"] as const,
+};
+
 export const emailReportKeys = {
   all: ["emailReports"] as const,
   lists: () => [...emailReportKeys.all, "list"] as const,
