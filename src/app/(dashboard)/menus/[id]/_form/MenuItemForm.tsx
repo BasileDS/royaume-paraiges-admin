@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { menuKeys } from "@/lib/queries/keys";
 import {
   createMenuItem,
@@ -39,6 +40,7 @@ import {
 } from "@/lib/services/menuService";
 import { getBeers } from "@/lib/services/contentService";
 import type { MenuItemWithDetails } from "@/types/database";
+import { formatPriceInput, parsePriceInput, priceInputSchema } from "../_lib/price";
 
 /**
  * Le formulaire travaille en chaînes : les inputs HTML ne rendent que ça, et la
@@ -54,16 +56,7 @@ const variantSchema = z.object({
       (v) => !/happy\s*hour/i.test(v),
       "Ne pas écrire « happy hour » ici : utiliser l'interrupteur",
     ),
-  price: z
-    .string()
-    .refine(
-      (v) => v.trim() === "" || !Number.isNaN(Number(v.replace(",", "."))),
-      "Prix invalide",
-    )
-    .refine(
-      (v) => v.trim() === "" || Number(v.replace(",", ".")) >= 0,
-      "Prix négatif impossible",
-    ),
+  price: priceInputSchema,
   is_happy_hour: z.boolean(),
 });
 
@@ -86,13 +79,41 @@ type FormInput = z.infer<typeof formSchema>;
 
 const BEER_TYPES = ["biere", "cidre"];
 
+/** Bloc du formulaire : marges resserrées sur téléphone, où chaque bord compte. */
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title?: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  const hasHeader = Boolean(title || description);
+  return (
+    <Card>
+      {hasHeader && (
+        <CardHeader className="p-4 md:p-6">
+          {title && <CardTitle className="text-lg md:text-2xl">{title}</CardTitle>}
+          {description && <CardDescription>{description}</CardDescription>}
+        </CardHeader>
+      )}
+      <CardContent className={cn("space-y-4 p-4 md:p-6", hasHeader && "pt-0 md:pt-0")}>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
 interface MenuItemFormProps {
   establishmentId: number;
   item?: MenuItemWithDetails;
+  /** Catégorie pré-sélectionnée à la création (arrivée depuis la fiche d'une catégorie). */
+  defaultCategoryId?: number;
 }
 
 /** Formulaire partagé création + édition d'un produit de carte. */
-export function MenuItemForm({ establishmentId, item }: MenuItemFormProps) {
+export function MenuItemForm({ establishmentId, item, defaultCategoryId }: MenuItemFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -131,7 +152,13 @@ export function MenuItemForm({ establishmentId, item }: MenuItemFormProps) {
         : "",
       title: item?.title ?? "",
       item_type_id: item ? String(item.item_type_id) : "",
-      category_id: item?.category_id ? String(item.category_id) : "",
+      category_id: item
+        ? item.category_id
+          ? String(item.category_id)
+          : ""
+        : defaultCategoryId
+          ? String(defaultCategoryId)
+          : "",
       description: item?.description ?? "",
       precision: item?.precision ?? "",
       allergens: item?.allergens ?? "",
@@ -140,7 +167,7 @@ export function MenuItemForm({ establishmentId, item }: MenuItemFormProps) {
       variants:
         item?.variants.map((v) => ({
           label: v.label ?? "",
-          price: v.price === null ? "" : String(v.price).replace(".", ","),
+          price: formatPriceInput(v.price),
           is_happy_hour: v.is_happy_hour,
         })) ?? [{ label: "", price: "", is_happy_hour: false }],
     },
@@ -185,7 +212,7 @@ export function MenuItemForm({ establishmentId, item }: MenuItemFormProps) {
       .filter((v) => v.label.trim() !== "" || v.price.trim() !== "")
       .map((v, n) => ({
         label: v.label.trim() || null,
-        price: v.price.trim() === "" ? null : Number(v.price.replace(",", ".")),
+        price: parsePriceInput(v.price),
         is_happy_hour: v.is_happy_hour,
         position: n + 1,
       }));
@@ -231,206 +258,104 @@ export function MenuItemForm({ establishmentId, item }: MenuItemFormProps) {
   });
 
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form onSubmit={submit} className="space-y-4 md:space-y-6">
       {/* -------------------------------------------------- Source */}
       {!isEdit && (
-        <Card>
-          <CardHeader>
-            <CardTitle>D&apos;où vient ce produit ?</CardTitle>
-            <CardDescription>
-              Une bière ou un soft du catalogue garde le nom, la description et
-              l&apos;image du catalogue : la carte n&apos;ajoute que le prix, le
-              format et le placement. Un produit propre à cet établissement porte
-              son propre descriptif.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Controller
-              control={control}
-              name="source"
-              render={({ field }) => (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {(
-                    [
-                      { value: "beer", label: "Bière du catalogue", icon: Beer },
-                      {
-                        value: "catalog",
-                        label: "Soft du catalogue",
-                        icon: Package,
-                      },
-                      {
-                        value: "private",
-                        label: "Produit de cet établissement",
-                        icon: PenLine,
-                      },
-                    ] as const
-                  ).map((opt) => {
-                    const Icon = opt.icon;
-                    const active = field.value === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          field.onChange(opt.value);
-                          setValue("item_type_id", "");
-                        }}
-                        aria-pressed={active}
-                        className={`flex items-center gap-2 rounded-lg border p-3 text-left text-sm transition ${
-                          active
-                            ? "border-primary bg-primary/5 font-medium"
-                            : "hover:bg-muted/50"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            />
-
-            {source === "beer" && (
-              <div>
-                <Label htmlFor="beer_id">Bière</Label>
-                <Controller
-                  control={control}
-                  name="beer_id"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="beer_id">
-                        <SelectValue placeholder="Choisir une bière du catalogue" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableBeers.map((b) => (
-                          <SelectItem key={b.id} value={String(b.id)}>
-                            {b.title}
-                            {b.abv ? ` · ${b.abv}%` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Les bières déjà à la carte de cet établissement ne sont pas
-                  proposées. Mettre une bière à la carte la rend automatiquement
-                  disponible dans l&apos;application des Compagnons.
-                </p>
+        <FormSection
+          title="D'où vient ce produit ?"
+          description="Une bière ou un soft du catalogue garde le nom, la description et l'image du catalogue : la carte n'ajoute que le prix, le format et le placement. Un produit propre à cet établissement porte son propre descriptif."
+        >
+          <Controller
+            control={control}
+            name="source"
+            render={({ field }) => (
+              <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+                {(
+                  [
+                    { value: "beer", label: "Bière du catalogue", icon: Beer },
+                    {
+                      value: "catalog",
+                      label: "Soft du catalogue",
+                      icon: Package,
+                    },
+                    {
+                      value: "private",
+                      label: "Produit de cet établissement",
+                      icon: PenLine,
+                    },
+                  ] as const
+                ).map((opt) => {
+                  const Icon = opt.icon;
+                  const active = field.value === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        field.onChange(opt.value);
+                        setValue("item_type_id", "");
+                      }}
+                      aria-pressed={active}
+                      className={cn(
+                        "flex min-h-12 items-center gap-3 rounded-lg border p-3 text-left text-sm transition",
+                        active
+                          ? "border-primary bg-primary/5 font-medium"
+                          : "active:bg-muted/60 md:hover:bg-muted/50",
+                      )}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
             )}
+          />
 
-            {source === "catalog" && (
-              <div>
-                <Label htmlFor="catalog_product_id">Produit partagé</Label>
-                <Controller
-                  control={control}
-                  name="catalog_product_id"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="catalog_product_id">
-                        <SelectValue placeholder="Choisir un produit du catalogue" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableCatalog.map((c) => (
-                          <SelectItem key={c.id} value={String(c.id)}>
-                            {c.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* -------------------------------------------------- Descriptif */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Descriptif</CardTitle>
-          {isEdit && item?.source !== "private" && (
-            <CardDescription>
-              Le nom vient du catalogue et n&apos;est pas modifiable ici. La
-              description, la précision et les allergènes saisis ci-dessous
-              priment sur ceux du catalogue pour cet établissement.
-            </CardDescription>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {source === "private" ? (
+          {source === "beer" && (
             <div>
-              <Label htmlFor="title">Nom du produit</Label>
-              <Input id="title" {...register("title")} placeholder="Mojito" />
-              {errors.title && (
-                <p className="text-destructive mt-1 text-xs">
-                  {errors.title.message}
-                </p>
-              )}
-              <p className="text-muted-foreground mt-1 text-xs">
-                Sans la quantité : elle se déclare dans les formats plus bas.
-              </p>
-            </div>
-          ) : (
-            isEdit && (
-              <div>
-                <Label>Nom</Label>
-                <p className="mt-1 font-medium">{item?.resolved_title}</p>
-              </div>
-            )
-          )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="item_type_id">Famille</Label>
+              <Label htmlFor="beer_id">Bière</Label>
               <Controller
                 control={control}
-                name="item_type_id"
+                name="beer_id"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="item_type_id">
-                      <SelectValue placeholder="Choisir une famille" />
+                    <SelectTrigger id="beer_id" className="mt-1.5">
+                      <SelectValue placeholder="Choisir une bière du catalogue" />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectableTypes.map((t) => (
-                        <SelectItem key={t.id} value={String(t.id)}>
-                          {t.label}
+                      {availableBeers.map((b) => (
+                        <SelectItem key={b.id} value={String(b.id)}>
+                          {b.title}
+                          {b.abv ? ` · ${b.abv}%` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
               />
-              {errors.item_type_id && (
-                <p className="text-destructive mt-1 text-xs">
-                  {errors.item_type_id.message}
-                </p>
-              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                Les bières déjà à la carte de cet établissement ne sont pas
+                proposées. Mettre une bière à la carte la rend automatiquement
+                disponible dans l&apos;application des Compagnons.
+              </p>
             </div>
+          )}
 
+          {source === "catalog" && (
             <div>
-              <Label htmlFor="category_id">Catégorie sur la carte</Label>
+              <Label htmlFor="catalog_product_id">Produit partagé</Label>
               <Controller
                 control={control}
-                name="category_id"
+                name="catalog_product_id"
                 render={({ field }) => (
-                  <Select
-                    value={field.value || "none"}
-                    onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
-                  >
-                    <SelectTrigger id="category_id">
-                      <SelectValue />
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="catalog_product_id" className="mt-1.5">
+                      <SelectValue placeholder="Choisir un produit du catalogue" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">
-                        Aucune — disponible, hors carte
-                      </SelectItem>
-                      {categories.map((c) => (
+                      {availableCatalog.map((c) => (
                         <SelectItem key={c.id} value={String(c.id)}>
-                          {c.parent_id ? "— " : ""}
                           {c.title}
                         </SelectItem>
                       ))}
@@ -438,125 +363,221 @@ export function MenuItemForm({ establishmentId, item }: MenuItemFormProps) {
                   </Select>
                 )}
               />
-              <p className="text-muted-foreground mt-1 text-xs">
-                Sans catégorie, le produit reste disponible mais ne figure pas sur
-                la carte affichée.
-              </p>
             </div>
+          )}
+        </FormSection>
+      )}
+
+      {/* -------------------------------------------------- Descriptif */}
+      <FormSection
+        title="Descriptif"
+        description={
+          isEdit && item?.source !== "private"
+            ? "Le nom vient du catalogue et n'est pas modifiable ici. La description, la précision et les allergènes saisis ci-dessous priment sur ceux du catalogue pour cet établissement."
+            : undefined
+        }
+      >
+        {source === "private" ? (
+          <div>
+            <Label htmlFor="title">Nom du produit</Label>
+            <Input id="title" className="mt-1.5" {...register("title")} placeholder="Mojito" />
+            {errors.title && (
+              <p className="mt-1 text-xs text-destructive">{errors.title.message}</p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Sans la quantité : elle se déclare dans les formats plus bas.
+            </p>
+          </div>
+        ) : (
+          isEdit && (
+            <div>
+              <Label>Nom</Label>
+              <p className="mt-1 font-medium">{item?.resolved_title}</p>
+            </div>
+          )
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="item_type_id">Famille</Label>
+            <Controller
+              control={control}
+              name="item_type_id"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="item_type_id" className="mt-1.5">
+                    <SelectValue placeholder="Choisir une famille" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectableTypes.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.item_type_id && (
+              <p className="mt-1 text-xs text-destructive">{errors.item_type_id.message}</p>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea id="description" rows={3} {...register("description")} />
+            <Label htmlFor="category_id">Catégorie sur la carte</Label>
+            <Controller
+              control={control}
+              name="category_id"
+              render={({ field }) => (
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+                >
+                  <SelectTrigger id="category_id" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucune : disponible, hors carte</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.parent_id ? "— " : ""}
+                        {c.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Sans catégorie, le produit reste disponible mais ne figure pas sur
+              la carte affichée.
+            </p>
           </div>
+        </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="precision">Précision</Label>
-              <Input
-                id="precision"
-                {...register("precision")}
-                placeholder="2 pers., fait maison…"
-              />
-            </div>
-            <div>
-              <Label htmlFor="allergens">Allergènes</Label>
-              <Input id="allergens" {...register("allergens")} />
-            </div>
+        <div>
+          <Label htmlFor="description">Description</Label>
+          <Textarea id="description" className="mt-1.5" rows={3} {...register("description")} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="precision">Précision</Label>
+            <Input
+              id="precision"
+              className="mt-1.5"
+              {...register("precision")}
+              placeholder="2 pers., fait maison…"
+            />
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <Label htmlFor="allergens">Allergènes</Label>
+            <Input id="allergens" className="mt-1.5" {...register("allergens")} />
+          </div>
+        </div>
+      </FormSection>
 
       {/* -------------------------------------------------- Formats */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Formats et prix</CardTitle>
-          <CardDescription>
-            Un format par ligne de prix sur la carte. Le libellé ne porte que la
-            quantité (« 25 cl », « Bouteille 75 cl ») : le tarif happy hour se
-            déclare avec l&apos;interrupteur, jamais dans le texte. Laisser le
-            prix vide affiche « — » sur la carte, ce qui n&apos;est pas la
-            gratuité.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <FormSection
+        title="Formats et prix"
+        description="Un format par ligne de prix sur la carte. Le libellé ne porte que la quantité (« 25 cl », « Bouteille 75 cl ») : le tarif happy hour se déclare avec l'interrupteur, jamais dans le texte. Laisser le prix vide affiche « — » sur la carte, ce qui n'est pas la gratuité."
+      >
+        <div className="space-y-3">
           {fields.map((field, index) => (
-            <div key={field.id} className="flex flex-wrap items-start gap-3">
-              <div className="min-w-[9rem] flex-1">
-                <Input
-                  {...register(`variants.${index}.label`)}
-                  placeholder="25 cl"
-                  aria-label={`Format ${index + 1}`}
-                />
-                {errors.variants?.[index]?.label && (
-                  <p className="text-destructive mt-1 text-xs">
-                    {errors.variants[index]?.label?.message}
-                  </p>
-                )}
+            // Sur téléphone, chaque format est un encart sur deux lignes ; à
+            // partir de `sm`, `contents` aplatit les groupes en une seule ligne.
+            <div
+              key={field.id}
+              className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:flex-wrap sm:items-start sm:gap-3 sm:rounded-none sm:border-0 sm:p-0"
+            >
+              <div className="flex gap-2 sm:contents">
+                <div className="min-w-0 flex-1 sm:min-w-[9rem]">
+                  <Input
+                    {...register(`variants.${index}.label`)}
+                    placeholder="25 cl"
+                    aria-label={`Format ${index + 1}`}
+                  />
+                  {errors.variants?.[index]?.label && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {errors.variants[index]?.label?.message}
+                    </p>
+                  )}
+                </div>
+                <div className="relative w-28 shrink-0">
+                  <Input
+                    {...register(`variants.${index}.price`)}
+                    placeholder="4,10"
+                    inputMode="decimal"
+                    className="pr-7 text-right tabular-nums"
+                    aria-label={`Prix du format ${index + 1}`}
+                  />
+                  <span
+                    className="pointer-events-none absolute right-3 top-0 flex h-10 items-center text-sm text-muted-foreground"
+                    aria-hidden="true"
+                  >
+                    €
+                  </span>
+                  {errors.variants?.[index]?.price && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {errors.variants[index]?.price?.message}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="w-28">
-                <Input
-                  {...register(`variants.${index}.price`)}
-                  placeholder="4,10"
-                  inputMode="decimal"
-                  aria-label={`Prix du format ${index + 1}`}
+              <div className="flex items-center justify-between sm:contents">
+                <Controller
+                  control={control}
+                  name={`variants.${index}.is_happy_hour`}
+                  render={({ field: hh }) => (
+                    <label className="flex h-10 items-center gap-2 text-sm">
+                      <Switch
+                        checked={hh.value}
+                        onCheckedChange={hh.onChange}
+                        aria-label={`Tarif happy hour pour le format ${index + 1}`}
+                      />
+                      <span className="text-muted-foreground">Happy hour</span>
+                    </label>
+                  )}
                 />
-                {errors.variants?.[index]?.price && (
-                  <p className="text-destructive mt-1 text-xs">
-                    {errors.variants[index]?.price?.message}
-                  </p>
-                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-10 gap-1.5 px-2 text-muted-foreground sm:w-10 sm:px-0"
+                  aria-label={`Supprimer le format ${index + 1}`}
+                  onClick={() => remove(index)}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  <span className="sm:hidden">Retirer</span>
+                </Button>
               </div>
-              <Controller
-                control={control}
-                name={`variants.${index}.is_happy_hour`}
-                render={({ field: hh }) => (
-                  <label className="flex h-9 items-center gap-2 text-sm">
-                    <Switch
-                      checked={hh.value}
-                      onCheckedChange={hh.onChange}
-                      aria-label={`Tarif happy hour pour le format ${index + 1}`}
-                    />
-                    <span className="text-muted-foreground">Happy hour</span>
-                  </label>
-                )}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9"
-                aria-label={`Supprimer le format ${index + 1}`}
-                onClick={() => remove(index)}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </Button>
             </div>
           ))}
           <Button
             type="button"
             variant="outline"
             size="sm"
+            className="h-10 w-full sm:h-9 sm:w-auto"
             onClick={() => append({ label: "", price: "", is_happy_hour: false })}
           >
             <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
             Ajouter un format
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </FormSection>
 
       {/* -------------------------------------------------- Statut */}
-      <Card>
-        <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:gap-8">
+      <FormSection>
+        <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
           <Controller
             control={control}
             name="is_active"
             render={({ field }) => (
-              <label className="flex items-center gap-3">
+              <label className="flex min-h-11 items-center gap-3">
                 <Switch checked={field.value} onCheckedChange={field.onChange} />
                 <span className="text-sm">
                   Disponible
-                  <span className="text-muted-foreground block text-xs">
+                  <span className="block text-xs text-muted-foreground">
                     Décoché = à la carte mais en rupture
                   </span>
                 </span>
@@ -567,11 +588,11 @@ export function MenuItemForm({ establishmentId, item }: MenuItemFormProps) {
             control={control}
             name="is_featured"
             render={({ field }) => (
-              <label className="flex items-center gap-3">
+              <label className="flex min-h-11 items-center gap-3">
                 <Switch checked={field.value} onCheckedChange={field.onChange} />
                 <span className="text-sm">
                   Coup de cœur
-                  <span className="text-muted-foreground block text-xs">
+                  <span className="block text-xs text-muted-foreground">
                     Un seul par catégorie : le poser ici le retire du produit
                     qui l&apos;avait
                   </span>
@@ -579,24 +600,27 @@ export function MenuItemForm({ establishmentId, item }: MenuItemFormProps) {
               </label>
             )}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </FormSection>
 
       {serverError && (
-        <div className="border-destructive/50 bg-destructive/10 text-destructive rounded-lg border p-3 text-sm">
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
           {serverError}
         </div>
       )}
 
-      <div className="flex justify-end gap-2">
+      {/* Sur téléphone, les actions restent collées en bas de l'écran pendant
+          la saisie ; au-delà de `md`, elles reprennent leur place en fin de page. */}
+      <div className="sticky bottom-0 z-20 -mx-4 flex gap-2 border-t bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:static md:mx-0 md:justify-end md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         <Button
           type="button"
           variant="outline"
+          className="h-11 flex-1 md:h-10 md:flex-none"
           onClick={() => router.push(`/menus/${establishmentId}`)}
         >
           Annuler
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" className="h-11 flex-[1.5] md:h-10 md:flex-none" disabled={isSubmitting}>
           {isSubmitting && (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
           )}

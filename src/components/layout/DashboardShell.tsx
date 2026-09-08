@@ -30,7 +30,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <CurrentAdminProvider>
         <TooltipProvider>
           {featureDisabledToast}
-          <div className="flex h-screen flex-col overflow-hidden">
+          <div className="flex h-dvh flex-col overflow-hidden">
             <Header mobile onMenuClick={() => setMobileOpen(true)} />
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetContent side="left" className="w-64 p-0">
@@ -52,7 +52,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <CurrentAdminProvider>
         <TooltipProvider>
           {featureDisabledToast}
-          <div className="flex h-screen overflow-hidden">
+          <div className="flex h-dvh overflow-hidden">
             <Sidebar
               collapsed={!sidebarExpanded}
               showToggle
@@ -76,7 +76,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     <CurrentAdminProvider>
       <TooltipProvider>
         {featureDisabledToast}
-        <div className="flex h-screen overflow-hidden">
+        <div className="flex h-dvh overflow-hidden">
           <Sidebar />
           <div className="flex flex-1 flex-col overflow-hidden">
             <Header />

@@ -7,14 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +51,10 @@ interface CategoryDialogProps {
   category?: MenuCategory;
 }
 
+/**
+ * Création et édition d'une catégorie. Feuille en bas de l'écran sur
+ * téléphone, dialog centré au-delà (`BottomSheet` gère les deux).
+ */
 export function CategoryDialog({
   open,
   onOpenChange,
@@ -128,110 +125,116 @@ export function CategoryDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Modifier la catégorie" : "Nouvelle catégorie"}
-          </DialogTitle>
-          <DialogDescription>
-            Une catégorie peut n&apos;être qu&apos;un bloc de texte : sans
-            produit mais avec une description, elle s&apos;affiche comme une
-            section rédigée de la carte.
-          </DialogDescription>
-        </DialogHeader>
+    <BottomSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={isEdit ? "Modifier la catégorie" : "Nouvelle catégorie"}
+      description="Une catégorie peut n'être qu'un bloc de texte : sans produit mais avec une description, elle s'affiche comme une section rédigée de la carte."
+    >
+      <form onSubmit={submit} className="space-y-4 pt-1">
+        <div>
+          <Label htmlFor="cat-title">Titre</Label>
+          <Input
+            id="cat-title"
+            className="mt-1.5 h-11 md:h-10"
+            {...register("title")}
+            placeholder="Pressions"
+          />
+          {errors.title && (
+            <p className="mt-1 text-xs text-destructive">{errors.title.message}</p>
+          )}
+        </div>
 
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <Label htmlFor="cat-title">Titre</Label>
-            <Input id="cat-title" {...register("title")} placeholder="Pressions" />
-            {errors.title && (
-              <p className="text-destructive mt-1 text-xs">{errors.title.message}</p>
+        <div>
+          <Label htmlFor="cat-parent">Catégorie parente</Label>
+          <Controller
+            control={control}
+            name="parent_id"
+            render={({ field }) => (
+              <Select
+                value={field.value || "none"}
+                onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+                disabled={hasChildren}
+              >
+                <SelectTrigger id="cat-parent" className="mt-1.5 h-11 md:h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune : catégorie racine</SelectItem>
+                  {possibleParents.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            {hasChildren
+              ? "Cette catégorie a des sous-catégories : elle doit rester à la racine."
+              : "Deux niveaux au plus : une sous-catégorie ne peut pas en contenir d'autres."}
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="cat-description">Description</Label>
+          <Textarea
+            id="cat-description"
+            className="mt-1.5"
+            rows={3}
+            {...register("description")}
+          />
+        </div>
+
+        <div className="flex items-end gap-6">
+          <div className="w-28">
+            <Label htmlFor="cat-position">Position</Label>
+            <Input
+              id="cat-position"
+              className="mt-1.5 h-11 md:h-10"
+              {...register("position")}
+              inputMode="numeric"
+            />
+            {errors.position && (
+              <p className="mt-1 text-xs text-destructive">{errors.position.message}</p>
             )}
           </div>
+          <Controller
+            control={control}
+            name="is_active"
+            render={({ field }) => (
+              <label className="flex h-11 items-center gap-3 text-sm md:h-10">
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                <span>Visible sur la carte</span>
+              </label>
+            )}
+          />
+        </div>
 
-          <div>
-            <Label htmlFor="cat-parent">Catégorie parente</Label>
-            <Controller
-              control={control}
-              name="parent_id"
-              render={({ field }) => (
-                <Select
-                  value={field.value || "none"}
-                  onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
-                  disabled={hasChildren}
-                >
-                  <SelectTrigger id="cat-parent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucune — catégorie racine</SelectItem>
-                    {possibleParents.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>
-                        {c.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            <p className="text-muted-foreground mt-1 text-xs">
-              {hasChildren
-                ? "Cette catégorie a des sous-catégories : elle doit rester à la racine."
-                : "Deux niveaux au plus : une sous-catégorie ne peut pas en contenir d'autres."}
-            </p>
+        {serverError && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {serverError}
           </div>
+        )}
 
-          <div>
-            <Label htmlFor="cat-description">Description</Label>
-            <Textarea id="cat-description" rows={3} {...register("description")} />
-          </div>
-
-          <div className="flex items-end gap-6">
-            <div className="w-28">
-              <Label htmlFor="cat-position">Position</Label>
-              <Input id="cat-position" {...register("position")} inputMode="numeric" />
-              {errors.position && (
-                <p className="text-destructive mt-1 text-xs">
-                  {errors.position.message}
-                </p>
-              )}
-            </div>
-            <Controller
-              control={control}
-              name="is_active"
-              render={({ field }) => (
-                <label className="flex h-9 items-center gap-2 text-sm">
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  <span>Visible sur la carte</span>
-                </label>
-              )}
-            />
-          </div>
-
-          {serverError && (
-            <div className="border-destructive/50 bg-destructive/10 text-destructive rounded-lg border p-3 text-sm">
-              {serverError}
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Annuler
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-              )}
-              {isEdit ? "Enregistrer" : "Créer"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <div className="flex gap-2 pt-2 md:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 flex-1 md:h-10 md:flex-none"
+            onClick={() => onOpenChange(false)}
+          >
+            Annuler
+          </Button>
+          <Button type="submit" className="h-11 flex-[1.5] md:h-10 md:flex-none" disabled={isSubmitting}>
+            {isSubmitting && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+            )}
+            {isEdit ? "Enregistrer" : "Créer"}
+          </Button>
+        </div>
+      </form>
+    </BottomSheet>
   );
 }

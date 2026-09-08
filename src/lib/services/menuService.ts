@@ -5,10 +5,12 @@ import {
   menuCategoryUpdateSchema,
   menuItemSchema,
   menuItemUpdateSchema,
+  menuItemVariantsSchema,
   type MenuCategoryInput,
   type MenuCategoryUpdateInput,
   type MenuItemInput,
   type MenuItemUpdateInput,
+  type MenuItemVariantInput,
 } from "@/lib/schemas/menu.schema";
 import type {
   EstablishmentMenuSummary,
@@ -397,7 +399,19 @@ export async function updateMenuItem(
   }
   if (is_featured !== undefined) await setMenuItemFeatured(id, is_featured);
 
-  if (variants === undefined) return;
+  if (variants !== undefined) await replaceMenuItemVariants(id, variants);
+}
+
+/**
+ * Remplace tous les formats d'un item. C'est le chemin de la modification
+ * rapide des prix depuis la fiche d'un produit : l'item lui-même n'est pas
+ * touché, on ne passe donc pas par `updateMenuItem`.
+ */
+export async function replaceMenuItemVariants(
+  id: number,
+  input: MenuItemVariantInput[],
+): Promise<void> {
+  const variants = menuItemVariantsSchema.parse(input);
 
   const { error: delErr } = await menusClient()
     .from("menu_item_variants")
@@ -422,15 +436,26 @@ export async function updateMenuItem(
 }
 
 /**
+ * Déplace l'item dans une autre catégorie, `null` = hors carte. Update ciblé
+ * sur la seule colonne : rien d'autre ne bouge, ni formats ni coup de cœur.
+ */
+export async function moveMenuItem(
+  id: number,
+  categoryId: number | null,
+): Promise<void> {
+  const { error } = await menusClient()
+    .from("menu_items")
+    .update({ category_id: categoryId })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/**
  * Retire l'item de la carte affichée sans le supprimer : il reste disponible.
  * Pour une bière, c'est la nuance qui la garde dans `beers_establishments`.
  */
 export async function unplaceMenuItem(id: number): Promise<void> {
-  const { error } = await menusClient()
-    .from("menu_items")
-    .update({ category_id: null })
-    .eq("id", id);
-  if (error) throw error;
+  return moveMenuItem(id, null);
 }
 
 export async function setMenuItemActive(id: number, isActive: boolean): Promise<void> {

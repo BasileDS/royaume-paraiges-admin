@@ -1,15 +1,23 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { MenuItemForm } from "../../_form/MenuItemForm";
 
-export default function NewMenuItemPage() {
+function NewMenuItemContent() {
   const { id } = useParams<{ id: string }>();
   const establishmentId = Number(id);
+
+  // `?category=<id>` : arrivée depuis la fiche d'une catégorie, qui pré-remplit
+  // le placement. Toute autre valeur est ignorée.
+  const searchParams = useSearchParams();
+  const rawCategory = searchParams.get("category");
+  const defaultCategoryId =
+    rawCategory && /^\d+$/.test(rawCategory) ? Number(rawCategory) : undefined;
 
   return (
     <div className="space-y-6">
@@ -25,7 +33,16 @@ export default function NewMenuItemPage() {
         description="Une bière ou un soft du catalogue partagé, ou un produit propre à cet établissement."
       />
 
-      <MenuItemForm establishmentId={establishmentId} />
+      <MenuItemForm establishmentId={establishmentId} defaultCategoryId={defaultCategoryId} />
     </div>
+  );
+}
+
+export default function NewMenuItemPage() {
+  // Suspense requis : le composant lit useSearchParams.
+  return (
+    <Suspense fallback={null}>
+      <NewMenuItemContent />
+    </Suspense>
   );
 }

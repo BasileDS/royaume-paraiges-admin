@@ -14,18 +14,26 @@ import { z } from "zod";
 // Catégories
 // ============================================================================
 
-const menuCategoryBaseSchema = z.object({
+/**
+ * ⚠️ Pas de `.default()` sur ce noyau : en Zod 4, `.partial()` conserve les
+ * défauts, et un `update({ is_active: false })` renverrait aussi `position: 0`.
+ * Les défauts ne sont posés que sur le schéma de création.
+ */
+const menuCategoryCoreSchema = z.object({
   establishment_id: z.number().int().positive("Établissement requis"),
   /** NULL = catégorie racine. La profondeur est bornée à deux niveaux en base. */
   parent_id: z.number().int().positive().nullable().optional(),
   title: z.string().min(1, "Titre requis").max(120),
   description: z.string().max(2000).nullable().optional(),
-  position: z.number().int().min(0).default(0),
-  is_active: z.boolean().default(true),
+  position: z.number().int().min(0),
+  is_active: z.boolean(),
 });
 
-export const menuCategorySchema = menuCategoryBaseSchema;
-export const menuCategoryUpdateSchema = menuCategoryBaseSchema
+export const menuCategorySchema = menuCategoryCoreSchema.extend({
+  position: menuCategoryCoreSchema.shape.position.default(0),
+  is_active: menuCategoryCoreSchema.shape.is_active.default(true),
+});
+export const menuCategoryUpdateSchema = menuCategoryCoreSchema
   .omit({ establishment_id: true })
   .partial();
 
@@ -58,7 +66,15 @@ export const menuItemVariantSchema = z.object({
   position: z.number().int().min(0).default(0),
 });
 
-const menuItemBaseSchema = z.object({
+/** Liste complète des formats d'un item, telle que `replaceMenuItemVariants` la remplace. */
+export const menuItemVariantsSchema = z.array(menuItemVariantSchema);
+
+/**
+ * Même règle que pour les catégories : aucun `.default()` ici, sinon un
+ * `update({ category_id })` effacerait les formats (`variants: []`) et
+ * retirerait le coup de cœur (`is_featured: false`) au passage.
+ */
+const menuItemCoreSchema = z.object({
   establishment_id: z.number().int().positive("Établissement requis"),
   /** NULL = disponible mais hors carte affichée. */
   category_id: z.number().int().positive().nullable().optional(),
@@ -73,10 +89,17 @@ const menuItemBaseSchema = z.object({
   featured_image: z.string().max(500).nullable().optional(),
   allergens: z.string().max(1000).nullable().optional(),
   precision: z.string().max(200).nullable().optional(),
-  position: z.number().int().min(0).default(0),
-  is_active: z.boolean().default(true),
-  is_featured: z.boolean().default(false),
-  variants: z.array(menuItemVariantSchema).default([]),
+  position: z.number().int().min(0),
+  is_active: z.boolean(),
+  is_featured: z.boolean(),
+  variants: menuItemVariantsSchema,
+});
+
+const menuItemBaseSchema = menuItemCoreSchema.extend({
+  position: menuItemCoreSchema.shape.position.default(0),
+  is_active: menuItemCoreSchema.shape.is_active.default(true),
+  is_featured: menuItemCoreSchema.shape.is_featured.default(false),
+  variants: menuItemVariantsSchema.default([]),
 });
 
 /**
@@ -113,7 +136,7 @@ export const menuItemSchema = menuItemBaseSchema.superRefine(assertOneSource);
  * item d'un établissement à l'autre ou le rebrancher sur une autre bière n'a pas
  * de sens métier, on supprime et on recrée.
  */
-export const menuItemUpdateSchema = menuItemBaseSchema
+export const menuItemUpdateSchema = menuItemCoreSchema
   .omit({ establishment_id: true, beer_id: true, catalog_product_id: true })
   .partial();
 
