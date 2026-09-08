@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Validation des payloads pour la table `redirect_links` (liens courts servis
- * par redirect.auxparaiges.fr, migration 063). Le slug suit le CHECK BDD
+ * par redirects.auxparaiges.fr, migration 063). Le slug suit le CHECK BDD
  * `ck_redirect_slug_format` ; les cibles iOS/Android sont optionnelles (NULL =
  * la cible par défaut s'applique).
  */

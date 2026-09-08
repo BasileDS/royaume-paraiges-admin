@@ -137,7 +137,7 @@ export type CashpadReconciliation = Omit<
   candidates: ReconciliationCandidate[] | null;
 };
 
-// Liens de redirection redirect.auxparaiges.fr (migration 063)
+// Liens de redirection redirects.auxparaiges.fr (migration 063)
 export type RedirectLink = Database["public"]["Tables"]["redirect_links"]["Row"];
 export type RedirectLinkInsert = Database["public"]["Tables"]["redirect_links"]["Insert"];
 export type RedirectLinkUpdate = Database["public"]["Tables"]["redirect_links"]["Update"];

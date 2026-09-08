@@ -12,7 +12,7 @@ import type {
 } from "@/types/database";
 
 /** Base publique des liens courts (projet url-rooting-app sur Vercel). */
-export const REDIRECT_BASE_URL = "https://redirect.auxparaiges.fr";
+export const REDIRECT_BASE_URL = "https://redirects.auxparaiges.fr";
 
 export function buildShortUrl(slug: string): string {
   return `${REDIRECT_BASE_URL}/${slug}`;
