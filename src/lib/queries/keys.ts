@@ -207,6 +207,9 @@ export const menuKeys = {
     [...menuKeys.all, "items", establishmentId] as const,
   itemTypes: () => [...menuKeys.all, "itemTypes"] as const,
   catalogProducts: () => [...menuKeys.all, "catalogProducts"] as const,
+  item: (id: number) => [...menuKeys.all, "item", id] as const,
+  usedSources: (establishmentId: number) =>
+    [...menuKeys.all, "usedSources", establishmentId] as const,
 };
 
 export const emailReportKeys = {

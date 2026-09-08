@@ -5,7 +5,16 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Clock, EyeOff, UtensilsCrossed } from "lucide-react";
+import {
+  ArrowLeft,
+  Clock,
+  EyeOff,
+  FolderPlus,
+  Pencil,
+  Plus,
+  Trash2,
+  UtensilsCrossed,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   getEstablishmentMenuSummaries,
@@ -24,10 +34,12 @@ import {
   setMenuItemActive,
   setMenuItemFeatured,
   unplaceMenuItem,
+  deleteMenuCategory,
   describeMenuError,
 } from "@/lib/services/menuService";
 import { menuKeys } from "@/lib/queries/keys";
 import { MenuItemRow } from "./_components/menu-item-row";
+import { CategoryDialog } from "./_components/category-dialog";
 import type { MenuCategory, MenuItemWithDetails } from "@/types/database";
 
 /** Une catégorie racine, ses sous-catégories, et les items de chacune. */
@@ -42,6 +54,11 @@ export default function MenuDetailPage() {
   const establishmentId = Number(id);
   const queryClient = useQueryClient();
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [categoryDialog, setCategoryDialog] = useState<{
+    open: boolean;
+    category?: MenuCategory;
+  }>({ open: false });
+  const [categoryToDelete, setCategoryToDelete] = useState<MenuCategory | null>(null);
 
   const categoriesQuery = useQuery({
     queryKey: menuKeys.categories(establishmentId),
@@ -140,6 +157,20 @@ export default function MenuDetailPage() {
       `${item.resolved_title} retiré de la carte, mais toujours disponible`,
     );
 
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    try {
+      await deleteMenuCategory(categoryToDelete.id);
+      refresh();
+      toast.success(`Catégorie « ${categoryToDelete.title} » supprimée`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur", { description: describeMenuError(err) });
+    } finally {
+      setCategoryToDelete(null);
+    }
+  };
+
   const loading = categoriesQuery.isLoading || itemsQuery.isLoading;
 
   const renderNode = (node: CategoryNode, depth: number) => {
@@ -162,6 +193,28 @@ export default function MenuDetailPage() {
             <span className="text-muted-foreground text-xs">
               {node.items.length} produit{node.items.length > 1 ? "s" : ""}
             </span>
+            <div className="ml-auto flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label={`Modifier la catégorie ${node.category.title}`}
+                onClick={() =>
+                  setCategoryDialog({ open: true, category: node.category })
+                }
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label={`Supprimer la catégorie ${node.category.title}`}
+                onClick={() => setCategoryToDelete(node.category)}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
           {node.category.description && (
             <CardDescription className="whitespace-pre-line">
@@ -177,6 +230,7 @@ export default function MenuDetailPage() {
                 <MenuItemRow
                   key={item.id}
                   item={item}
+                  editHref={`/menus/${establishmentId}/produit`}
                   busy={busyId === item.id}
                   onToggleActive={handleToggleActive}
                   onToggleFeatured={handleToggleFeatured}
@@ -213,13 +267,28 @@ export default function MenuDetailPage() {
             : undefined
         }
         actions={
-          summary?.happy_hour_start ? (
-            <Badge variant="outline" className="gap-1.5">
-              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-              Happy hour {summary.happy_hour_start.slice(0, 5).replace(":", "h")} -{" "}
-              {summary.happy_hour_end?.slice(0, 5).replace(":", "h")}
-            </Badge>
-          ) : undefined
+          <>
+            {summary?.happy_hour_start && (
+              <Badge variant="outline" className="gap-1.5">
+                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                Happy hour {summary.happy_hour_start.slice(0, 5).replace(":", "h")} -{" "}
+                {summary.happy_hour_end?.slice(0, 5).replace(":", "h")}
+              </Badge>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => setCategoryDialog({ open: true })}
+            >
+              <FolderPlus className="mr-1 h-4 w-4" aria-hidden="true" />
+              Catégorie
+            </Button>
+            <Button asChild>
+              <Link href={`/menus/${establishmentId}/produit/nouveau`}>
+                <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+                Produit
+              </Link>
+            </Button>
+          </>
         }
       />
 
@@ -257,6 +326,7 @@ export default function MenuDetailPage() {
                 <MenuItemRow
                   key={item.id}
                   item={item}
+                  editHref={`/menus/${establishmentId}/produit`}
                   busy={busyId === item.id}
                   onToggleActive={handleToggleActive}
                   onToggleFeatured={handleToggleFeatured}
@@ -267,6 +337,28 @@ export default function MenuDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Monté à l'ouverture seulement : le formulaire repart des valeurs de la
+          catégorie sans effet de resynchronisation. */}
+      {categoryDialog.open && (
+        <CategoryDialog
+          open
+          onOpenChange={(open) => setCategoryDialog({ open, category: undefined })}
+          establishmentId={establishmentId}
+          categories={categoriesQuery.data ?? []}
+          category={categoryDialog.category}
+        />
+      )}
+
+      <ConfirmDialog
+        open={categoryToDelete !== null}
+        onOpenChange={(open) => !open && setCategoryToDelete(null)}
+        title={`Supprimer « ${categoryToDelete?.title ?? ""} » ?`}
+        description="Les produits de cette catégorie ne sont pas supprimés : ils redeviennent disponibles mais hors carte. Ses sous-catégories, elles, sont supprimées."
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={handleDeleteCategory}
+      />
     </div>
   );
 }

@@ -3,7 +3,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Beer, Package, Star, EyeOff } from "lucide-react";
+import { Beer, Package, Star, EyeOff, Pencil } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { MenuItemWithDetails } from "@/types/database";
 
@@ -39,6 +40,8 @@ function SourceBadge({ source }: { source: MenuItemWithDetails["source"] }) {
 
 interface MenuItemRowProps {
   item: MenuItemWithDetails;
+  /** Base de l'URL d'édition : `/menus/<establishmentId>/produit`. */
+  editHref: string;
   onToggleActive: (item: MenuItemWithDetails) => void;
   onToggleFeatured: (item: MenuItemWithDetails) => void;
   onUnplace: (item: MenuItemWithDetails) => void;
@@ -47,6 +50,7 @@ interface MenuItemRowProps {
 
 export function MenuItemRow({
   item,
+  editHref,
   onToggleActive,
   onToggleFeatured,
   onUnplace,
@@ -149,6 +153,18 @@ export function MenuItemRow({
             )}
             aria-hidden="true"
           />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          asChild
+          aria-label={`Modifier ${item.resolved_title}`}
+        >
+          <Link href={`${editHref}/${item.id}`}>
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+          </Link>
         </Button>
 
         <Button

@@ -258,6 +258,45 @@ export async function getMenuItems(
   });
 }
 
+/** Un item et ses variantes, pour le formulaire d'édition. */
+export async function getMenuItem(id: number): Promise<MenuItemWithDetails | null> {
+  const { data, error } = await menusClient()
+    .from("menu_items")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  // Réutilise la résolution de titre de `getMenuItems` plutôt que de la
+  // dupliquer : un seul endroit décide de qui fait foi.
+  const all = await getMenuItems(data.establishment_id);
+  return all.find((i) => i.id === id) ?? null;
+}
+
+/**
+ * Bières et produits de catalogue déjà placés sur la carte d'un établissement.
+ * Le formulaire s'en sert pour les retirer du sélecteur : les deux index
+ * uniques par établissement les refuseraient de toute façon, autant ne pas les
+ * proposer.
+ */
+export async function getUsedCatalogSources(
+  establishmentId: number,
+): Promise<{ beerIds: Set<number>; catalogIds: Set<number> }> {
+  const { data, error } = await menusClient()
+    .from("menu_items")
+    .select("beer_id, catalog_product_id")
+    .eq("establishment_id", establishmentId);
+  if (error) throw error;
+  const beerIds = new Set<number>();
+  const catalogIds = new Set<number>();
+  for (const row of data ?? []) {
+    if (row.beer_id !== null) beerIds.add(row.beer_id);
+    if (row.catalog_product_id !== null) catalogIds.add(row.catalog_product_id);
+  }
+  return { beerIds, catalogIds };
+}
+
 // ============================================================================
 // Écritures : catégories
 // ============================================================================
