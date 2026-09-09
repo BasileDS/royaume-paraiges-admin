@@ -10,6 +10,7 @@ import type {
   Json,
 } from "@/types/database";
 import { distributeRewardsSchema } from "@/lib/schemas/distributeRewards.schema";
+import { assertWriteTouched } from "@/lib/supabase/access-errors";
 
 // Badge Types
 export async function getBadgeTypes(): Promise<BadgeType[]> {
@@ -91,9 +92,10 @@ export async function updateRewardTier(id: number, tier: RewardTierUpdate) {
 
 export async function deleteRewardTier(id: number) {
   const supabase = createClient();
-  const { error } = await supabase.from("reward_tiers").delete().eq("id", id);
+  const { data, error } = await supabase.from("reward_tiers").delete().eq("id", id).select("id");
 
   if (error) throw error;
+  assertWriteTouched(data, "ce palier");
 }
 
 // Period Reward Configs

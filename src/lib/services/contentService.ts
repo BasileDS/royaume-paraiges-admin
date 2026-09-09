@@ -18,6 +18,7 @@ import type {
   EstablishmentUpdate as EstablishmentUpdateType,
   ConsumptionType,
 } from "@/types/database";
+import { assertWriteTouched } from "@/lib/supabase/access-errors";
 
 // Types pour le contenu
 export interface Establishment {
@@ -554,12 +555,14 @@ export async function createLevelThreshold(
 
 export async function deleteLevelThreshold(id: number): Promise<void> {
   const supabase = createClient();
-  const { error } = await (supabase
+  const { data, error } = await (supabase
     .from("level_thresholds") as any)
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) throw error;
+  assertWriteTouched(data, "ce niveau");
 }
 
 export async function getXpPerEuro(): Promise<number> {

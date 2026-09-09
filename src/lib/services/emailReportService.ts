@@ -16,6 +16,7 @@ import {
   type ContactInput,
   type ContactUpdateInput,
 } from "@/lib/schemas/emailReport.schema";
+import { assertWriteTouched } from "@/lib/supabase/access-errors";
 
 /**
  * Acces aux rapports e-mail automatises (migrations 076/077).
@@ -247,11 +248,13 @@ export async function updateContact(id: string, input: ContactUpdateInput): Prom
 
 /** Supprime le contact et, par cascade, tous ses abonnements. */
 export async function deleteContact(id: string): Promise<void> {
-  const { error } = await reportsClient()
+  const { data, error } = await reportsClient()
     .from("email_report_contacts")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertWriteTouched(data, "ce contact");
 }
 
 // ---- Abonnements (cases a cocher) ------------------------------------------

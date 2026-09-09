@@ -10,6 +10,7 @@ import type {
   RedirectLink,
   RedirectLinkWithStats,
 } from "@/types/database";
+import { assertWriteTouched } from "@/lib/supabase/access-errors";
 
 /** Base publique des liens courts (projet url-rooting-app sur Vercel). */
 export const REDIRECT_BASE_URL = "https://redirects.auxparaiges.fr";
@@ -128,8 +129,10 @@ export async function updateRedirectLink(
 /** Supprime le lien ET son historique de clics (FK ON DELETE CASCADE). */
 export async function deleteRedirectLink(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await (supabase.from("redirect_links") as any)
+  const { data, error } = await (supabase.from("redirect_links") as any)
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertWriteTouched(data, "ce lien");
 }

@@ -19,6 +19,7 @@ import {
   questIterationsArraySchema,
   type QuestIterationInput,
 } from "@/lib/schemas/quest.schema";
+import { assertWriteTouched } from "@/lib/supabase/access-errors";
 
 // CRUD Quests
 export async function getQuests(periodType?: PeriodType): Promise<QuestWithRelations[]> {
@@ -102,9 +103,10 @@ export async function updateQuest(id: number, quest: QuestUpdate): Promise<Quest
 
 export async function deleteQuest(id: number): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("quests").delete().eq("id", id);
+  const { data, error } = await supabase.from("quests").delete().eq("id", id).select("id");
 
   if (error) throw error;
+  assertWriteTouched(data, "ce défi");
 }
 
 export async function toggleQuestActive(id: number, isActive: boolean): Promise<void> {

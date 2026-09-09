@@ -4,6 +4,7 @@ import type {
   CouponTemplateInsert,
   CouponTemplateUpdate,
 } from "@/types/database";
+import { assertWriteTouched } from "@/lib/supabase/access-errors";
 
 export async function getTemplates() {
   const supabase = createClient();
@@ -88,7 +89,8 @@ export async function toggleTemplateActive(id: number, isActive: boolean) {
 
 export async function deleteTemplate(id: number) {
   const supabase = createClient();
-  const { error } = await supabase.from("coupon_templates").delete().eq("id", id);
+  const { data, error } = await supabase.from("coupon_templates").delete().eq("id", id).select("id");
 
   if (error) throw error;
+  assertWriteTouched(data, "ce modèle");
 }

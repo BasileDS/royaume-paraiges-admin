@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { assertWriteTouched } from "@/lib/supabase/access-errors";
 
 /**
  * Stats agrégées et mappings pour la page Santé du matching Cashpad.
@@ -155,10 +156,12 @@ export async function createEmployeeMapping(params: {
 
 export async function deleteEmployeeMapping(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await (supabase.from("cashpad_employee_mappings") as any)
+  const { data, error } = await (supabase.from("cashpad_employee_mappings") as any)
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertWriteTouched(data, "ce mapping");
 }
 
 /**

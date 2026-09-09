@@ -12,6 +12,7 @@ import {
   type RankInput,
   type RankUpdateInput,
 } from "@/lib/schemas/rank.schema";
+import { assertWriteTouched } from "@/lib/supabase/access-errors";
 
 export async function getRanks(): Promise<Rank[]> {
   const supabase = createClient();
@@ -48,10 +49,12 @@ export async function updateRank(id: number, input: RankUpdateInput): Promise<Ra
 
 export async function deleteRank(id: number): Promise<void> {
   const supabase = createClient();
-  const { error } = await (supabase.from("ranks") as any)
+  const { data, error } = await (supabase.from("ranks") as any)
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  assertWriteTouched(data, "ce rang");
 }
 
 /**
