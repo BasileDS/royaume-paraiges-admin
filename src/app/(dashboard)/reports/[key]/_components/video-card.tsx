@@ -44,6 +44,7 @@ export function VideoCard({ report }: VideoCardProps) {
   const [previewPeriod, setPreviewPeriod] = useState<string | null>(null);
 
   const enabled = report.options?.video === true;
+  const subject = report.report_type === "new_quests" ? "des défis" : "du classement";
 
   const rendersQuery = useQuery({
     queryKey: emailReportKeys.videoRenders(report.id),
@@ -93,7 +94,7 @@ export function VideoCard({ report }: VideoCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Vidéo du classement</CardTitle>
+        <CardTitle className="text-base">Vidéo {subject}</CardTitle>
         <CardDescription>
           Jointe à l&apos;e-mail et réutilisable sur les réseaux sociaux. Conservée 7 jours,
           puis supprimée automatiquement.

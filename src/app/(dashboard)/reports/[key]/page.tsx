@@ -155,8 +155,10 @@ export default function ReportDetailPage() {
         <ReportActionsCard report={report} recipientsCount={activeRecipients} />
       </div>
 
-      {/* Seuls les rapports de classement ont un template video a date. */}
-      {report.report_type === "leaderboard" && <VideoCard report={report} />}
+      {/* Templates video a date : classement (leaderboard) et defis de la periode (new_quests). */}
+      {(report.report_type === "leaderboard" || report.report_type === "new_quests") && (
+        <VideoCard report={report} />
+      )}
 
       <RunsCard reportId={report.id} />
     </div>
