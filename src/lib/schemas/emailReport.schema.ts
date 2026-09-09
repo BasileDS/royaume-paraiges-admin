@@ -21,8 +21,10 @@ export const recipientSchema = z.object({
 export type RecipientInput = z.infer<typeof recipientSchema>;
 
 /**
- * Identifiant de periode : semaine ISO (2026-W33) ou mois (2026-07). Sert au
- * champ "renvoyer une periode passee" de la page de detail.
+ * Identifiant de periode : semaine ISO (2026-W33) ou mois (2026-07). Plus
+ * utilise par l'UI depuis que l'envoi manuel propose une liste de periodes
+ * (`reports/_lib/period-options.ts`) ; conserve pour valider un identifiant
+ * venu d'ailleurs (URL, import).
  */
 export const periodIdentifierSchema = z
   .string()

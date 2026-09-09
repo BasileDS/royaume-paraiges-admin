@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Eye, Send, TestTube } from "lucide-react";
@@ -8,6 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   previewReport,
@@ -15,19 +22,17 @@ import {
   type TriggerReportResult,
 } from "@/lib/services/emailReportService";
 import { emailReportKeys } from "@/lib/queries/keys";
-import { periodIdentifierSchema } from "@/lib/schemas/emailReport.schema";
 import type { EmailReport } from "@/types/database";
 import { defaultPeriodLabel } from "../../_lib/report-labels";
+import { buildReportPeriodOptions } from "../../_lib/period-options";
 
 interface ReportActionsCardProps {
   report: EmailReport;
   recipientsCount: number;
 }
 
-const PERIOD_PLACEHOLDER: Record<string, string> = {
-  weekly: "2026-W33",
-  monthly: "2026-07",
-};
+/** Valeur du selecteur pour « la periode visee par defaut » (Radix refuse ""). */
+const DEFAULT_PERIOD = "__default__";
 
 /** Message utilisateur a partir du resume renvoye par l'Edge Function. */
 function describeResult(result: TriggerReportResult): { ok: boolean; message: string } {
@@ -54,28 +59,23 @@ function describeResult(result: TriggerReportResult): { ok: boolean; message: st
 
 export function ReportActionsCard({ report, recipientsCount }: ReportActionsCardProps) {
   const queryClient = useQueryClient();
-  const [period, setPeriod] = useState("");
-  const [periodError, setPeriodError] = useState<string | null>(null);
+  const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [testEmail, setTestEmail] = useState("");
   const [busy, setBusy] = useState<"send" | "test" | "preview" | null>(null);
   const [confirmSend, setConfirmSend] = useState(false);
 
-  /** Periode saisie validee, ou undefined si le champ est vide. `false` = invalide. */
-  const resolvePeriod = (): string | undefined | false => {
-    const trimmed = period.trim();
-    if (!trimmed) return undefined;
-    const parsed = periodIdentifierSchema.safeParse(trimmed);
-    if (!parsed.success) {
-      setPeriodError(parsed.error.issues[0]?.message ?? "Periode invalide");
-      return false;
-    }
-    setPeriodError(null);
-    return parsed.data;
-  };
+  const periodOptions = useMemo(
+    () => buildReportPeriodOptions(report.period_type, report.period_scope),
+    [report.period_type, report.period_scope],
+  );
+  const selectedOption = periodOptions.find((o) => o.identifier === period);
+
+  /** Periode choisie, ou undefined pour laisser l'Edge Function viser la periode par defaut. */
+  const resolvePeriod = (): string | undefined =>
+    period === DEFAULT_PERIOD ? undefined : period;
 
   const onSend = async () => {
     const resolved = resolvePeriod();
-    if (resolved === false) return;
     setBusy("send");
     try {
       const result = await triggerReport({
@@ -98,7 +98,6 @@ export function ReportActionsCard({ report, recipientsCount }: ReportActionsCard
 
   const onTest = async () => {
     const resolved = resolvePeriod();
-    if (resolved === false) return;
     if (!testEmail.trim()) return;
     setBusy("test");
     try {
@@ -121,7 +120,6 @@ export function ReportActionsCard({ report, recipientsCount }: ReportActionsCard
 
   const onPreview = async () => {
     const resolved = resolvePeriod();
-    if (resolved === false) return;
     setBusy("preview");
     try {
       const { html } = await previewReport(report.key, resolved);
@@ -155,23 +153,32 @@ export function ReportActionsCard({ report, recipientsCount }: ReportActionsCard
 
       <CardContent className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="period">Periode (optionnel)</Label>
-          <Input
-            id="period"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            placeholder={PERIOD_PLACEHOLDER[report.period_type] ?? ""}
-            autoComplete="off"
-          />
-          {periodError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {periodError}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Permet de viser une autre periode que celle du prochain envoi.
-            </p>
-          )}
+          <Label htmlFor="period">Periode</Label>
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger id="period" className="w-full sm:max-w-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={DEFAULT_PERIOD}>
+                Par defaut ({defaultPeriodLabel(report)})
+              </SelectItem>
+              {periodOptions.map((option) => (
+                <SelectItem key={option.identifier} value={option.identifier}>
+                  <span className="flex flex-wrap items-baseline gap-x-2">
+                    <span>{option.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {option.range}
+                      {option.isDefault ? " · visee par defaut" : ""}
+                      {option.isCurrent && !option.isDefault ? " · en cours" : ""}
+                    </span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Permet de viser une autre periode que celle du prochain envoi.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -230,7 +237,9 @@ export function ReportActionsCard({ report, recipientsCount }: ReportActionsCard
           <>
             {recipientsCount} destinataire{recipientsCount > 1 ? "s" : ""} recevront{" "}
             <strong>{report.name}</strong>
-            {period.trim() ? ` pour la periode ${period.trim()}` : ` pour ${defaultPeriodLabel(report)}`}.
+            {selectedOption
+              ? ` pour ${selectedOption.label.toLowerCase()} (${selectedOption.range})`
+              : ` pour ${defaultPeriodLabel(report)}`}.
             Cette action est immediate et irreversible.
           </>
         }
