@@ -57,7 +57,7 @@ import {
 import { MenuItemSheet } from "./_components/menu-item-sheet";
 import { CategoryActionsSheet } from "./_components/category-actions-sheet";
 import { MenuActionBar } from "./_components/menu-action-bar";
-import { useMenuAccess } from "../_lib/access";
+import { useMenuAccess, formatEditableScope } from "../_lib/access";
 import {
   buildItemSearchIndex,
   buildSearchIndex,
@@ -87,9 +87,10 @@ export default function MenuDetailPage() {
   const establishmentId = Number(id);
   const queryClient = useQueryClient();
 
-  // Un admin ne modifie que la carte de son établissement de rattachement
-  // (migration 109) ; les autres s'ouvrent en lecture seule. La RLS refuse de
-  // toute façon, l'interface ne propose simplement pas les gestes.
+  // Un admin ne modifie que les cartes de son établissement de rattachement
+  // et de son groupe (migrations 109 + 113) ; les autres s'ouvrent en lecture
+  // seule. La RLS refuse de toute façon, l'interface ne propose simplement
+  // pas les gestes.
   const access = useMenuAccess(establishmentId);
   const readOnly = !access.canEdit;
 
@@ -138,10 +139,10 @@ export default function MenuDetailPage() {
   const summary = summariesQuery.data?.find(
     (s) => s.establishment_id === establishmentId,
   );
-  /** L'établissement de rattachement de l'admin, pour nommer sa carte dans le bandeau. */
-  const referenceSummary = summariesQuery.data?.find(
-    (s) => s.establishment_id === access.attachedEstablishmentId,
-  );
+  /** Les cartes que l'admin peut modifier, pour les nommer dans le bandeau. */
+  const editableTitles = (summariesQuery.data ?? [])
+    .filter((s) => access.editableEstablishmentIds.includes(s.establishment_id))
+    .map((s) => s.establishment_title);
 
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data]);
@@ -515,12 +516,8 @@ export default function MenuDetailPage() {
               <strong>Lecture seule.</strong>{" "}
               {access.attachedEstablishmentId !== null ? (
                 <>
-                  Vous ne pouvez modifier que la carte de{" "}
-                  <strong>
-                    {referenceSummary?.establishment_title ??
-                      "votre établissement de référence"}
-                  </strong>
-                  .
+                  Vous ne pouvez modifier que{" "}
+                  <strong>{formatEditableScope(editableTitles)}</strong>.
                 </>
               ) : (
                 <>

@@ -33,10 +33,11 @@ import type {
  * Accès à la couche menus (migrations 094 à 109).
  *
  * RLS admin-only en lecture ; en écriture, un admin ne touche que la carte de
- * son établissement de rattachement (`admin_can_edit_menu`, migration 109),
- * un super admin toutes. Le contrôle d'accès est délégué à PostgreSQL, il
- * n'est pas revérifié ici : l'interface se contente de ne pas proposer les
- * gestes qui échoueraient (`useMenuAccess`).
+ * son établissement de rattachement et celles des établissements de son
+ * groupe (`admin_can_edit_menu`, migrations 109 + 113), un super admin
+ * toutes. Le contrôle d'accès est délégué à PostgreSQL, il n'est pas
+ * revérifié ici : l'interface se contente de ne pas proposer les gestes qui
+ * échoueraient (`useMenuAccess`, nourri par `getEditableMenuEstablishments`).
  *
  * La carte publique ne passe PAS par ce service : elle appelle la RPC
  * `get_public_menu(slug)`, seul chemin ouvert à `anon`.
@@ -122,6 +123,20 @@ export function findMenuRedirectLink<T extends RedirectLink>(
 // ============================================================================
 // Vue d'ensemble : un établissement, l'état de sa carte
 // ============================================================================
+
+/**
+ * Établissements dont l'admin connecté peut modifier la carte, calculés en
+ * base par `admin_editable_menu_establishments` (migration 113) : tous pour
+ * un super admin, le rattachement et son groupe pour un admin disposant de
+ * la fonctionnalité, rien sinon. Une seule source de vérité : la règle n'est
+ * pas recalculée côté client.
+ */
+export async function getEditableMenuEstablishments(): Promise<number[]> {
+  const supabase = createClient();
+  const { data, error } = await (supabase.rpc as any)("admin_editable_menu_establishments");
+  if (error) throw error;
+  return ((data ?? []) as unknown[]).map((v) => Number(v));
+}
 
 /**
  * Résumé par établissement pour la liste `/menus`.

@@ -40,6 +40,19 @@ export async function POST(
     return NextResponse.json({ reason: "Réservé aux administrateurs." }, { status: 403 });
   }
 
+  // Le middleware bloque déjà /api/reports pour un admin privé de la
+  // fonctionnalité ; on le revérifie ici en base (admin_has_feature, migration
+  // 070) pour ne pas dépendre du seul routage.
+  const { data: hasFeature } = await (supabase.rpc as any)("admin_has_feature", {
+    p_feature_key: "reports",
+  });
+  if (hasFeature !== true) {
+    return NextResponse.json(
+      { reason: "La fonctionnalité Rapports est désactivée pour ce compte." },
+      { status: 403 },
+    );
+  }
+
   const serviceUrl = process.env.VIDEO_RENDER_URL;
   const serviceKey = process.env.VIDEO_RENDER_KEY;
   if (!serviceUrl || !serviceKey) {

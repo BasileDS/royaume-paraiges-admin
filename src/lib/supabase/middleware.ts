@@ -94,7 +94,12 @@ export async function updateSession(request: NextRequest) {
           (f: { feature_key: string }) => f.feature_key
         )
       );
-      const featureKey = resolveFeatureKey(pathname);
+      // Une route serveur (/api/reports/…) sert la page du même nom : elle
+      // hérite de sa fonctionnalité, sinon un admin restreint pourrait
+      // l'appeler directement.
+      const featureKey = resolveFeatureKey(
+        pathname.startsWith("/api/") ? pathname.slice("/api".length) : pathname,
+      );
 
       if (featureKey !== null && disabled.has(featureKey)) {
         const url = request.nextUrl.clone();

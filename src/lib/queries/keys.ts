@@ -212,6 +212,8 @@ export const menuKeys = {
   item: (id: number) => [...menuKeys.all, "item", id] as const,
   usedSources: (establishmentId: number) =>
     [...menuKeys.all, "usedSources", establishmentId] as const,
+  /** Établissements dont l'admin connecté peut modifier la carte (migration 113). */
+  editable: () => [...menuKeys.all, "editable"] as const,
 };
 
 export const emailReportKeys = {

@@ -14,9 +14,9 @@ interface MenuEditGuardProps {
 /**
  * Enveloppe les écrans d'édition d'une carte (formulaire produit) : rend ses
  * enfants si l'admin peut écrire sur cet établissement, sinon explique la
- * règle et renvoie vers la carte. La RLS refuserait de toute façon (migration
- * 109), mais mieux vaut ne pas laisser remplir un formulaire qui n'aboutira
- * pas.
+ * règle et renvoie vers la carte. La RLS refuserait de toute façon (migrations
+ * 109 + 113), mais mieux vaut ne pas laisser remplir un formulaire qui
+ * n'aboutira pas.
  */
 export function MenuEditGuard({ establishmentId, children }: MenuEditGuardProps) {
   const access = useMenuAccess(establishmentId);
@@ -37,7 +37,7 @@ export function MenuEditGuard({ establishmentId, children }: MenuEditGuardProps)
         title="Carte en lecture seule"
         description={
           access.attachedEstablishmentId !== null
-            ? "Vous ne pouvez modifier que la carte de votre établissement de référence."
+            ? "Vous ne pouvez modifier que les cartes de votre établissement de référence et de son groupe."
             : "Votre compte n'est rattaché à aucun établissement : demandez à un super admin de le rattacher pour modifier une carte."
         }
         action={

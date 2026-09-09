@@ -12,17 +12,19 @@ import {
 } from "@/lib/services/menuService";
 import { getRedirectLinks } from "@/lib/services/redirectLinkService";
 import { menuKeys, redirectLinkKeys } from "@/lib/queries/keys";
-import { useMenuAccess } from "./_lib/access";
+import { useMenuAccess, formatEditableScope } from "./_lib/access";
 import { EstablishmentMenuCard } from "./_components/establishment-menu-card";
 import { MenuQrSheet } from "./_components/menu-qr-sheet";
 
 const SKELETON_COUNT = 6;
 
 export default function MenusPage() {
-  // Un admin ne modifie que la carte de son établissement de rattachement
-  // (migration 109) : on la met en tête et on signale les autres en lecture seule.
+  // Un admin ne modifie que les cartes de son établissement de rattachement et
+  // de son groupe (migrations 109 + 113) : on les met en tête et on signale
+  // les autres en lecture seule.
   const access = useMenuAccess();
   const mine = access.attachedEstablishmentId;
+  const editable = access.editableEstablishmentIds;
 
   const summariesQuery = useQuery({
     queryKey: menuKeys.summaries(),
@@ -38,14 +40,19 @@ export default function MenusPage() {
 
   const rows = useMemo(() => {
     const list = summariesQuery.data ?? [];
-    if (mine === null) return list;
-    // Tri stable : l'ordre alphabétique du service est conservé derrière.
+    if (access.isSuperAdmin || editable.length === 0) return list;
+    // Tri stable : le rattachement d'abord, puis son groupe, puis l'ordre
+    // alphabétique du service.
+    const rank = (id: number) =>
+      id === mine ? 0 : editable.includes(id) ? 1 : 2;
     return [...list].sort(
-      (a, b) => Number(b.establishment_id === mine) - Number(a.establishment_id === mine),
+      (a, b) => rank(a.establishment_id) - rank(b.establishment_id),
     );
-  }, [summariesQuery.data, mine]);
+  }, [summariesQuery.data, mine, editable, access.isSuperAdmin]);
 
-  const mineTitle = rows.find((r) => r.establishment_id === mine)?.establishment_title;
+  const editableTitles = rows
+    .filter((r) => editable.includes(r.establishment_id))
+    .map((r) => r.establishment_title);
 
   // Établissement dont le QR code est ouvert. On garde le dernier affiché
   // pendant l'animation de fermeture (dérivé en rendu, pas dans un effet).
@@ -71,7 +78,7 @@ export default function MenusPage() {
           <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           {mine !== null ? (
             <span>
-              Vous pouvez modifier la carte de <strong>{mineTitle ?? "votre établissement"}</strong>.
+              Vous pouvez modifier <strong>{formatEditableScope(editableTitles)}</strong>.
               Les autres cartes s&apos;ouvrent en lecture seule.
             </span>
           ) : (
@@ -117,7 +124,7 @@ export default function MenusPage() {
               summary={r}
               link={findMenuRedirectLink(linksQuery.data ?? [], r.slug)}
               isMine={r.establishment_id === mine}
-              readOnly={!access.isLoading && !access.isSuperAdmin && r.establishment_id !== mine}
+              readOnly={!access.isLoading && !access.isSuperAdmin && !editable.includes(r.establishment_id)}
               onShowQr={() => setQrEstablishmentId(r.establishment_id)}
             />
           ))}
