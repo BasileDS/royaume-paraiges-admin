@@ -26,6 +26,7 @@ import type {
   MenuItemWithDetails,
   MenuSection,
   MenusDatabase,
+  RedirectLink,
 } from "@/types/database";
 
 /**
@@ -90,6 +91,35 @@ export async function getMenuCatalogProducts(): Promise<MenuCatalogProduct[]> {
 }
 
 // ============================================================================
+// Carte publique
+// ============================================================================
+
+/** Base publique des cartes (projet frère `royaume-menus` sur Vercel), une carte par slug. */
+export const PUBLIC_MENU_BASE_URL = "https://menus.auxparaiges.fr";
+
+/** URL de la carte publique d'un établissement. */
+export function buildPublicMenuUrl(slug: string): string {
+  return `${PUBLIC_MENU_BASE_URL}/${slug}`;
+}
+
+/**
+ * Le lien court dont la cible est la carte publique d'un établissement.
+ *
+ * Aucune FK entre `redirect_links` et `establishments` : le rapprochement se
+ * fait sur la cible par défaut du lien (`menus.auxparaiges.fr/<slug>`), à la
+ * casse et au `/` final près. C'est ce lien que les QR codes des tables
+ * encodent (cf. CLAUDE.md, « Carte publique et QR codes »).
+ */
+export function findMenuRedirectLink<T extends RedirectLink>(
+  links: readonly T[],
+  slug: string,
+): T | null {
+  const target = buildPublicMenuUrl(slug).toLowerCase();
+  const normalize = (url: string) => url.trim().toLowerCase().replace(/\/+$/, "");
+  return links.find((l) => normalize(l.target_url) === target) ?? null;
+}
+
+// ============================================================================
 // Vue d'ensemble : un établissement, l'état de sa carte
 // ============================================================================
 
@@ -107,7 +137,7 @@ export async function getEstablishmentMenuSummaries(): Promise<
 
   const estabRes = await supabase
     .from("establishments")
-    .select("id, title, slug, city, happy_hour_start, happy_hour_end")
+    .select("id, title, slug, city, logo, happy_hour_start, happy_hour_end")
     .order("title");
   if (estabRes.error) throw estabRes.error;
 
@@ -152,6 +182,7 @@ export async function getEstablishmentMenuSummaries(): Promise<
     title: string;
     city: string | null;
     slug: string;
+    logo: string | null;
     happy_hour_start: string | null;
     happy_hour_end: string | null;
   }[];
@@ -163,6 +194,7 @@ export async function getEstablishmentMenuSummaries(): Promise<
       establishment_title: e.title,
       slug: e.slug,
       city: e.city ?? null,
+      logo: e.logo ?? null,
       categories_count: cats.get(e.id) ?? 0,
       items_count: c?.items ?? 0,
       unplaced_count: c?.unplaced ?? 0,

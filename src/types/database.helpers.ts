@@ -568,6 +568,8 @@ export type EstablishmentMenuSummary = {
   establishment_title: string;
   slug: string;
   city: string | null;
+  /** Chemin du logo dans le bucket `content-assets`, a resoudre via `getImageUrl`. */
+  logo: string | null;
   categories_count: number;
   /** Items places sur la carte (category_id non NULL). */
   items_count: number;
