@@ -218,6 +218,8 @@ export const emailReportKeys = {
   all: ["emailReports"] as const,
   lists: () => [...emailReportKeys.all, "list"] as const,
   detail: (key: string) => [...emailReportKeys.all, "detail", key] as const,
+  contacts: () => [...emailReportKeys.all, "contacts"] as const,
+  recipientLinks: () => [...emailReportKeys.all, "recipientLinks"] as const,
   recipients: (reportId: string) => [...emailReportKeys.all, "recipients", reportId] as const,
   runs: (reportId: string) => [...emailReportKeys.all, "runs", reportId] as const,
   videoRenders: (reportId: string) => [...emailReportKeys.all, "videoRenders", reportId] as const,

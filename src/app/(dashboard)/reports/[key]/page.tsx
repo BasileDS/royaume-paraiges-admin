@@ -13,8 +13,9 @@ import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
+  countActiveRecipients,
   getEmailReportByKey,
-  getRecipients,
+  getReportRecipients,
   setReportActive,
 } from "@/lib/services/emailReportService";
 import { emailReportKeys } from "@/lib/queries/keys";
@@ -38,17 +39,17 @@ export default function ReportDetailPage() {
 
   const recipientsQuery = useQuery({
     queryKey: emailReportKeys.recipients(report?.id ?? ""),
-    queryFn: () => getRecipients(report!.id),
+    queryFn: () => getReportRecipients(report!.id),
     enabled: !!report,
   });
 
-  const activeRecipients = (recipientsQuery.data ?? []).filter((r) => r.is_active).length;
+  const activeRecipients = countActiveRecipients(recipientsQuery.data ?? []);
 
   const toggleActive = async () => {
     if (!report) return;
     if (!report.is_active && activeRecipients === 0) {
       toast.error("Aucun destinataire", {
-        description: "Ajoutez au moins une adresse active avant d'activer l'envoi.",
+        description: "Cochez au moins un destinataire actif avant d'activer l'envoi.",
       });
       return;
     }

@@ -23,6 +23,7 @@ const extraPages: { name: string; href: string; featureKey?: FeatureKey }[] = [
   { name: "Créer un coupon", href: "/coupons/create", featureKey: "coupons" },
   { name: "Créer une quête", href: "/quests/create", featureKey: "quests" },
   { name: "Santé des quêtes", href: "/quests/health", featureKey: "quests" },
+  { name: "Annuaire des destinataires", href: "/reports/recipients", featureKey: "reports" },
   { name: "Santé du matching Cashpad", href: "/reconciliation/health", featureKey: "reconciliation" },
   { name: "Périodes de classement", href: "/rewards/periods", featureKey: "rewards" },
   { name: "Paliers du leaderboard", href: "/rewards/tiers", featureKey: "rewards" },

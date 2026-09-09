@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -74,7 +76,7 @@ export default function ReportsPage() {
     // "skipped" le lendemain.
     if (!report.is_active && report.recipients_count === 0) {
       toast.error("Aucun destinataire", {
-        description: "Ajoutez au moins une adresse avant d'activer ce rapport.",
+        description: "Cochez au moins un destinataire avant d'activer ce rapport.",
       });
       return;
     }
@@ -131,7 +133,15 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Rapports e-mail"
-        description="Envois automatiques vers une liste d'adresses internes. Les bilans chiffres portent sur la periode ecoulee, les annonces sur la periode qui s'ouvre."
+        description="Envois automatiques vers des adresses internes definies une fois dans l'annuaire, puis cochees rapport par rapport. Les bilans chiffres portent sur la periode ecoulee, les annonces sur la periode qui s'ouvre."
+        actions={
+          <Button variant="outline" asChild>
+            <Link href="/reports/recipients">
+              <Users className="mr-2 h-4 w-4" aria-hidden="true" />
+              Annuaire des destinataires
+            </Link>
+          </Button>
+        }
       />
 
       {reports.length === 0 ? (

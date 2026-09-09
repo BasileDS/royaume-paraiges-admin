@@ -126,6 +126,7 @@ export const segmentLabels: Record<string, string> = {
   links: "Liens de redirection",
   menus: "Cartes & menus",
   reports: "Rapports e-mail",
+  recipients: "Destinataires",
   gdpr: "RGPD",
   documentation: "Documentation",
   settings: "Paramètres",

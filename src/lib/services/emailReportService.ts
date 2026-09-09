@@ -2,12 +2,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type {
   EmailReport,
+  EmailReportContact,
   EmailReportRecipient,
   EmailReportRun,
   EmailReportWithStats,
   EmailReportsDatabase,
+  ReportRecipientOption,
   ReportVideoRender,
 } from "@/types/database";
+import {
+  contactSchema,
+  contactUpdateSchema,
+  type ContactInput,
+  type ContactUpdateInput,
+} from "@/lib/schemas/emailReport.schema";
 
 /**
  * Acces aux rapports e-mail automatises (migrations 076/077).
@@ -33,8 +41,8 @@ function reportsClient(): SupabaseClient<EmailReportsDatabase> {
 
 /**
  * Liste des rapports, enrichie du nombre de destinataires actifs et du dernier
- * envoi. Trois requetes a plat plutot qu'un select imbrique : PostgREST ne sait
- * pas ramener "la derniere ligne par groupe" en une passe, et le volume est de
+ * envoi. Requetes a plat plutot qu'un select imbrique : PostgREST ne sait pas
+ * ramener "la derniere ligne par groupe" en une passe, et le volume est de
  * l'ordre de la dizaine de lignes.
  */
 export async function getEmailReports(): Promise<EmailReportWithStats[]> {
@@ -51,11 +59,15 @@ export async function getEmailReports(): Promise<EmailReportWithStats[]> {
 
   const ids = reports.map((r) => r.id);
 
-  const recipientsRes = await supabase
-    .from("email_report_recipients")
-    .select("report_id, is_active")
-    .in("report_id", ids);
+  const [recipientsRes, contactsRes] = await Promise.all([
+    supabase
+      .from("email_report_recipients")
+      .select("report_id, contact_id")
+      .in("report_id", ids),
+    supabase.from("email_report_contacts").select("id").eq("is_active", true),
+  ]);
   if (recipientsRes.error) throw recipientsRes.error;
+  if (contactsRes.error) throw contactsRes.error;
 
   const [runsRes, videosRes] = await Promise.all([
     supabase
@@ -72,9 +84,13 @@ export async function getEmailReports(): Promise<EmailReportWithStats[]> {
   if (runsRes.error) throw runsRes.error;
   if (videosRes.error) throw videosRes.error;
 
+  // Un contact suspendu ne compte pas : il est exclu de tous les envois.
+  const activeContactIds = new Set(
+    ((contactsRes.data ?? []) as Pick<EmailReportContact, "id">[]).map((c) => c.id),
+  );
   const activeCounts = new Map<string, number>();
-  for (const row of (recipientsRes.data ?? []) as Pick<EmailReportRecipient, "report_id" | "is_active">[]) {
-    if (!row.is_active) continue;
+  for (const row of (recipientsRes.data ?? []) as Pick<EmailReportRecipient, "report_id" | "contact_id">[]) {
+    if (!activeContactIds.has(row.contact_id)) continue;
     activeCounts.set(row.report_id, (activeCounts.get(row.report_id) ?? 0) + 1);
   }
 
@@ -114,14 +130,58 @@ export async function getEmailReportByKey(key: string): Promise<EmailReport> {
   return data as EmailReport;
 }
 
-export async function getRecipients(reportId: string): Promise<EmailReportRecipient[]> {
+/** Annuaire complet, dans l'ordre de saisie. */
+export async function getContacts(): Promise<EmailReportContact[]> {
+  const { data, error } = await reportsClient()
+    .from("email_report_contacts")
+    .select("*")
+    .order("created_at");
+  if (error) throw error;
+  return (data ?? []) as EmailReportContact[];
+}
+
+/**
+ * Toutes les lignes du pivot rapport <-> contact. Sert a l'annuaire pour
+ * afficher, par contact, les rapports auxquels il est abonne.
+ */
+export async function getRecipientLinks(): Promise<EmailReportRecipient[]> {
   const { data, error } = await reportsClient()
     .from("email_report_recipients")
     .select("*")
-    .eq("report_id", reportId)
     .order("created_at");
   if (error) throw error;
   return (data ?? []) as EmailReportRecipient[];
+}
+
+/**
+ * Liste a cocher d'un rapport : chaque contact de l'annuaire, avec l'id du
+ * pivot s'il est abonne. Deux requetes a plat plutot qu'un embed : le schema
+ * local `EmailReportsDatabase` ne declare pas de relations, et le volume est
+ * de quelques lignes.
+ */
+export async function getReportRecipients(reportId: string): Promise<ReportRecipientOption[]> {
+  const supabase = reportsClient();
+  const [contactsRes, linksRes] = await Promise.all([
+    supabase.from("email_report_contacts").select("*").order("created_at"),
+    supabase.from("email_report_recipients").select("*").eq("report_id", reportId),
+  ]);
+  if (contactsRes.error) throw contactsRes.error;
+  if (linksRes.error) throw linksRes.error;
+
+  const linkByContact = new Map<string, string>();
+  for (const link of (linksRes.data ?? []) as EmailReportRecipient[]) {
+    linkByContact.set(link.contact_id, link.id);
+  }
+
+  return ((contactsRes.data ?? []) as EmailReportContact[]).map((contact) => ({
+    contact,
+    recipient_id: linkByContact.get(contact.id) ?? null,
+  }));
+}
+
+/** Nombre de destinataires qui recevront effectivement le rapport. */
+export function countActiveRecipients(options: ReportRecipientOption[]): number {
+  return options.filter((o) => o.recipient_id !== null && o.contact.is_active).length;
 }
 
 export async function getRuns(reportId: string, limit = 20): Promise<EmailReportRun[]> {
@@ -163,34 +223,70 @@ export async function updateReportOptions(
   if (error) throw error;
 }
 
-export async function addRecipient(
-  reportId: string,
-  email: string,
-  label: string | null,
-): Promise<EmailReportRecipient> {
+// ---- Annuaire ---------------------------------------------------------------
+
+export async function createContact(input: ContactInput): Promise<EmailReportContact> {
+  const payload = contactSchema.parse(input);
   const { data, error } = await reportsClient()
-    .from("email_report_recipients")
-    .insert({ report_id: reportId, email, label })
+    .from("email_report_contacts")
+    .insert({ email: payload.email, label: payload.label ?? null })
     .select()
     .single();
   if (error) throw error;
-  return data as EmailReportRecipient;
+  return data as EmailReportContact;
 }
 
-export async function setRecipientActive(id: string, isActive: boolean): Promise<void> {
+export async function updateContact(id: string, input: ContactUpdateInput): Promise<void> {
+  const payload = contactUpdateSchema.parse(input);
   const { error } = await reportsClient()
-    .from("email_report_recipients")
-    .update({ is_active: isActive })
+    .from("email_report_contacts")
+    .update(payload)
     .eq("id", id);
   if (error) throw error;
 }
 
-export async function deleteRecipient(id: string): Promise<void> {
+/** Supprime le contact et, par cascade, tous ses abonnements. */
+export async function deleteContact(id: string): Promise<void> {
   const { error } = await reportsClient()
-    .from("email_report_recipients")
+    .from("email_report_contacts")
     .delete()
     .eq("id", id);
   if (error) throw error;
+}
+
+// ---- Abonnements (cases a cocher) ------------------------------------------
+
+/**
+ * Coche ou decoche un contact pour un rapport. Idempotent : cocher un contact
+ * deja abonne ne cree pas de doublon (contrainte uq_email_report_recipient),
+ * decocher un contact non abonne ne fait rien.
+ */
+export async function setReportRecipient(
+  reportId: string,
+  contactId: string,
+  subscribed: boolean,
+): Promise<void> {
+  const supabase = reportsClient();
+  if (subscribed) {
+    const { error } = await supabase
+      .from("email_report_recipients")
+      .upsert({ report_id: reportId, contact_id: contactId }, { onConflict: "report_id,contact_id" });
+    if (error) throw error;
+    return;
+  }
+  const { error } = await supabase
+    .from("email_report_recipients")
+    .delete()
+    .eq("report_id", reportId)
+    .eq("contact_id", contactId);
+  if (error) throw error;
+}
+
+/** Erreur 23505 : l'adresse existe deja dans l'annuaire. */
+export function isDuplicateContactError(err: unknown): boolean {
+  const code = (err as { code?: string } | null)?.code;
+  const message = err instanceof Error ? err.message : String(err);
+  return code === "23505" || message.includes("uq_email_report_contact_email");
 }
 
 // ============================================================================

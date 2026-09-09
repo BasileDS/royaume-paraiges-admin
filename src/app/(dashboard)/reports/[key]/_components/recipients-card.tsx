@@ -1,54 +1,89 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Trash2, UserPlus, Users } from "lucide-react";
+import { BookUser, UserPlus, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
-  addRecipient,
-  deleteRecipient,
-  getRecipients,
-  setRecipientActive,
+  countActiveRecipients,
+  createContact,
+  getReportRecipients,
+  isDuplicateContactError,
+  setReportRecipient,
 } from "@/lib/services/emailReportService";
 import { emailReportKeys } from "@/lib/queries/keys";
-import { recipientSchema } from "@/lib/schemas/emailReport.schema";
-import type { EmailReportRecipient } from "@/types/database";
+import { contactSchema } from "@/lib/schemas/emailReport.schema";
+import type { ReportRecipientOption } from "@/types/database";
 
 interface RecipientsCardProps {
   reportId: string;
 }
 
+/**
+ * Destinataires d'un rapport : l'annuaire (`email_report_contacts`) presente en
+ * cases a cocher. Une adresse se definit une fois, ici ou dans /reports/recipients,
+ * puis se coche rapport par rapport. Le formulaire d'ajout cree le contact dans
+ * l'annuaire ET le coche pour ce rapport, pour ne pas imposer un aller-retour.
+ */
 export function RecipientsCard({ reportId }: RecipientsCardProps) {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [label, setLabel] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<EmailReportRecipient | null>(null);
+  const [pendingContactId, setPendingContactId] = useState<string | null>(null);
 
   const recipientsQuery = useQuery({
     queryKey: emailReportKeys.recipients(reportId),
-    queryFn: () => getRecipients(reportId),
+    queryFn: () => getReportRecipients(reportId),
   });
 
-  const recipients = recipientsQuery.data ?? [];
+  const options = recipientsQuery.data ?? [];
+  const activeCount = countActiveRecipients(options);
+  const checkedCount = options.filter((o) => o.recipient_id !== null).length;
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: emailReportKeys.recipients(reportId) });
-    // Le compteur de destinataires est affiche sur la liste des rapports.
-    queryClient.invalidateQueries({ queryKey: emailReportKeys.lists() });
+    // Le compteur de destinataires est affiche sur la liste des rapports, et
+    // l'annuaire affiche les rapports de chaque contact.
+    queryClient.invalidateQueries({ queryKey: emailReportKeys.all });
+  };
+
+  const onToggle = async (option: ReportRecipientOption, checked: boolean) => {
+    setPendingContactId(option.contact.id);
+    // Optimiste : la case reagit tout de suite, le refetch confirme.
+    queryClient.setQueryData<ReportRecipientOption[]>(
+      emailReportKeys.recipients(reportId),
+      (current) =>
+        (current ?? []).map((o) =>
+          o.contact.id === option.contact.id
+            ? { ...o, recipient_id: checked ? "pending" : null }
+            : o,
+        ),
+    );
+    try {
+      await setReportRecipient(reportId, option.contact.id, checked);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur", {
+        description: "Impossible de modifier ce destinataire. Verifiez vos droits sur cette fonctionnalite.",
+      });
+    } finally {
+      setPendingContactId(null);
+      invalidate();
+    }
   };
 
   const onAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = recipientSchema.safeParse({
+    const parsed = contactSchema.safeParse({
       email: email.trim(),
       label: label.trim() || null,
     });
@@ -59,62 +94,128 @@ export function RecipientsCard({ reportId }: RecipientsCardProps) {
     setFormError(null);
     setAdding(true);
     try {
-      await addRecipient(reportId, parsed.data.email, parsed.data.label ?? null);
+      let contactId: string;
+      let reused = false;
+      try {
+        const contact = await createContact(parsed.data);
+        contactId = contact.id;
+      } catch (err) {
+        // L'adresse existe deja dans l'annuaire : on la coche plutot que de
+        // renvoyer l'admin la chercher dans la liste.
+        const existing = options.find((o) => o.contact.email === parsed.data.email);
+        if (!isDuplicateContactError(err) || !existing) throw err;
+        if (existing.recipient_id !== null) {
+          setFormError("Cette adresse est deja cochee pour ce rapport.");
+          return;
+        }
+        contactId = existing.contact.id;
+        reused = true;
+      }
+      await setReportRecipient(reportId, contactId, true);
       setEmail("");
       setLabel("");
       invalidate();
-      toast.success("Destinataire ajoute");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      // Contrainte uq_email_report_recipient : meme adresse deja presente.
-      setFormError(
-        message.includes("uq_email_report_recipient") || message.includes("duplicate")
-          ? "Cette adresse est deja dans la liste."
-          : "Ajout impossible. Verifiez vos droits sur cette fonctionnalite.",
+      toast.success(
+        reused ? "Destinataire coche" : "Destinataire ajoute",
+        reused
+          ? { description: "Cette adresse existait deja dans l'annuaire : elle a ete cochee pour ce rapport." }
+          : { description: "L'adresse est aussi disponible pour les autres rapports." },
       );
+    } catch (err) {
+      console.error(err);
+      setFormError("Ajout impossible. Verifiez vos droits sur cette fonctionnalite.");
     } finally {
       setAdding(false);
     }
   };
 
-  const onToggle = async (recipient: EmailReportRecipient) => {
-    try {
-      await setRecipientActive(recipient.id, !recipient.is_active);
-      invalidate();
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur", { description: "Impossible de modifier ce destinataire" });
-    }
-  };
-
-  const onDelete = async () => {
-    if (!pendingDelete) return;
-    try {
-      await deleteRecipient(pendingDelete.id);
-      invalidate();
-      toast.success(`${pendingDelete.email} retire de la liste`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur", { description: "Suppression impossible" });
-    } finally {
-      setPendingDelete(null);
-    }
-  };
-
-  const activeCount = recipients.filter((r) => r.is_active).length;
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Destinataires</CardTitle>
-        <CardDescription>
-          Adresses internes (equipe, gerants). {activeCount} active
-          {activeCount > 1 ? "s" : ""} sur {recipients.length}.
-        </CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">Destinataires</CardTitle>
+            <CardDescription className="mt-1.5">
+              Cochez les adresses de l&apos;annuaire qui recoivent ce rapport.{" "}
+              {activeCount} destinataire{activeCount > 1 ? "s" : ""} actif
+              {activeCount > 1 ? "s" : ""}
+              {checkedCount > activeCount
+                ? ` sur ${checkedCount} coche${checkedCount > 1 ? "s" : ""}`
+                : ""}
+              .
+            </CardDescription>
+          </div>
+          <Button variant="ghost" size="sm" asChild className="shrink-0">
+            <Link href="/reports/recipients">
+              <BookUser className="mr-2 h-4 w-4" aria-hidden="true" />
+              Annuaire
+            </Link>
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <form onSubmit={onAdd} className="space-y-3">
+        <div className="rounded-md border">
+          {recipientsQuery.isLoading ? (
+            <div className="space-y-2 p-4">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-10 animate-pulse rounded bg-muted" />
+              ))}
+            </div>
+          ) : options.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="Annuaire vide"
+              description="Ajoutez une premiere adresse ci-dessous : elle sera cochee pour ce rapport et disponible pour les autres."
+            />
+          ) : (
+            <ul className="divide-y">
+              {options.map((option) => {
+                const { contact } = option;
+                const checked = option.recipient_id !== null;
+                const inputId = `recipient-${contact.id}`;
+                return (
+                  <li key={contact.id} className="flex items-center gap-3 px-4 py-3">
+                    <Checkbox
+                      id={inputId}
+                      checked={checked}
+                      disabled={pendingContactId === contact.id}
+                      onCheckedChange={(value) => onToggle(option, value === true)}
+                      aria-label={`${checked ? "Decocher" : "Cocher"} ${contact.email}`}
+                    />
+                    <Label
+                      htmlFor={inputId}
+                      className={
+                        contact.is_active
+                          ? "min-w-0 flex-1 cursor-pointer font-normal"
+                          : "min-w-0 flex-1 cursor-pointer font-normal text-muted-foreground"
+                      }
+                    >
+                      <span className="block truncate text-sm font-medium">{contact.email}</span>
+                      {contact.label && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {contact.label}
+                        </span>
+                      )}
+                    </Label>
+                    {!contact.is_active && (
+                      <Badge
+                        variant="outline"
+                        className="shrink-0"
+                        title="Suspendu dans l'annuaire : exclu de tous les envois, meme coche."
+                      >
+                        Suspendu
+                      </Badge>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <form onSubmit={onAdd} className="space-y-3 border-t pt-4">
+          <p className="text-sm font-medium">Nouvelle adresse</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="recipient-email">Adresse e-mail</Label>
@@ -145,83 +246,10 @@ export function RecipientsCard({ reportId }: RecipientsCardProps) {
           )}
           <Button type="submit" size="sm" disabled={adding || !email.trim()}>
             <UserPlus className="mr-2 h-4 w-4" aria-hidden="true" />
-            {adding ? "Ajout..." : "Ajouter"}
+            {adding ? "Ajout..." : "Ajouter et cocher"}
           </Button>
         </form>
-
-        <div className="rounded-md border">
-          {recipientsQuery.isLoading ? (
-            <div className="space-y-2 p-4">
-              {[0, 1].map((i) => (
-                <div key={i} className="h-10 animate-pulse rounded bg-muted" />
-              ))}
-            </div>
-          ) : recipients.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="Aucun destinataire"
-              description="Ce rapport ne partira nulle part tant que la liste est vide."
-            />
-          ) : (
-            <ul className="divide-y">
-              {recipients.map((recipient) => (
-                <li
-                  key={recipient.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p
-                      className={
-                        recipient.is_active
-                          ? "truncate text-sm font-medium"
-                          : "truncate text-sm font-medium text-muted-foreground line-through"
-                      }
-                    >
-                      {recipient.email}
-                    </p>
-                    {recipient.label && (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {recipient.label}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Switch
-                      checked={recipient.is_active}
-                      onCheckedChange={() => onToggle(recipient)}
-                      aria-label={`${recipient.is_active ? "Suspendre" : "Reactiver"} ${recipient.email}`}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      aria-label={`Retirer ${recipient.email}`}
-                      onClick={() => setPendingDelete(recipient)}
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       </CardContent>
-
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        onOpenChange={(open) => !open && setPendingDelete(null)}
-        title="Retirer ce destinataire ?"
-        description={
-          <>
-            <strong>{pendingDelete?.email}</strong> ne recevra plus ce rapport. Pour
-            une pause temporaire, utilisez plutot l&apos;interrupteur.
-          </>
-        }
-        confirmLabel="Retirer"
-        destructive
-        onConfirm={onDelete}
-      />
     </Card>
   );
 }

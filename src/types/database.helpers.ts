@@ -200,14 +200,36 @@ export type EmailReport = {
   updated_at: string;
 }
 
-export type EmailReportRecipient = {
+/**
+ * Annuaire des destinataires (migration 112) : une adresse definie une fois,
+ * cochee ou decochee rapport par rapport via `email_report_recipients`.
+ */
+export type EmailReportContact = {
   id: string;
-  report_id: string;
   /** Normalisee en minuscules par un trigger BDD. */
   email: string;
   label: string | null;
+  /** false = suspendu : exclu de tous les envois, abonnements conserves. */
   is_active: boolean;
   created_at: string;
+  updated_at: string;
+}
+
+/** Pivot rapport <-> contact : une ligne = ce rapport part a ce contact. */
+export type EmailReportRecipient = {
+  id: string;
+  report_id: string;
+  contact_id: string;
+  created_at: string;
+}
+
+/**
+ * Ligne de la liste a cocher d'un rapport : chaque contact de l'annuaire, avec
+ * l'id du pivot s'il est abonne a ce rapport.
+ */
+export type ReportRecipientOption = {
+  contact: EmailReportContact;
+  recipient_id: string | null;
 }
 
 export type EmailReportRun = {
@@ -295,10 +317,9 @@ export type EmailReportsDatabase = {
         };
         Relationships: [];
       };
-      email_report_recipients: {
-        Row: EmailReportRecipient;
+      email_report_contacts: {
+        Row: EmailReportContact;
         Insert: {
-          report_id: string;
           email: string;
           label?: string | null;
           is_active?: boolean;
@@ -308,6 +329,15 @@ export type EmailReportsDatabase = {
           label?: string | null;
           is_active?: boolean;
         };
+        Relationships: [];
+      };
+      email_report_recipients: {
+        Row: EmailReportRecipient;
+        Insert: {
+          report_id: string;
+          contact_id: string;
+        };
+        Update: Record<string, never>;
         Relationships: [];
       };
       // Journal ecrit exclusivement par l'Edge Function en service_role : aucune
