@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Clapperboard, RefreshCw } from "lucide-react";
+import { Clapperboard, Play, RefreshCw } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -55,7 +55,11 @@ export function VideoCard({ report }: VideoCardProps) {
   });
 
   const renders = rendersQuery.data ?? [];
-  const latest = renders[0] ?? null;
+  // Les videos sont purgees a 7 jours : seules les lignes `ready` ont encore
+  // un fichier a lire. La plus recente d'entre elles est celle qu'on propose
+  // en tete, meme si un rendu plus frais est en cours ou en erreur.
+  const readyRenders = renders.filter((r) => r.status === "ready");
+  const latestReady = readyRenders[0] ?? null;
 
   const previewQuery = useQuery({
     queryKey: emailReportKeys.videoUrl(report.key, previewPeriod ?? ""),
@@ -132,12 +136,13 @@ export function VideoCard({ report }: VideoCardProps) {
             />
             Générer un aperçu
           </Button>
-          {latest?.status === "ready" && (
+          {latestReady && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setPreviewPeriod(latest.period_identifier)}
+              onClick={() => setPreviewPeriod(latestReady.period_identifier)}
             >
+              <Play className="mr-2 h-4 w-4" aria-hidden="true" />
               Regarder la dernière vidéo
             </Button>
           )}
@@ -145,6 +150,15 @@ export function VideoCard({ report }: VideoCardProps) {
 
         {previewPeriod !== null && (
           <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Vidéo de la période <span className="font-medium">{previewPeriod}</span>
+              {readyRenders.length > 1 && (
+                <>
+                  {" "}· {readyRenders.length} vidéos encore disponibles, choisissez-en une
+                  autre dans la liste ci-dessous.
+                </>
+              )}
+            </p>
             {previewQuery.isLoading ? (
               <div className="aspect-[9/16] w-full max-w-[280px] animate-pulse rounded-lg bg-muted" />
             ) : previewQuery.data ? (
@@ -197,6 +211,19 @@ export function VideoCard({ report }: VideoCardProps) {
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={render.status} />
+                    {render.status === "ready" && (
+                      <Button
+                        variant={
+                          previewPeriod === render.period_identifier ? "secondary" : "ghost"
+                        }
+                        size="sm"
+                        onClick={() => setPreviewPeriod(render.period_identifier)}
+                        aria-label={`Regarder la vidéo ${render.period_identifier}`}
+                      >
+                        <Play className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                        Regarder
+                      </Button>
+                    )}
                     {render.status !== "rendering" && (
                       <Button
                         variant="ghost"

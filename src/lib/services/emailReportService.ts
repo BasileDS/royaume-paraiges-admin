@@ -57,12 +57,20 @@ export async function getEmailReports(): Promise<EmailReportWithStats[]> {
     .in("report_id", ids);
   if (recipientsRes.error) throw recipientsRes.error;
 
-  const runsRes = await supabase
-    .from("email_report_runs")
-    .select("*")
-    .in("report_id", ids)
-    .order("started_at", { ascending: false });
+  const [runsRes, videosRes] = await Promise.all([
+    supabase
+      .from("email_report_runs")
+      .select("*")
+      .in("report_id", ids)
+      .order("started_at", { ascending: false }),
+    supabase
+      .from("report_video_renders")
+      .select("*")
+      .in("report_id", ids)
+      .order("updated_at", { ascending: false }),
+  ]);
   if (runsRes.error) throw runsRes.error;
+  if (videosRes.error) throw videosRes.error;
 
   const activeCounts = new Map<string, number>();
   for (const row of (recipientsRes.data ?? []) as Pick<EmailReportRecipient, "report_id" | "is_active">[]) {
@@ -77,10 +85,22 @@ export async function getEmailReports(): Promise<EmailReportWithStats[]> {
     if (!lastRuns.has(run.report_id)) lastRuns.set(run.report_id, run);
   }
 
+  // Une video `ready` encore en bucket prime sur un rendu plus recent mais
+  // inexploitable (en cours, en erreur, purge) : c'est elle qu'on peut lire.
+  const readyVideos = new Map<string, ReportVideoRender>();
+  const lastVideos = new Map<string, ReportVideoRender>();
+  for (const render of (videosRes.data ?? []) as ReportVideoRender[]) {
+    if (!lastVideos.has(render.report_id)) lastVideos.set(render.report_id, render);
+    if (render.status === "ready" && !readyVideos.has(render.report_id)) {
+      readyVideos.set(render.report_id, render);
+    }
+  }
+
   return reports.map((report) => ({
     ...report,
     recipients_count: activeCounts.get(report.id) ?? 0,
     last_run: lastRuns.get(report.id) ?? null,
+    latest_video: readyVideos.get(report.id) ?? lastVideos.get(report.id) ?? null,
   }));
 }
 

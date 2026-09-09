@@ -249,6 +249,13 @@ export type ReportVideoRender = {
 export type EmailReportWithStats = EmailReport & {
   recipients_count: number;
   last_run: EmailReportRun | null;
+  /**
+   * Rendu video le plus parlant pour la liste : la video `ready` la plus
+   * recente si une existe encore dans le bucket, sinon le dernier rendu quel
+   * que soit son etat (`rendering`, `error`, `expired`...). `null` si le
+   * rapport n'a jamais ete rendu.
+   */
+  latest_video: ReportVideoRender | null;
 };
 
 /**

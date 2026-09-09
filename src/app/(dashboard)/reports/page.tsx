@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarClock, MailCheck, Users } from "lucide-react";
+import { CalendarClock, Clapperboard, MailCheck, Users } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -21,6 +21,41 @@ import { emailReportKeys } from "@/lib/queries/keys";
 import { formatDateTime } from "@/lib/utils";
 import type { EmailReportWithStats } from "@/types/database";
 import { cadenceLabel, coverageLabel } from "./_lib/report-labels";
+
+/**
+ * Mention de la video dans la liste. Une video `ready` est lisible depuis le
+ * detail du rapport ; les autres etats disent ou en est le rendu. Un rapport
+ * sans option video ni rendu n'affiche rien : la video n'est pas son sujet.
+ */
+function VideoBadge({ report }: { report: EmailReportWithStats }) {
+  const video = report.latest_video;
+  const enabled = report.options?.video === true;
+  if (!video && !enabled) return null;
+
+  let label: string;
+  let className = "";
+  if (video?.status === "ready") {
+    label = `Vidéo prête · ${video.period_identifier}`;
+    className = "border-emerald-500/40 text-emerald-700 dark:text-emerald-400";
+  } else if (video?.status === "rendering" || video?.status === "queued") {
+    label = `Vidéo en cours · ${video.period_identifier}`;
+  } else if (video?.status === "error") {
+    label = `Vidéo en erreur · ${video.period_identifier}`;
+    className = "border-destructive/40 text-destructive";
+  } else if (enabled) {
+    label = "Vidéo jointe, aucun rendu disponible";
+  } else {
+    // Rendu purge apres 7 jours, option desactivee depuis : rien a lire.
+    return null;
+  }
+
+  return (
+    <Badge variant="outline" className={`gap-1 ${className}`}>
+      <Clapperboard className="h-3 w-3" aria-hidden="true" />
+      {label}
+    </Badge>
+  );
+}
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -166,6 +201,7 @@ export default function ReportsPage() {
                     {report.recipients_count} destinataire
                     {report.recipients_count > 1 ? "s" : ""}
                   </Badge>
+                  <VideoBadge report={report} />
                 </div>
 
                 <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
