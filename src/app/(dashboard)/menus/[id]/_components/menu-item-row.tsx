@@ -63,9 +63,21 @@ export function HappyHourTag({ className }: { className?: string }) {
   );
 }
 
-function PriceLine({ variants, muted }: { variants: MenuItemVariant[]; muted: boolean }) {
+function PriceLine({
+  variants,
+  muted,
+  unplaced,
+}: {
+  variants: MenuItemVariant[];
+  muted: boolean;
+  unplaced: boolean;
+}) {
   if (variants.length === 0) {
-    return (
+    // Hors carte, l'item est de toute façon invisible sur la carte publique :
+    // l'alerte n'apporterait rien, on signale seulement l'absence de tarif.
+    return unplaced ? (
+      <span className="text-xs text-muted-foreground">Aucun format tarifé</span>
+    ) : (
       <span className="text-xs text-amber-700 dark:text-amber-400">
         Aucun format tarifé : invisible sur la carte publique
       </span>
@@ -159,7 +171,7 @@ export function MenuItemRow({
           {item.description}
         </span>
       )}
-      <PriceLine variants={item.variants} muted={inactive} />
+      <PriceLine variants={item.variants} muted={inactive} unplaced={item.category_id === null} />
     </>
   );
 
